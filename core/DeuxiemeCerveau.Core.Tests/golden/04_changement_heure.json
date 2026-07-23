@@ -1,0 +1,47 @@
+{
+  "nom": "changement_heure",
+  "description": "Passage à l'heure d'été (Paris, 29 mars 2026) : l'abonnement quotidien de 02:30 n'est pas perdu le jour du changement (heure décalée, D-002), le loyer « le 5 » reste le 5 (règle 6).",
+  "requete": {
+    "premier_mois": "2026-03",
+    "nombre_mois": 2,
+    "solde_reference": { "solde_reference_centimes": 100000, "solde_reference_date": "2026-03-01" },
+    "elements": [
+      {
+        "id": "44444444-4444-4444-4444-444444444401",
+        "type": "facture",
+        "titre": "Abonnement quotidien",
+        "date_debut": "2026-03-28T01:30:00Z",
+        "fuseau": "Europe/Paris",
+        "recurrence": "FREQ=DAILY",
+        "montant_centimes": 999,
+        "devise": "EUR",
+        "sens": "sortie",
+        "statut": "a_venir",
+        "date_creation": "2026-02-01T08:00:00Z",
+        "date_modification": "2026-02-01T08:00:00Z",
+        "appareil_source": "aaaaaaaa-0000-0000-0000-000000000001",
+        "version": 1
+      },
+      {
+        "id": "44444444-4444-4444-4444-444444444402",
+        "type": "facture",
+        "titre": "Loyer",
+        "date_debut": "2026-03-05T08:00:00Z",
+        "fuseau": "Europe/Paris",
+        "recurrence": "FREQ=MONTHLY",
+        "montant_centimes": 80000,
+        "devise": "EUR",
+        "sens": "sortie",
+        "statut": "a_venir",
+        "date_creation": "2026-02-01T08:00:00Z",
+        "date_modification": "2026-02-01T08:00:00Z",
+        "appareil_source": "aaaaaaaa-0000-0000-0000-000000000001",
+        "version": 1
+      }
+    ]
+  },
+  "attendu": [
+    { "mois": "2026-03", "ouverture_centimes": 100000, "entrees_centimes": 0, "sorties_centimes": 83996, "cloture_centimes": 16004, "decouvert": false, "avant_reference": false },
+    { "mois": "2026-04", "ouverture_centimes": 16004, "entrees_centimes": 0, "sorties_centimes": 109970, "cloture_centimes": -93966, "decouvert": true, "avant_reference": false }
+  ]
+}

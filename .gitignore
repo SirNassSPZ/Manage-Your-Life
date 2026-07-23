@@ -1,0 +1,19 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+artifacts/
+TestResults/
+
+# Secrets locaux — jamais dans git (règle 16)
+.env
+*.local.json
+local.settings.json
+
+# OS / éditeurs
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

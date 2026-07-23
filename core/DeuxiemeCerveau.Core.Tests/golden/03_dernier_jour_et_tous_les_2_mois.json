@@ -1,0 +1,51 @@
+{
+  "nom": "dernier_jour_et_tous_les_2_mois",
+  "description": "Récurrences tordues (§12) : BYMONTHDAY=-1 (dernier jour du mois, février compris) et INTERVAL=2 (tous les 2 mois).",
+  "requete": {
+    "premier_mois": "2026-01",
+    "nombre_mois": 6,
+    "solde_reference": { "solde_reference_centimes": 0, "solde_reference_date": "2026-01-01" },
+    "elements": [
+      {
+        "id": "33333333-3333-3333-3333-333333333301",
+        "type": "facture",
+        "titre": "Électricité",
+        "date_debut": "2026-01-31T08:00:00Z",
+        "fuseau": "Europe/Paris",
+        "recurrence": "FREQ=MONTHLY;INTERVAL=2;BYMONTHDAY=-1",
+        "montant_centimes": 12345,
+        "devise": "EUR",
+        "sens": "sortie",
+        "statut": "a_venir",
+        "date_creation": "2025-12-01T08:00:00Z",
+        "date_modification": "2025-12-01T08:00:00Z",
+        "appareil_source": "aaaaaaaa-0000-0000-0000-000000000001",
+        "version": 1
+      },
+      {
+        "id": "33333333-3333-3333-3333-333333333302",
+        "type": "revenu",
+        "titre": "Prime",
+        "date_debut": "2026-01-31T16:00:00Z",
+        "fuseau": "Europe/Paris",
+        "recurrence": "FREQ=MONTHLY;BYMONTHDAY=-1",
+        "montant_centimes": 50000,
+        "devise": "EUR",
+        "sens": "entree",
+        "statut": "attendu",
+        "date_creation": "2025-12-01T08:00:00Z",
+        "date_modification": "2025-12-01T08:00:00Z",
+        "appareil_source": "aaaaaaaa-0000-0000-0000-000000000001",
+        "version": 1
+      }
+    ]
+  },
+  "attendu": [
+    { "mois": "2026-01", "ouverture_centimes": 0, "entrees_centimes": 50000, "sorties_centimes": 12345, "cloture_centimes": 37655, "decouvert": false, "avant_reference": false },
+    { "mois": "2026-02", "ouverture_centimes": 37655, "entrees_centimes": 50000, "sorties_centimes": 0, "cloture_centimes": 87655, "decouvert": false, "avant_reference": false },
+    { "mois": "2026-03", "ouverture_centimes": 87655, "entrees_centimes": 50000, "sorties_centimes": 12345, "cloture_centimes": 125310, "decouvert": false, "avant_reference": false },
+    { "mois": "2026-04", "ouverture_centimes": 125310, "entrees_centimes": 50000, "sorties_centimes": 0, "cloture_centimes": 175310, "decouvert": false, "avant_reference": false },
+    { "mois": "2026-05", "ouverture_centimes": 175310, "entrees_centimes": 50000, "sorties_centimes": 12345, "cloture_centimes": 212965, "decouvert": false, "avant_reference": false },
+    { "mois": "2026-06", "ouverture_centimes": 212965, "entrees_centimes": 50000, "sorties_centimes": 0, "cloture_centimes": 262965, "decouvert": false, "avant_reference": false }
+  ]
+}

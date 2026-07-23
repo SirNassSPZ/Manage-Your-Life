@@ -1,0 +1,31 @@
+{
+  "nom": "reference_ancienne",
+  "description": "Solde de référence antérieur au premier mois affiché (recalage pas refait depuis mai) : la cascade démarre au mois de la référence, les flux intermédiaires alimentent l'ouverture du premier mois affiché (D-004).",
+  "requete": {
+    "premier_mois": "2026-07",
+    "nombre_mois": 2,
+    "solde_reference": { "solde_reference_centimes": 200000, "solde_reference_date": "2026-05-01" },
+    "elements": [
+      {
+        "id": "66666666-6666-6666-6666-666666666601",
+        "type": "facture",
+        "titre": "Mensualité",
+        "date_debut": "2026-05-10T08:00:00Z",
+        "fuseau": "Europe/Paris",
+        "recurrence": "FREQ=MONTHLY",
+        "montant_centimes": 50000,
+        "devise": "EUR",
+        "sens": "sortie",
+        "statut": "a_venir",
+        "date_creation": "2026-04-01T08:00:00Z",
+        "date_modification": "2026-04-01T08:00:00Z",
+        "appareil_source": "aaaaaaaa-0000-0000-0000-000000000001",
+        "version": 1
+      }
+    ]
+  },
+  "attendu": [
+    { "mois": "2026-07", "ouverture_centimes": 100000, "entrees_centimes": 0, "sorties_centimes": 50000, "cloture_centimes": 50000, "decouvert": false, "avant_reference": false },
+    { "mois": "2026-08", "ouverture_centimes": 50000, "entrees_centimes": 0, "sorties_centimes": 50000, "cloture_centimes": 0, "decouvert": false, "avant_reference": false }
+  ]
+}

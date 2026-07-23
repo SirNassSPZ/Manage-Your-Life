@@ -1,0 +1,92 @@
+{
+  "nom": "statuts_et_corbeille",
+  "description": "Fenêtre et statuts (§5.1.3, D-004) : annulé exclu, supprimé (corbeille) exclu, payé antérieur à la référence exclu (déjà dans le solde), payé/reçu postérieurs inclus. Référence en milieu de mois.",
+  "requete": {
+    "premier_mois": "2026-07",
+    "nombre_mois": 2,
+    "solde_reference": { "solde_reference_centimes": 100000, "solde_reference_date": "2026-07-10" },
+    "elements": [
+      {
+        "id": "55555555-5555-5555-5555-555555555501",
+        "type": "facture",
+        "titre": "Annulée",
+        "date_debut": "2026-07-15T10:00:00Z",
+        "fuseau": "Europe/Paris",
+        "montant_centimes": 50000,
+        "devise": "EUR",
+        "sens": "sortie",
+        "statut": "annule",
+        "date_creation": "2026-06-01T08:00:00Z",
+        "date_modification": "2026-06-01T08:00:00Z",
+        "appareil_source": "aaaaaaaa-0000-0000-0000-000000000001",
+        "version": 1
+      },
+      {
+        "id": "55555555-5555-5555-5555-555555555502",
+        "type": "facture",
+        "titre": "Payée après la référence",
+        "date_debut": "2026-07-12T10:00:00Z",
+        "fuseau": "Europe/Paris",
+        "montant_centimes": 20000,
+        "devise": "EUR",
+        "sens": "sortie",
+        "statut": "paye",
+        "date_creation": "2026-06-01T08:00:00Z",
+        "date_modification": "2026-06-01T08:00:00Z",
+        "appareil_source": "aaaaaaaa-0000-0000-0000-000000000001",
+        "version": 1
+      },
+      {
+        "id": "55555555-5555-5555-5555-555555555503",
+        "type": "facture",
+        "titre": "Payée avant la référence",
+        "date_debut": "2026-07-05T10:00:00Z",
+        "fuseau": "Europe/Paris",
+        "montant_centimes": 30000,
+        "devise": "EUR",
+        "sens": "sortie",
+        "statut": "paye",
+        "date_creation": "2026-06-01T08:00:00Z",
+        "date_modification": "2026-06-01T08:00:00Z",
+        "appareil_source": "aaaaaaaa-0000-0000-0000-000000000001",
+        "version": 1
+      },
+      {
+        "id": "55555555-5555-5555-5555-555555555504",
+        "type": "facture",
+        "titre": "À la corbeille",
+        "date_debut": "2026-07-20T10:00:00Z",
+        "fuseau": "Europe/Paris",
+        "montant_centimes": 40000,
+        "devise": "EUR",
+        "sens": "sortie",
+        "statut": "a_venir",
+        "date_creation": "2026-06-01T08:00:00Z",
+        "date_modification": "2026-07-21T00:00:00Z",
+        "appareil_source": "aaaaaaaa-0000-0000-0000-000000000001",
+        "version": 2,
+        "supprime": true,
+        "date_suppression": "2026-07-21T00:00:00Z"
+      },
+      {
+        "id": "55555555-5555-5555-5555-555555555505",
+        "type": "revenu",
+        "titre": "Reçu après la référence",
+        "date_debut": "2026-07-11T10:00:00Z",
+        "fuseau": "Europe/Paris",
+        "montant_centimes": 15000,
+        "devise": "EUR",
+        "sens": "entree",
+        "statut": "recu",
+        "date_creation": "2026-06-01T08:00:00Z",
+        "date_modification": "2026-06-01T08:00:00Z",
+        "appareil_source": "aaaaaaaa-0000-0000-0000-000000000001",
+        "version": 1
+      }
+    ]
+  },
+  "attendu": [
+    { "mois": "2026-07", "ouverture_centimes": 100000, "entrees_centimes": 15000, "sorties_centimes": 20000, "cloture_centimes": 95000, "decouvert": false, "avant_reference": false },
+    { "mois": "2026-08", "ouverture_centimes": 95000, "entrees_centimes": 0, "sorties_centimes": 0, "cloture_centimes": 95000, "decouvert": false, "avant_reference": false }
+  ]
+}

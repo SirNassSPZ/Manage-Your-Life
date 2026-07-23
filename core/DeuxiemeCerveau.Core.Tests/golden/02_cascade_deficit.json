@@ -1,0 +1,49 @@
+{
+  "nom": "cascade_deficit",
+  "description": "Mois négatifs en cascade (§5.1.5) : une clôture négative devient l'ouverture du mois suivant, le déficit s'accumule.",
+  "requete": {
+    "premier_mois": "2026-07",
+    "nombre_mois": 4,
+    "solde_reference": { "solde_reference_centimes": 50000, "solde_reference_date": "2026-07-01" },
+    "elements": [
+      {
+        "id": "22222222-2222-2222-2222-222222222201",
+        "type": "facture",
+        "titre": "Crédit",
+        "date_debut": "2026-07-15T10:00:00Z",
+        "fuseau": "Europe/Paris",
+        "recurrence": "FREQ=MONTHLY",
+        "montant_centimes": 90000,
+        "devise": "EUR",
+        "sens": "sortie",
+        "statut": "a_venir",
+        "date_creation": "2026-06-01T08:00:00Z",
+        "date_modification": "2026-06-01T08:00:00Z",
+        "appareil_source": "aaaaaaaa-0000-0000-0000-000000000001",
+        "version": 1
+      },
+      {
+        "id": "22222222-2222-2222-2222-222222222202",
+        "type": "revenu",
+        "titre": "Aide",
+        "date_debut": "2026-08-01T06:00:00Z",
+        "fuseau": "Europe/Paris",
+        "recurrence": "FREQ=MONTHLY",
+        "montant_centimes": 60000,
+        "devise": "EUR",
+        "sens": "entree",
+        "statut": "attendu",
+        "date_creation": "2026-06-01T08:00:00Z",
+        "date_modification": "2026-06-01T08:00:00Z",
+        "appareil_source": "aaaaaaaa-0000-0000-0000-000000000001",
+        "version": 1
+      }
+    ]
+  },
+  "attendu": [
+    { "mois": "2026-07", "ouverture_centimes": 50000, "entrees_centimes": 0, "sorties_centimes": 90000, "cloture_centimes": -40000, "decouvert": true, "avant_reference": false },
+    { "mois": "2026-08", "ouverture_centimes": -40000, "entrees_centimes": 60000, "sorties_centimes": 90000, "cloture_centimes": -70000, "decouvert": true, "avant_reference": false },
+    { "mois": "2026-09", "ouverture_centimes": -70000, "entrees_centimes": 60000, "sorties_centimes": 90000, "cloture_centimes": -100000, "decouvert": true, "avant_reference": false },
+    { "mois": "2026-10", "ouverture_centimes": -100000, "entrees_centimes": 60000, "sorties_centimes": 90000, "cloture_centimes": -130000, "decouvert": true, "avant_reference": false }
+  ]
+}

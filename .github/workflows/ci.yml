@@ -1,0 +1,27 @@
+# CI — cœur métier (Étape 1)
+# Les tests exhaustifs et les golden files (§12) sont vérifiés à chaque poussée :
+# la spec fait foi, la CI le prouve. Le déploiement (Étape 2, Bicep) s'ajoutera ici.
+name: ci
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  coeur:
+    name: Tests du cœur métier
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Installer .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Compiler (avertissements = erreurs sur le cœur)
+        run: dotnet build DeuxiemeCerveau.sln -c Release
+
+      - name: Tests exhaustifs + golden files (§12)
+        run: dotnet test DeuxiemeCerveau.sln -c Release --no-build --logger "console;verbosity=normal"

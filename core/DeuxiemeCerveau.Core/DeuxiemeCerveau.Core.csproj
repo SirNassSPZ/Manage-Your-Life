@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <RootNamespace>DeuxiemeCerveau.Core</RootNamespace>
+    <!-- Règle 4 : aucune dépendance — le cœur ne sait pas qu'il tourne sur Azure. -->
+    <!-- ICU requis pour les fuseaux IANA : ne jamais activer InvariantGlobalization. -->
+    <InvariantGlobalization>false</InvariantGlobalization>
+  </PropertyGroup>
+
+</Project>

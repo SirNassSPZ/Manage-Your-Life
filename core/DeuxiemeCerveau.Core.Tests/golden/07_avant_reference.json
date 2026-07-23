@@ -1,0 +1,46 @@
+{
+  "nom": "avant_reference",
+  "description": "Solde de référence daté après le début de la fenêtre affichée : aucun solde projetable avant le point de départ (§3.4) — mois marqués avant_reference, soldes null, flux non calculés (D-004).",
+  "requete": {
+    "premier_mois": "2026-07",
+    "nombre_mois": 3,
+    "solde_reference": { "solde_reference_centimes": 100000, "solde_reference_date": "2026-08-01" },
+    "elements": [
+      {
+        "id": "77777777-7777-7777-7777-777777777701",
+        "type": "facture",
+        "titre": "Avant la référence",
+        "date_debut": "2026-07-15T10:00:00Z",
+        "fuseau": "Europe/Paris",
+        "montant_centimes": 25000,
+        "devise": "EUR",
+        "sens": "sortie",
+        "statut": "a_venir",
+        "date_creation": "2026-06-01T08:00:00Z",
+        "date_modification": "2026-06-01T08:00:00Z",
+        "appareil_source": "aaaaaaaa-0000-0000-0000-000000000001",
+        "version": 1
+      },
+      {
+        "id": "77777777-7777-7777-7777-777777777702",
+        "type": "facture",
+        "titre": "Après la référence",
+        "date_debut": "2026-08-15T10:00:00Z",
+        "fuseau": "Europe/Paris",
+        "montant_centimes": 25000,
+        "devise": "EUR",
+        "sens": "sortie",
+        "statut": "a_venir",
+        "date_creation": "2026-06-01T08:00:00Z",
+        "date_modification": "2026-06-01T08:00:00Z",
+        "appareil_source": "aaaaaaaa-0000-0000-0000-000000000001",
+        "version": 1
+      }
+    ]
+  },
+  "attendu": [
+    { "mois": "2026-07", "ouverture_centimes": null, "entrees_centimes": 0, "sorties_centimes": 0, "cloture_centimes": null, "decouvert": false, "avant_reference": true },
+    { "mois": "2026-08", "ouverture_centimes": 100000, "entrees_centimes": 0, "sorties_centimes": 25000, "cloture_centimes": 75000, "decouvert": false, "avant_reference": false },
+    { "mois": "2026-09", "ouverture_centimes": 75000, "entrees_centimes": 0, "sorties_centimes": 0, "cloture_centimes": 75000, "decouvert": false, "avant_reference": false }
+  ]
+}
