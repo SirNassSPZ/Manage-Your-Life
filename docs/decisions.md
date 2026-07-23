@@ -6,14 +6,14 @@
 ---
 
 ## D-001 — Pile technique du cœur métier
-**Statut : à valider** · Étape 1 · 2026-07-23
+**Statut : validée** (2026-07-23, décision déléguée par l'utilisateur) · Étape 1
 
 - `/core` : bibliothèque **.NET 8** (`DeuxiemeCerveau.Core`), C#, **aucune dépendance de production** (BCL uniquement) — conforme à la règle 4 (aucune bibliothèque Azure ; on va plus loin : aucune bibliothèque du tout).
 - Tests : xUnit ; `Microsoft.Data.Sqlite` **dans le projet de tests uniquement** (pour exécuter réellement les migrations locales).
 - Vocabulaire du domaine en français (types, propriétés), aligné mot pour mot sur la spec.
 
 ## D-002 — Fuseaux horaires : `TimeZoneInfo` + identifiants IANA
-**Statut : à valider** · Étape 1
+**Statut : validée** (2026-07-23, décision déléguée par l'utilisateur) · Étape 1
 
 - Identifiants IANA résolus via `TimeZoneInfo` (ICU sur toutes les plateformes .NET 8). `UTC` accepté comme alias explicite ; les identifiants **Windows** (« Romance Standard Time ») sont **rejetés** pour empêcher toute divergence entre appareils.
 - Heure locale **inexistante** (passage à l'heure d'été) : décalée de la durée du saut (02:30 → 03:30 pour un saut d'une heure), convention standard.
@@ -21,7 +21,7 @@
 - Ces deux conventions doivent être implémentées **à l'identique** côté Swift (spécifiées ici pour ça).
 
 ## D-003 — RRULE : sous-ensemble RFC 5545 implémenté dans le cœur, rejet bruyant du reste
-**Statut : à valider** · Étape 1
+**Statut : validée** (2026-07-23, décision déléguée par l'utilisateur) · Étape 1
 
 Le format est RRULE (RFC 5545), sans format maison (règle 6). Pour garantir une **parité vérifiable** entre les deux apps, le cœur implémente un sous-ensemble précis plutôt que de dépendre du comportement d'une bibliothèque tierce différente de chaque côté :
 
@@ -33,7 +33,7 @@ Le format est RRULE (RFC 5545), sans format maison (règle 6). Pour garantir une
 - L'expansion produit des heures **locales** (« le loyer du 5 reste le 5 »), converties en UTC selon D-002.
 
 ## D-004 — Budget projeté : précisions d'algorithme
-**Statut : à valider** · Étape 1
+**Statut : validée** (2026-07-23, décision déléguée par l'utilisateur) · Étape 1
 
 La spec (§5.1) fixe l'algorithme ; précisions nécessaires à une implémentation déterministe :
 
@@ -46,7 +46,7 @@ La spec (§5.1) fixe l'algorithme ; précisions nécessaires à une implémentat
 - Solde de référence **négatif autorisé** (découvert réel).
 
 ## D-005 — Arbitrage des conflits : précisions
-**Statut : à valider** · Étape 1
+**Statut : validée** (2026-07-23, décision déléguée par l'utilisateur) · Étape 1
 
 - **Détection** : conflit si la version entrante est ≤ à la version courante du serveur (modification concurrente depuis la même base) ; sinon application directe.
 - **Résolution** : dernière écriture gagne sur `date_modification` (UTC). **Égalité stricte : le changement déjà appliqué (premier arrivé au serveur) gagne**, l'entrant est archivé — déterministe et stable au rejeu.
@@ -56,7 +56,7 @@ La spec (§5.1) fixe l'algorithme ; précisions nécessaires à une implémentat
 - Le moteur n'est pas thread-safe : l'adaptateur (API) sérialise les lots (usage mono-personne ; la transaction SQL assure l'atomicité).
 
 ## D-006 — Entités synchronisées au-delà de l'Élément
-**Statut : à valider** · Étape 1
+**Statut : validée** (2026-07-23, décision déléguée par l'utilisateur) · Étape 1
 
 - Le moteur de synchro est **générique** : `element`, `categorie`, `projet`, `budget`, `piece_jointe`, `reglage` partagent les mêmes champs d'audit/synchro et le même arbitrage (« écrit une seule fois »). Le pull renvoie toutes ces entités (§8 cite Éléments/catégories/projets ; pièces jointes et réglages en ont autant besoin — scénario §12 pièce jointe lisible sur B, et §3.4 réglage « synchronisé comme le reste »).
 - `change_log` reçoit une colonne `entite` (défaut `'element'`) ; `element_id` devient l'identifiant générique d'entité (nom de colonne conservé, §9 affiné sans changement de sémantique).
@@ -64,7 +64,7 @@ La spec (§5.1) fixe l'algorithme ; précisions nécessaires à une implémentat
 - **Fermeture de projet** (§3.2) : appliquée côté serveur au moment du push. Les tâches `a_faire` non supprimées du projet passent `reporte` via des changements induits à `change_id` **déterministe** (UUIDv5 du couple changement déclencheur + tâche) — le rejeu du lot ne les réapplique pas. `date_modification` et appareil hérités du changement déclencheur ; version de tâche incrémentée. Déclenchement : toute application d'un projet en statut `termine` ou `en_pause` (pas de détection de transition — idempotent par construction, les tâches déjà `reporte` ne matchent plus).
 
 ## D-007 — JSON canonique
-**Statut : à valider** · Étape 1
+**Statut : validée** (2026-07-23, décision déléguée par l'utilisateur) · Étape 1
 
 - Noms de champs : **français en `snake_case`**, exactement ceux de la spec (§3.1, §9).
 - Dates : UTC ISO 8601 avec suffixe `Z` (`2026-07-23T10:00:00Z`, fractions de seconde omises si nulles) ; `solde_reference_date` en date pure `AAAA-MM-JJ`.
@@ -74,7 +74,7 @@ La spec (§5.1) fixe l'algorithme ; précisions nécessaires à une implémentat
 - Les `rappels` sont portés par le payload de l'Élément et stockés en colonne JSON (`rappels`) — §9 affiné (aucune table dédiée nécessaire en V1).
 
 ## D-008 — Migrations : deux dialectes par migration
-**Statut : à valider** · Étape 1
+**Statut : validée** (2026-07-23, décision déléguée par l'utilisateur) · Étape 1
 
 - Chaque migration numérotée porte **deux scripts équivalents** : T-SQL (Azure SQL) et SQLite (bases locales). La liste vit dans le cœur (`ListeMigrations`) ; côté Swift elle est **répliquée à l'identique** depuis ce fichier de référence.
 - Un test de parité structurelle vérifie que les deux dialectes définissent les **mêmes tables et colonnes** (aux types près), les tables locales supplémentaires (`outbox`, `sync_etat`) étant explicitement listées.
@@ -82,7 +82,7 @@ La spec (§5.1) fixe l'algorithme ; précisions nécessaires à une implémentat
 - Affinements du §9 (sémantique inchangée) : colonne `entite` sur `change_log` ; champs d'audit/synchro explicités sur `categories`, `projets`, `budgets`, `attachments` ; `settings` complétée des champs de synchro ; colonne JSON `rappels` sur `elements` ; index `ix_*_seq` sur chaque table synchronisée.
 
 ## D-009 — Validations : points tranchés
-**Statut : à valider** · Étape 1
+**Statut : validée** (2026-07-23, décision déléguée par l'utilisateur) · Étape 1
 
 - Statuts : seule l'**appartenance** à la table §3.1 est validée (aucun graphe de transitions imposé — la spec n'en définit pas).
 - Types financiers (`facture`, `paiement`, `revenu`) : `montant_centimes` (entier ≥ 0), `devise` (format ISO 4217 `[A-Z]{3}`) et `sens` **requis** ; `sens` doit être cohérent avec le type (`revenu` → `entree`, `facture`/`paiement` → `sortie`). Ces trois champs sont **interdits** sur les autres types.
@@ -95,6 +95,19 @@ La spec (§5.1) fixe l'algorithme ; précisions nécessaires à une implémentat
 - Taille de lot push plafonnée à 500 changements (défensif).
 
 ## Q-001 — Question ouverte : propagation de la purge manuelle
-**Statut : ouverte** · à trancher avant l'Étape 3
+**Statut : tranchée par D-010** (2026-07-23)
 
-La purge définitive (§5.6) est la seule destruction réelle, mais le contrat §8 n'expose **aucune route de purge**. Une purge locale seule ferait « ressusciter » l'entité au pull suivant. Options : (a) route `POST /purge` dédiée V1, (b) purge locale différée jusqu'à V2, (c) purge = suppression serveur + trace au journal. **À décider avec l'utilisateur avant l'Étape 3 ; la spec devra être modifiée d'abord (§8).**
+La purge définitive (§5.6) est la seule destruction réelle, mais le contrat §8 v3.1 n'exposait **aucune route de purge**. Une purge locale seule ferait « ressusciter » l'entité au pull suivant. → Résolue par la décision D-010 ci-dessous, intégrée à la spec **v3.2** (modifiée d'abord, conformément à la consigne).
+
+## D-010 — Purge arbitrée par le serveur, propagée par le pull, protégée par pierre tombale
+**Statut : validée** (2026-07-23, décision déléguée par l'utilisateur) · spec v3.2 (§5.6, §6.2, §8, §9)
+
+Choix retenu : option (a) enrichie — route dédiée `POST /purge` en V1, avec destruction réelle et anti-résurrection. Principes, dans l'ordre de priorité :
+
+1. **La conservation gagne toute course.** Une purge n'est acceptée que si l'entité est **encore `supprime = true`** quand la demande atteint le serveur. Restaurée entre-temps → purge **refusée** (`refusee`), et l'appareil qui avait purgé localement récupère l'entité au pull suivant. Une purge d'entité inconnue est refusée aussi (jamais de destruction par identifiant deviné).
+2. **Destruction réelle, protocole intact.** Purge acceptée : état supprimé ; payloads du journal de cette entité **caviardés** (`{"purge":true}`) en conservant `server_seq`/`change_id`/`resultat` (idempotence et continuité des séquences) ; **pierre tombale** dans `purges` (migration 002) ; l'événement consomme un `server_seq` ordinaire et le **pull transporte les purges** — chaque appareil supprime définitivement sa copie locale.
+3. **Anti-résurrection.** Tout changement poussé vers une entité tombale est refusé **sans archivage du payload** (`refuse_purge`) — entorse unique et assumée au filet 3, couverte par la confirmation explicite de la purge ; l'app abandonne l'entrée d'outbox et purge sa copie locale.
+4. **Alignement §7** : la purge d'un Élément purge ses pièces jointes (changements induits à `change_id` UUIDv5 déterministes, rejouables). Le blob lui-même est détruit par l'adaptateur (Étape 3). Le `reglage` n'est pas purgeable.
+5. **Idempotence et atomicité** comme le push : `change_id` par demande, lot tout-ou-rien pour les erreurs de validation (les refus sont des résultats, pas des erreurs).
+
+Écarté : (b) purge différée en V2 — laisserait la « seule destruction réelle » inopérante en multi-appareils ; (c) suppression serveur sans tombale — résurrection garantie par le premier appareil resté hors-ligne.

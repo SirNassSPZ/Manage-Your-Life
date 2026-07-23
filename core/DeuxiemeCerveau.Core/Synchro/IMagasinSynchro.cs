@@ -31,6 +31,28 @@ public interface IMagasinSynchro
     /// <summary>Tâches « a_faire » non supprimées d'un projet — cascade de fermeture (§3.2).</summary>
     IReadOnlyList<EtatEntite> TachesAFaireDuProjet(Guid projetId);
 
+    // ----- Purge (§5.6, D-010) — l'unique chemin de destruction réelle de l'application -----
+
+    /// <summary>Pierre tombale d'une entité purgée, ou null.</summary>
+    PierreTombale? ObtenirTombale(EntiteSynchro entite, Guid id);
+
+    void AjouterTombale(PierreTombale tombale);
+
+    /// <summary>Destruction réelle de l'état — appelé uniquement par le processeur de purge (§5.6).</summary>
+    void SupprimerEtat(EntiteSynchro entite, Guid id);
+
+    /// <summary>
+    /// Remplace les payloads journalisés de l'entité par le marqueur de purge, en conservant les
+    /// métadonnées (server_seq, change_id, resultat) — idempotence et séquences intactes (D-010).
+    /// </summary>
+    void CaviarderJournal(EntiteSynchro entite, Guid id, string marqueur);
+
+    /// <summary>Tombales dont server_seq &gt; depuis, ordonnées par server_seq croissant, au plus limite.</summary>
+    IReadOnlyList<PierreTombale> PurgesDepuis(long depuis, int limite);
+
+    /// <summary>Pièces jointes (supprimées ou non) d'un Élément — cascade de purge (§7, D-010).</summary>
+    IReadOnlyList<EtatEntite> PiecesJointesDeLElement(Guid elementId);
+
     /// <summary>Atomicité par lot (§6.2.2) : tout ou rien. Toute exception annule l'ensemble.</summary>
     void DansTransaction(Action action);
 }

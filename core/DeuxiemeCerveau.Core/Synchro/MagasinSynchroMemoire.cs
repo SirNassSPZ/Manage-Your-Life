@@ -9,9 +9,10 @@ namespace DeuxiemeCerveau.Core.Synchro;
 /// </summary>
 public sealed class MagasinSynchroMemoire : IMagasinSynchro
 {
-    private readonly Dictionary<(EntiteSynchro, Guid), EtatEntite> _etats = new();
-    private readonly List<EntreeJournal> _journal = new();
-    private readonly Dictionary<Guid, EntreeJournal> _journalParChangeId = new();
+    private Dictionary<(EntiteSynchro, Guid), EtatEntite> _etats = new();
+    private List<EntreeJournal> _journal = new();
+    private Dictionary<Guid, EntreeJournal> _journalParChangeId = new();
+    private Dictionary<(EntiteSynchro, Guid), PierreTombale> _tombales = new();
     private long _seq;
 
     public IReadOnlyList<EntreeJournal> Journal => _journal;
@@ -59,11 +60,53 @@ public sealed class MagasinSynchroMemoire : IMagasinSynchro
             .OrderBy(e => e.ServerSeq) // ordre déterministe — même cascade partout
             .ToList();
 
+    // ----- Purge (§5.6, D-010) -----
+
+    public PierreTombale? ObtenirTombale(EntiteSynchro entite, Guid id)
+        => _tombales.GetValueOrDefault((entite, id));
+
+    public void AjouterTombale(PierreTombale tombale)
+        => _tombales[(tombale.Entite, tombale.Id)] = tombale;
+
+    public void SupprimerEtat(EntiteSynchro entite, Guid id)
+        => _etats.Remove((entite, id));
+
+    public void CaviarderJournal(EntiteSynchro entite, Guid id, string marqueur)
+    {
+        for (var i = 0; i < _journal.Count; i++)
+        {
+            var entree = _journal[i];
+            if (entree.Entite != entite || entree.EntiteId != id || entree.Payload == marqueur)
+                continue;
+            var caviardee = entree with { Payload = marqueur };
+            _journal[i] = caviardee;
+            _journalParChangeId[entree.ChangeId] = caviardee;
+        }
+    }
+
+    public IReadOnlyList<PierreTombale> PurgesDepuis(long depuis, int limite)
+        => _tombales.Values
+            .Where(t => t.ServerSeq > depuis)
+            .OrderBy(t => t.ServerSeq)
+            .Take(limite)
+            .ToList();
+
+    public IReadOnlyList<EtatEntite> PiecesJointesDeLElement(Guid elementId)
+        => _etats.Values
+            .Where(e => e.Entite == EntiteSynchro.PieceJointe)
+            .Where(e => SerialisationCanonique.Deserialiser<PieceJointe>(e.PayloadCanonique).ElementId == elementId)
+            .OrderBy(e => e.ServerSeq)
+            .ToList();
+
     public void DansTransaction(Action action)
     {
-        // Tout ou rien (§6.2.2) : instantané avant, restauration en cas d'échec.
+        // Tout ou rien (§6.2.2) : instantané complet avant, restauration intégrale en cas d'échec
+        // (le caviardage de purge modifie des entrées de journal existantes — la copie superficielle
+        // suffit, les enregistrements étant immuables).
         var etatsAvant = new Dictionary<(EntiteSynchro, Guid), EtatEntite>(_etats);
-        var journalAvant = _journal.Count;
+        var journalAvant = new List<EntreeJournal>(_journal);
+        var journalParChangeIdAvant = new Dictionary<Guid, EntreeJournal>(_journalParChangeId);
+        var tombalesAvant = new Dictionary<(EntiteSynchro, Guid), PierreTombale>(_tombales);
         var seqAvant = _seq;
         try
         {
@@ -71,14 +114,10 @@ public sealed class MagasinSynchroMemoire : IMagasinSynchro
         }
         catch
         {
-            _etats.Clear();
-            foreach (var (cle, valeur) in etatsAvant)
-                _etats[cle] = valeur;
-            for (var i = _journal.Count - 1; i >= journalAvant; i--)
-            {
-                _journalParChangeId.Remove(_journal[i].ChangeId);
-                _journal.RemoveAt(i);
-            }
+            _etats = etatsAvant;
+            _journal = journalAvant;
+            _journalParChangeId = journalParChangeIdAvant;
+            _tombales = tombalesAvant;
             _seq = seqAvant;
             throw;
         }

@@ -51,11 +51,16 @@ public sealed class LotPush
     public List<ChangementPush> Changements { get; set; } = new();
 }
 
-/// <summary>Résultat serveur d'un changement : « applique » ou « perdant_archive » (§6.2.4).</summary>
+/// <summary>
+/// Résultat serveur d'un changement au journal (§6.2.4, §5.6) : appliqué, perdant archivé (filet 3),
+/// purge (D-010), ou refus d'un changement visant une entité purgée (anti-résurrection, D-010).
+/// </summary>
 public enum ResultatChangement
 {
     Applique,
     PerdantArchive,
+    Purge,
+    RefusePurge,
 }
 
 public sealed record ResultatPush(
@@ -96,11 +101,64 @@ public sealed record EntreeJournal(
     ResultatChangement Resultat,
     DateTimeOffset RecuLe);
 
-/// <summary>Page de pull (§6.2) : entités modifiées depuis le curseur + nouveau curseur.</summary>
+/// <summary>Page de pull (§6.2) : entités modifiées et purges (§5.6) depuis le curseur + nouveau curseur.</summary>
 public sealed record PagePull(
     IReadOnlyList<EtatEntite> Entites,
+    IReadOnlyList<PierreTombale> Purges,
     long Curseur,
     bool Encore);
+
+/// <summary>
+/// Pierre tombale d'une purge (§5.6, D-010) : mémoire durable qu'une entité a été détruite —
+/// transportée par le pull, elle interdit toute résurrection par un appareil retardataire.
+/// </summary>
+public sealed record PierreTombale(
+    EntiteSynchro Entite,
+    Guid Id,
+    long ServerSeq,
+    Guid ChangeId,
+    Guid AppareilId,
+    DateTimeOffset PurgeLe);
+
+/// <summary>Demande de purge d'une entité de la corbeille (§5.6). Nom de fil « element_id » comme au §6.2.</summary>
+public sealed class DemandePurge
+{
+    public Guid ChangeId { get; set; }
+
+    public EntiteSynchro Entite { get; set; } = EntiteSynchro.Element;
+
+    [System.Text.Json.Serialization.JsonPropertyName("element_id")]
+    public Guid EntiteId { get; set; }
+}
+
+/// <summary>Lot de purge (`POST /purge`, §8) : idempotent par change_id, atomique pour les erreurs de validation.</summary>
+public sealed class LotPurge
+{
+    public Guid AppareilId { get; set; }
+
+    public List<DemandePurge> Purges { get; set; } = new();
+}
+
+/// <summary>Issue d'une demande de purge : purgée, ou refusée (les refus sont des résultats, pas des erreurs).</summary>
+public enum StatutPurge
+{
+    Purgee,
+    Refusee,
+}
+
+public sealed record ResultatPurge(
+    Guid ChangeId,
+    StatutPurge Statut,
+    long ServerSeq,
+    bool Rejoue,
+    string? Motif);
+
+/// <summary>Purge induite par cascade (pièces jointes d'un Élément purgé, §7, D-010).</summary>
+public sealed record PurgeInduite(Guid ChangeId, EntiteSynchro Entite, Guid EntiteId, long ServerSeq);
+
+public sealed record ReponsePurge(
+    IReadOnlyList<ResultatPurge> Resultats,
+    IReadOnlyList<PurgeInduite> PurgesInduites);
 
 /// <summary>Erreurs de validation d'un changement — le lot entier est rejeté (atomicité, §6.2.2).</summary>
 public sealed record ErreurChangement(Guid ChangeId, IReadOnlyList<Validation.ErreurValidation> Erreurs);

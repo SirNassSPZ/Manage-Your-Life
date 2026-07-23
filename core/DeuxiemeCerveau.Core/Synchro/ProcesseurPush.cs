@@ -135,6 +135,19 @@ public sealed class ProcesseurPush(IMagasinSynchro magasin, IHorloge horloge)
             return new ResultatPush(changement.ChangeId, dejaVu.Resultat,
                 Conflit: dejaVu.Resultat == ResultatChangement.PerdantArchive, dejaVu.ServerSeq, Rejoue: true);
 
+        // Anti-résurrection (§5.6, D-010) : un changement retardataire visant une entité purgée est
+        // refusé SANS archivage du payload — la destruction confirmée par l'utilisateur prime.
+        // L'app abandonne l'entrée d'outbox et supprime définitivement sa copie locale.
+        if (magasin.ObtenirTombale(changement.Entite, changement.EntiteId) is not null)
+        {
+            var seqRefus = magasin.AjouterJournal(new EntreeJournal(
+                ServerSeq: 0, changement.ChangeId, changement.Entite, changement.EntiteId,
+                ProcesseurPurge.MarqueurPurge, changement.AppareilId,
+                ResultatChangement.RefusePurge, horloge.MaintenantUtc));
+            return new ResultatPush(changement.ChangeId, ResultatChangement.RefusePurge,
+                Conflit: false, seqRefus, Rejoue: false);
+        }
+
         var courant = magasin.Obtenir(changement.Entite, changement.EntiteId);
 
         // Arbitrage (§6.2.3, D-005). Conflit si l'entité a été modifiée entre-temps (version non avancée).

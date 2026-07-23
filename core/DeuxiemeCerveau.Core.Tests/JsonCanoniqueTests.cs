@@ -89,6 +89,10 @@ public class JsonCanoniqueTests
     [InlineData(EntiteSynchro.Reglage, "reglage")]
     [InlineData(ResultatChangement.Applique, "applique")]
     [InlineData(ResultatChangement.PerdantArchive, "perdant_archive")]
+    [InlineData(ResultatChangement.Purge, "purge")]
+    [InlineData(ResultatChangement.RefusePurge, "refuse_purge")]
+    [InlineData(StatutPurge.Purgee, "purgee")]
+    [InlineData(StatutPurge.Refusee, "refusee")]
     public void Enums_de_synchro_en_snake_case(object valeur, string attendu)
         => Assert.Equal($"\"{attendu}\"", JsonSerializer.Serialize(valeur, valeur.GetType(), SerialisationCanonique.Options));
 

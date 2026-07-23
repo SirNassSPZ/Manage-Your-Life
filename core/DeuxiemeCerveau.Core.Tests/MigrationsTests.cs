@@ -75,22 +75,35 @@ public sealed class CibleSqlite : ICibleMigration, IDisposable
 public class MigrationsTests
 {
     [Fact]
-    public void Migration_001_cree_tout_le_schema_local()
+    public void Les_migrations_creent_tout_le_schema_local()
     {
         using var cible = new CibleSqlite();
         var appliquees = ExecuteurMigrations.Appliquer(cible, DialecteSql.Sqlite);
 
-        Assert.Single(appliquees);
-        Assert.Equal(1, cible.VersionCourante());
+        Assert.Equal(ListeMigrations.Toutes.Count, appliquees.Count);
+        Assert.Equal(ListeMigrations.Toutes.Count, cible.VersionCourante());
 
-        // Toutes les tables du §9, plus outbox et sync_etat côté local (D-008).
+        // Toutes les tables du §9 (purges comprise, v3.2), plus outbox et sync_etat côté local (D-008).
         List<string> attendues =
         [
             "attachments", "budgets", "categories", "change_log", "devices",
-            "element_categories", "elements", "outbox", "projets", "schema_migrations",
-            "settings", "sync_etat",
+            "element_categories", "elements", "outbox", "projets", "purges",
+            "schema_migrations", "settings", "sync_etat",
         ];
         Assert.Equal(attendues, cible.Tables().Where(t => t != "sqlite_sequence").Order().ToList());
+    }
+
+    [Fact]
+    public void Base_en_version_1_ne_recoit_que_la_migration_002()
+    {
+        using var cible = new CibleSqlite();
+        ExecuteurMigrations.Appliquer(cible, DialecteSql.Sqlite, [ListeMigrations.Toutes[0]]);
+        Assert.Equal(1, cible.VersionCourante());
+
+        // Au démarrage suivant (liste complète), seules les migrations manquantes s'appliquent (règle 18).
+        var appliquees = ExecuteurMigrations.Appliquer(cible, DialecteSql.Sqlite);
+        Assert.Equal([2], appliquees.Select(m => m.Numero));
+        Assert.Contains("purges", cible.Tables());
     }
 
     [Fact]

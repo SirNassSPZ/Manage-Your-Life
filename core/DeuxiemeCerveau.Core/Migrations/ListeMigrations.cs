@@ -10,5 +10,6 @@ public static class ListeMigrations
     public static readonly IReadOnlyList<Migration> Toutes =
     [
         Migration001SchemaInitial.Definition,
+        Migration002Purges.Definition,
     ];
 }

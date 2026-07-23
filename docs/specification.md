@@ -1,4 +1,4 @@
-# Deuxième Cerveau — Spécification technique v3.1
+# Deuxième Cerveau — Spécification technique v3.2
 
 *Document de référence — cahier des charges pour la génération du code.*
 
@@ -227,6 +227,7 @@ Onglet brouillon : espace de texte libre, sans structure imposée.
 Conséquence visible du soft delete :
 - Vue listant les Éléments `supprime = true`, avec **restauration** en un geste.
 - **Purge définitive : manuelle uniquement, jamais automatique**, avec confirmation explicite. C'est la seule opération de destruction réelle de l'application.
+- **La purge est arbitrée par le serveur et propagée** (v3.2, décision D-010). L'app envoie une demande de purge (`POST /purge`, §8), idempotente par `change_id` et atomique par lot. Le serveur n'accepte la purge que si l'entité est **encore dans la corbeille** (`supprime = true`) au moment où la demande l'atteint : si elle a été restaurée entre-temps, la purge est **refusée** — en cas de course, la conservation gagne toujours (le prochain pull restitue l'entité sur l'appareil qui avait purgé localement). Une purge acceptée : détruit l'état de l'entité, **caviarde ses payloads au journal** (les métadonnées — `server_seq`, `change_id`, `resultat` — sont conservées pour l'idempotence et la continuité des séquences), enregistre une **pierre tombale** (`purges`, §9) et reçoit un `server_seq` ordinaire — chaque appareil qui tire (§6.2) apprend la purge et supprime définitivement sa copie locale. La pierre tombale empêche toute résurrection : un changement retardataire visant une entité purgée est **refusé sans archivage du payload** (`refuse_purge`) — unique entorse assumée au filet 3, couverte par la confirmation explicite de l'utilisateur au moment de la purge. La purge d'un Élément purge ses pièces jointes (§7). Le réglage (§3.4) n'est pas purgeable (pas de corbeille). En local, l'app purge immédiatement (local-first) et vide de son outbox les changements en attente de l'entité purgée.
 
 ### 5.7 Export & récupération des données (V1) — NON NÉGOCIABLE
 
@@ -273,6 +274,8 @@ L'endroit exact où les applications perdent des données. À implémenter **à 
 
 **Pull.** L'app demande `GET /sync/pull?since={dernier server_seq connu}` et reçoit tous les Éléments modifiés depuis son curseur, plus le nouveau curseur. Elle applique en local, sauvegarde le curseur. La reprise après coupure est automatique : le curseur **est** le point de reprise.
 
+**Purge (§5.6).** Hors du lot de push, par la route dédiée `POST /purge` — idempotente par `change_id`, atomique par lot. Le serveur vérifie la corbeille, détruit, caviarde le journal, pose la pierre tombale ; le pull transporte les purges comme n'importe quel changement (`server_seq` ordinaire). Un changement poussé vers une entité purgée est refusé (`refuse_purge`) : l'app abandonne l'entrée d'outbox et supprime définitivement sa copie locale.
+
 **Cycle.** Push puis pull, déclenchés : à l'ouverture de l'app, après toute saisie (différé de quelques secondes), au retour du réseau, et périodiquement en arrière-plan.
 
 ### 6.3 Garantie d'ensemble
@@ -302,7 +305,8 @@ Hébergement : **Azure Functions** (plan Consommation) — chaque route ci-desso
 |---|---|
 | `POST /devices/register` | Enregistre l'appareil, renvoie `appareil_id` |
 | `POST /sync/push` | Reçoit un lot d'outbox ; idempotent ; atomique ; renvoie les `change_id` confirmés + conflits archivés |
-| `GET /sync/pull?since={seq}` | Renvoie les Éléments/catégories/projets modifiés depuis le curseur + nouveau curseur |
+| `GET /sync/pull?since={seq}` | Renvoie les Éléments/catégories/projets modifiés depuis le curseur, **les purges (§5.6)**, + nouveau curseur |
+| `POST /purge` | Purge définitive depuis la corbeille (§5.6) ; idempotente ; atomique ; refusée si l'entité a été restaurée ou est inconnue |
 | `GET /projection/budget?mois=12` | Renvoie la projection mensuelle (§5.1) : ouverture, entrées, sorties, clôture par mois |
 | `PUT /settings/solde-reference` | Recale le solde de référence (§3.4) |
 | `GET /attachments/upload-url` | URL SAS d'envoi |
@@ -405,8 +409,18 @@ CREATE TABLE change_log (                        -- journal = archive des perdan
   element_id  UNIQUEIDENTIFIER NOT NULL,
   payload     NVARCHAR(MAX) NOT NULL,            -- version complète (JSON)
   appareil_id UNIQUEIDENTIFIER NOT NULL,
-  resultat    NVARCHAR(20) NOT NULL,             -- applique | perdant_archive
+  resultat    NVARCHAR(20) NOT NULL,             -- applique | perdant_archive | purge | refuse_purge
   recu_le     DATETIME2 NOT NULL
+);
+
+CREATE TABLE purges (                            -- pierres tombales (§5.6, migration 002)
+  entite      NVARCHAR(20) NOT NULL,
+  entite_id   UNIQUEIDENTIFIER NOT NULL,
+  server_seq  BIGINT NOT NULL,                   -- transporté par le pull
+  change_id   UNIQUEIDENTIFIER NOT NULL UNIQUE,
+  appareil_id UNIQUEIDENTIFIER NOT NULL,
+  purge_le    DATETIME2 NOT NULL,
+  PRIMARY KEY (entite, entite_id)
 );
 
 CREATE TABLE settings (
@@ -528,3 +542,10 @@ Agencement automatique des tâches (optimisation sous contraintes — en dernier
 ---
 
 *Fil conducteur : la valeur est dans la justesse du modèle, la cohérence entre les deux applications, et la certitude que les données restent à l'utilisateur. Ce document est le garant des trois — il vaut plus que le code.*
+
+---
+
+## Historique des révisions
+
+- **v3.2 (2026-07-23)** — La purge manuelle est arbitrée par le serveur et propagée : route `POST /purge` (§8), pierre tombale `purges` et caviardage du journal (§5.6, §9), refus `refuse_purge` des changements retardataires (§6.2). Comble l'absence de propagation de la purge dans le contrat v3.1 (question Q-001, décision D-010 de `docs/decisions.md`).
+- **v3.1** — Version de référence initiale du dépôt.
