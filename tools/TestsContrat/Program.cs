@@ -37,7 +37,10 @@ async Task<(int statut, string corps)> Envoyer(HttpMethod methode, string chemin
         requete.Content = new StringContent(json, Encoding.UTF8, "application/json");
     requete.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
     using var reponse = await http.SendAsync(requete);
-    return ((int)reponse.StatusCode, await reponse.Content.ReadAsStringAsync());
+    var corps = await reponse.Content.ReadAsStringAsync();
+    if ((int)reponse.StatusCode >= 400)
+        Console.WriteLine($"  ⚠ {methode} {chemin} → {(int)reponse.StatusCode} : {corps}");
+    return ((int)reponse.StatusCode, corps);
 }
 
 Console.WriteLine($"— Tests de contrat contre {baseUrl} —");
@@ -64,6 +67,7 @@ for (var i = 1; ; i++)
 var (sEnr, cEnr) = await Envoyer(HttpMethod.Post, "/api/devices/register",
     """{"nom":"CI contrat","plateforme":"ci"}""");
 Verifier(sEnr == 200, "enregistrement d'appareil : 200");
+if (sEnr != 200) { Console.Error.WriteLine("Arrêt : impossible d'enregistrer l'appareil."); return 1; }
 var appareilId = SerialisationCanonique.Deserialiser<ReponseEnregistrementAppareil>(cEnr).AppareilId;
 Verifier(appareilId != Guid.Empty, "appareil_id renvoyé");
 
@@ -96,6 +100,13 @@ var jsonLot = SerialisationCanonique.Serialiser(lot);
 
 var (sPush, cPush) = await Envoyer(HttpMethod.Post, "/api/sync/push", jsonLot);
 Verifier(sPush == 200, "push : 200");
+if (sPush != 200 || string.IsNullOrWhiteSpace(cPush))
+{
+    Console.Error.WriteLine($"Arrêt : push a renvoyé {sPush} (corps vide: {string.IsNullOrWhiteSpace(cPush)}).");
+    Console.WriteLine();
+    Console.WriteLine($"✗ {echecs + 1} test(s) de contrat en échec (arrêt anticipé après push).");
+    return 1;
+}
 var push = SerialisationCanonique.Deserialiser<ReponsePushDto>(cPush);
 Verifier(push.Resultats[0].Resultat == ResultatChangement.Applique, "push : changement appliqué");
 Verifier(!push.Resultats[0].Rejoue, "push : premier envoi non rejoué");
@@ -104,22 +115,31 @@ var seq = push.Resultats[0].ServerSeq;
 // 4. Pull : la facture est visible.
 var (sPull, cPull) = await Envoyer(HttpMethod.Get, "/api/sync/pull?since=0");
 Verifier(sPull == 200, "pull : 200");
-var pull = SerialisationCanonique.Deserialiser<ReponsePullDto>(cPull);
-Verifier(pull.Entites.Any(e => e.Id == idFacture), "pull : la facture est présente");
+if (sPull == 200 && !string.IsNullOrWhiteSpace(cPull))
+{
+    var pull = SerialisationCanonique.Deserialiser<ReponsePullDto>(cPull);
+    Verifier(pull.Entites.Any(e => e.Id == idFacture), "pull : la facture est présente");
+}
 
 // 5. Idempotence (§6.2.1) : le MÊME lot renvoyé ne s'applique pas deux fois.
 var (sRejeu, cRejeu) = await Envoyer(HttpMethod.Post, "/api/sync/push", jsonLot);
 Verifier(sRejeu == 200, "push rejoué : 200");
-var rejeu = SerialisationCanonique.Deserialiser<ReponsePushDto>(cRejeu);
-Verifier(rejeu.Resultats[0].Rejoue, "idempotence : second envoi marqué rejoué");
-Verifier(rejeu.Resultats[0].ServerSeq == seq, "idempotence : même server_seq (aucun doublon)");
+if (sRejeu == 200 && !string.IsNullOrWhiteSpace(cRejeu))
+{
+    var rejeu = SerialisationCanonique.Deserialiser<ReponsePushDto>(cRejeu);
+    Verifier(rejeu.Resultats[0].Rejoue, "idempotence : second envoi marqué rejoué");
+    Verifier(rejeu.Resultats[0].ServerSeq == seq, "idempotence : même server_seq (aucun doublon)");
+}
 
 // 6. Projection budgétaire (§5.1) : l'ouverture du mois courant = solde de référence.
 var (sProj, cProj) = await Envoyer(HttpMethod.Get, "/api/projection/budget?mois=3");
 Verifier(sProj == 200, "projection : 200");
-var projection = SerialisationCanonique.Deserialiser<ReponseProjectionDto>(cProj);
-Verifier(projection.Mois.Count == 3, "projection : 3 mois renvoyés");
-Verifier(projection.Mois[0].OuvertureCentimes == 150000, "projection : ouverture = solde de référence");
+if (sProj == 200 && !string.IsNullOrWhiteSpace(cProj))
+{
+    var projection = SerialisationCanonique.Deserialiser<ReponseProjectionDto>(cProj);
+    Verifier(projection.Mois.Count == 3, "projection : 3 mois renvoyés");
+    Verifier(projection.Mois[0].OuvertureCentimes == 150000, "projection : ouverture = solde de référence");
+}
 
 Console.WriteLine();
 Console.WriteLine(echecs == 0

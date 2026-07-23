@@ -3,12 +3,13 @@ using DeuxiemeCerveau.Core.Projection;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Functions.Worker;
+using Microsoft.Extensions.Logging;
 using HttpAide = DeuxiemeCerveau.Api.Http.Http;
 
 namespace DeuxiemeCerveau.Api.Fonctions;
 
 /// <summary>Endpoint de projection budgétaire (§5.1, §8) — le calcul vit dans le cœur (règle 9).</summary>
-public sealed class Projection(ServiceApi service)
+public sealed class Projection(ServiceApi service, ILogger<Projection> journal)
 {
     /// <summary>GET /projection/budget?mois=12 (§8).</summary>
     [Function("projection_budget")]
@@ -29,6 +30,11 @@ public sealed class Projection(ServiceApi service)
         catch (SoldeReferenceAbsent ex)
         {
             return HttpAide.Erreur(StatusCodes.Status409Conflict, "solde_reference_absent", ex.Message);
+        }
+        catch (Exception ex)
+        {
+            journal.LogError(ex, "Erreur inattendue dans projection/budget");
+            return HttpAide.Erreur(StatusCodes.Status500InternalServerError, "erreur_interne", ex.ToString());
         }
     }
 }

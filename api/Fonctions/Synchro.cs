@@ -5,12 +5,13 @@ using DeuxiemeCerveau.Core.Synchro;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Functions.Worker;
+using Microsoft.Extensions.Logging;
 using HttpAide = DeuxiemeCerveau.Api.Http.Http;
 
 namespace DeuxiemeCerveau.Api.Fonctions;
 
 /// <summary>Endpoints de synchronisation (§6.2, §8) — adaptateurs minces autour du cœur (règle 4).</summary>
-public sealed class Synchro(ServiceApi service)
+public sealed class Synchro(ServiceApi service, ILogger<Synchro> journal)
 {
     /// <summary>POST /devices/register (§8).</summary>
     [Function("devices_register")]
@@ -27,6 +28,11 @@ public sealed class Synchro(ServiceApi service)
         catch (JsonException ex)
         {
             return HttpAide.Erreur(StatusCodes.Status400BadRequest, "corps_invalide", ex.Message);
+        }
+        catch (Exception ex)
+        {
+            journal.LogError(ex, "Erreur inattendue dans devices/register");
+            return HttpAide.Erreur(StatusCodes.Status500InternalServerError, "erreur_interne", ex.ToString());
         }
     }
 
@@ -53,6 +59,11 @@ public sealed class Synchro(ServiceApi service)
         {
             return HttpAide.LotInvalide(erreur);
         }
+        catch (Exception ex)
+        {
+            journal.LogError(ex, "Erreur inattendue dans sync/push");
+            return HttpAide.Erreur(StatusCodes.Status500InternalServerError, "erreur_interne", ex.ToString());
+        }
     }
 
     /// <summary>GET /sync/pull?since={seq}&amp;limite={n} (§8) : reprise par curseur.</summary>
@@ -60,11 +71,19 @@ public sealed class Synchro(ServiceApi service)
     public IActionResult Tirer(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "sync/pull")] HttpRequest requete)
     {
-        var depuis = LireLong(requete, "since", 0);
-        var limite = (int)LireLong(requete, "limite", ProcesseurPull.LimiteParDefaut);
-        if (depuis < 0 || limite is < 1 or > 5000)
-            return HttpAide.Erreur(StatusCodes.Status400BadRequest, "parametre_invalide", "since ≥ 0 et 1 ≤ limite ≤ 5000.");
-        return HttpAide.Json(service.Tirer(depuis, limite));
+        try
+        {
+            var depuis = LireLong(requete, "since", 0);
+            var limite = (int)LireLong(requete, "limite", ProcesseurPull.LimiteParDefaut);
+            if (depuis < 0 || limite is < 1 or > 5000)
+                return HttpAide.Erreur(StatusCodes.Status400BadRequest, "parametre_invalide", "since ≥ 0 et 1 ≤ limite ≤ 5000.");
+            return HttpAide.Json(service.Tirer(depuis, limite));
+        }
+        catch (Exception ex)
+        {
+            journal.LogError(ex, "Erreur inattendue dans sync/pull");
+            return HttpAide.Erreur(StatusCodes.Status500InternalServerError, "erreur_interne", ex.ToString());
+        }
     }
 
     /// <summary>PUT /settings/solde-reference (§3.4, §8).</summary>
@@ -84,6 +103,11 @@ public sealed class Synchro(ServiceApi service)
         catch (ErreurLotInvalide erreur)
         {
             return HttpAide.LotInvalide(erreur);
+        }
+        catch (Exception ex)
+        {
+            journal.LogError(ex, "Erreur inattendue dans settings/solde-reference");
+            return HttpAide.Erreur(StatusCodes.Status500InternalServerError, "erreur_interne", ex.ToString());
         }
     }
 
