@@ -1,7 +1,10 @@
 // ---------------------------------------------------------------------------
 // Ressources de l'environnement (portée : groupe de ressources).
 // Paliers gratuits / serverless / Consommation uniquement (§10.1).
-// Aucun secret en dur : identités managées + Key Vault (§10, règle 16).
+// Secrets applicatifs (SQL…) via Key Vault + identité managée en Étape 3 (règle 16) ;
+// le stockage du RUNTIME Functions passe par une chaîne de connexion (contrainte de
+// plateforme du plan Consommation Windows : le partage de contenu n'accepte pas l'identité
+// managée). Cette clé est injectée par Bicep dans les réglages d'app — jamais dans git.
 // ---------------------------------------------------------------------------
 param region string
 param environnement string
@@ -10,11 +13,8 @@ param deployeurObjectId string
 param deployeurLogin string
 
 var court = take(suffixe, 6)
-
-// Identifiants de rôles intégrés (constants Azure).
-var roleBlobDataOwner = 'b7e6dc6d-f1e8-4753-8033-0f276bb0955b'
-var roleQueueDataContributor = '974c5e8b-45b9-4653-ba55-5f855dd0fb88'
-var roleKeyVaultSecretsUser = '4633458b-17de-408a-b874-0445c86b69e6'
+var nomStockage = 'stdc${environnement}${suffixe}'
+var nomFunc = 'func-dc-${environnement}-${court}'
 
 // ---------- Journalisation : Log Analytics + Application Insights ----------
 resource workspace 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
@@ -38,7 +38,7 @@ resource appInsights 'Microsoft.Insights/components@2020-02-02' = {
 
 // ---------- Stockage : runtime Functions + pièces jointes (§7) ----------
 resource storage 'Microsoft.Storage/storageAccounts@2023-05-01' = {
-  name: 'stdc${environnement}${suffixe}'
+  name: nomStockage
   location: region
   sku: { name: 'Standard_LRS' }
   kind: 'StorageV2'
@@ -60,7 +60,9 @@ resource conteneurPieces 'Microsoft.Storage/storageAccounts/blobServices/contain
   properties: { publicAccess: 'None' }
 }
 
-// ---------- Key Vault : secrets (§10). RBAC, jamais de secret en dur ----------
+var chaineStockage = 'DefaultEndpointsProtocol=https;AccountName=${nomStockage};AccountKey=${storage.listKeys().keys[0].value};EndpointSuffix=${environment().suffixes.storage}'
+
+// ---------- Key Vault : secrets (§10). Prêt pour l'Étape 3 ----------
 resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
   name: 'kv-dc-${environnement}-${court}'
   location: region
@@ -123,10 +125,10 @@ resource plan 'Microsoft.Web/serverfarms@2023-12-01' = {
 }
 
 resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
-  name: 'func-dc-${environnement}-${court}'
+  name: nomFunc
   location: region
   kind: 'functionapp'
-  identity: { type: 'SystemAssigned' } // identité managée : ni clé ni chaîne de connexion en clair
+  identity: { type: 'SystemAssigned' } // conservée pour l'Étape 3 (SQL + Key Vault par identité)
   properties: {
     serverFarmId: plan.id
     httpsOnly: true
@@ -137,8 +139,10 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
       appSettings: [
         { name: 'FUNCTIONS_EXTENSION_VERSION', value: '~4' }
         { name: 'FUNCTIONS_WORKER_RUNTIME', value: 'dotnet-isolated' }
-        // Stockage du runtime par identité managée — aucune clé de compte en clair.
-        { name: 'AzureWebJobsStorage__accountName', value: storage.name }
+        // Stockage du runtime + partage de contenu (contrainte plateforme Consommation Windows).
+        { name: 'AzureWebJobsStorage', value: chaineStockage }
+        { name: 'WEBSITE_CONTENTAZUREFILECONNECTIONSTRING', value: chaineStockage }
+        { name: 'WEBSITE_CONTENTSHARE', value: toLower(nomFunc) }
         { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', value: appInsights.properties.ConnectionString }
         { name: 'WEBSITE_RUN_FROM_PACKAGE', value: '1' }
         // Prêt pour l'Étape 3 (§8), consommé par les adaptateurs, jamais par le cœur (règle 4).
@@ -152,38 +156,5 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
   }
 }
 
-// ---------- Attributions de rôles à l'identité du Function App ----------
-// Runtime Functions par identité : Blob + Queue sur le compte de stockage.
-resource roleBlob 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(storage.id, functionApp.id, roleBlobDataOwner)
-  scope: storage
-  properties: {
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', roleBlobDataOwner)
-    principalId: functionApp.identity.principalId
-    principalType: 'ServicePrincipal'
-  }
-}
-
-resource roleQueue 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(storage.id, functionApp.id, roleQueueDataContributor)
-  scope: storage
-  properties: {
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', roleQueueDataContributor)
-    principalId: functionApp.identity.principalId
-    principalType: 'ServicePrincipal'
-  }
-}
-
-// Lecture des secrets (Étape 3) — l'app lit ses secrets dans Key Vault (règle 16).
-resource roleKv 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(keyVault.id, functionApp.id, roleKeyVaultSecretsUser)
-  scope: keyVault
-  properties: {
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', roleKeyVaultSecretsUser)
-    principalId: functionApp.identity.principalId
-    principalType: 'ServicePrincipal'
-  }
-}
-
-output nomFunctionApp string = functionApp.name
+output nomFunctionApp string = nomFunc
 output urlFunctionApp string = 'https://${functionApp.properties.defaultHostName}'
