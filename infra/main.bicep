@@ -79,4 +79,7 @@ module ressources 'resources.bicep' = {
 
 output nomGroupe string = nomGroupe
 output nomFunctionApp string = ressources.outputs.nomFunctionApp
+output urlApi string = ressources.outputs.urlFunctionApp
 output urlPing string = '${ressources.outputs.urlFunctionApp}/api/ping'
+output sqlFqdn string = ressources.outputs.sqlFqdn
+output sqlDatabase string = ressources.outputs.sqlDatabase

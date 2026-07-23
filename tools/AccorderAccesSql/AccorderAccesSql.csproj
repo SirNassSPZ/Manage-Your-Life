@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Outil de déploiement : accorde à l'identité managée du Function App un accès à Azure SQL.
+       Exécuté par le CI (connecté en tant que service principal, administrateur Entra de la base).
+       Hors de la solution applicative : lancé isolément par le workflow. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>DeuxiemeCerveau.Outils.AccorderAccesSql</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="5.2.2" />
+  </ItemGroup>
+
+</Project>

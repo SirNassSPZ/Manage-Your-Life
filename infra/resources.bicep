@@ -171,3 +171,5 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
 
 output nomFunctionApp string = nomFunc
 output urlFunctionApp string = 'https://${functionApp.properties.defaultHostName}'
+output sqlFqdn string = sqlServer.properties.fullyQualifiedDomainName
+output sqlDatabase string = sqlDb.name

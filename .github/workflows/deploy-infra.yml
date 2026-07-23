@@ -70,34 +70,49 @@ jobs:
             --location "$AZURE_REGION" \
             --parameters infra/dev.bicepparam
 
-      - name: Récupérer le nom du Function App
+      - name: Récupérer les sorties du déploiement
         run: |
-          echo "FUNCTION_APP=$(az deployment sub show \
-            --name dc-infra-${{ github.run_number }} \
-            --query properties.outputs.nomFunctionApp.value -o tsv)" >> "$GITHUB_ENV"
+          OUT=$(az deployment sub show --name dc-infra-${{ github.run_number }} --query properties.outputs -o json)
+          echo "FUNCTION_APP=$(echo "$OUT" | jq -r .nomFunctionApp.value)" >> "$GITHUB_ENV"
+          echo "SQL_FQDN=$(echo "$OUT" | jq -r .sqlFqdn.value)" >> "$GITHUB_ENV"
+          echo "SQL_DATABASE=$(echo "$OUT" | jq -r .sqlDatabase.value)" >> "$GITHUB_ENV"
+          echo "API_URL=$(echo "$OUT" | jq -r .urlApi.value)" >> "$GITHUB_ENV"
 
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: "8.0.x"
 
+      # L'API se connecte à SQL par identité managée : lui donner un accès à la base (§8, D-012).
+      # Exécuté par le service principal, administrateur Entra de la base — aucune manip utilisateur.
+      - name: Accorder l'accès SQL à l'identité managée du Function App
+        run: |
+          export SQL_ACCESS_TOKEN=$(az account get-access-token \
+            --resource https://database.windows.net/ --query accessToken -o tsv)
+          dotnet run --project tools/AccorderAccesSql -c Release -- "$SQL_FQDN" "$SQL_DATABASE" "$FUNCTION_APP"
+
       - name: Publier l'API (.NET 8 isolé)
         run: dotnet publish api/DeuxiemeCerveau.Api.csproj -c Release -o publish
 
-      - name: Déployer la fonction ping
+      - name: Déployer l'API
         uses: Azure/functions-action@v1
         with:
           app-name: ${{ env.FUNCTION_APP }}
           package: publish
 
-      - name: Vérifier que ping répond en ligne (§10.2 — fini quand ping répond)
+      - name: Vérifier que ping répond en ligne (§10.2)
         run: |
-          echo "Attente du démarrage à froid…"
-          for i in $(seq 1 10); do
-            if curl -fsS "https://${FUNCTION_APP}.azurewebsites.net/api/ping"; then
+          echo "Attente du démarrage à froid (migrations au démarrage comprises)…"
+          for i in $(seq 1 15); do
+            if curl -fsS "${API_URL}/api/ping"; then
               echo ""
-              echo "✓ ping répond — infrastructure dev en ligne."
+              echo "✓ ping répond."
               exit 0
             fi
             sleep 15
           done
           echo "✗ ping n'a pas répondu à temps." && exit 1
+
+      - name: Tests de contrat en ligne (§8, §12 — fini quand ils passent)
+        env:
+          BASE_URL: ${{ env.API_URL }}
+        run: dotnet run --project tools/TestsContrat -c Release

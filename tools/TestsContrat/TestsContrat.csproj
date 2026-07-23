@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Tests de contrat (§8, §12) contre l'instance dev DÉPLOYÉE : le critère « fini » de l'Étape 3.
+       Rejouent en HTTP les garanties déjà couvertes en local (idempotence, curseur, projection).
+       Hors de la solution applicative : lancé isolément par le workflow après le déploiement. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>DeuxiemeCerveau.Outils.TestsContrat</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../api/DeuxiemeCerveau.Api.csproj" />
+  </ItemGroup>
+
+</Project>
