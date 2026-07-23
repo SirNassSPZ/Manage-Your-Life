@@ -3,7 +3,9 @@
 using './main.bicep'
 
 param environnement = 'dev'
-param region = 'westeurope'
+// West Europe refusait les nouveaux clients (région saturée, 2026-07-23) ;
+// France Central est l'autre région autorisée par la spec (§10.1, RGPD/latence).
+param region = 'francecentral'
 
 // E-mail des alertes de budget (§10.3) — modifiable librement.
 param emailAlerte = 'mnasrinasreddin.contact@gmail.com'

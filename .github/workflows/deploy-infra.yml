@@ -17,7 +17,8 @@ permissions:
   contents: read
 
 env:
-  AZURE_REGION: westeurope
+  # Emplacement des métadonnées de déploiement (les ressources vont dans la région du .bicepparam).
+  AZURE_REGION: francecentral
 
 jobs:
   deployer:
