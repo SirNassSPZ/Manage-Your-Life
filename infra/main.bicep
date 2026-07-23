@@ -27,6 +27,15 @@ param deployeurObjectId string
 @description('Nom d\'affichage de l\'administrateur Entra ID de SQL.')
 param deployeurLogin string = 'github-deploy'
 
+@description('Active l\'exigence d\'un jeton Entra ID sur chaque appel (§8).')
+param authActivee bool = false
+
+@description('Audience des jetons : identifiant de l\'inscription d\'application « API » (§8).')
+param entraAudience string = ''
+
+@description('Locataire Entra pour la validation des jetons (GUID).')
+param entraTenantId string = ''
+
 @description('Premier jour du mois courant — début de la période de budget (calculé au déploiement).')
 param dateDebutBudget string = '${utcNow('yyyy-MM')}-01'
 
@@ -62,6 +71,9 @@ module ressources 'resources.bicep' = {
     suffixe: suffixe
     deployeurObjectId: deployeurObjectId
     deployeurLogin: deployeurLogin
+    authActivee: authActivee
+    entraAudience: entraAudience
+    entraTenantId: entraTenantId
   }
 }
 

@@ -15,3 +15,9 @@ param plafondBudget = 5
 // Fourni par le workflow via la variable d'environnement DEPLOYER_OBJECT_ID.
 param deployeurObjectId = readEnvironmentVariable('DEPLOYER_OBJECT_ID', '')
 param deployeurLogin = 'github-deploy'
+
+// Authentification Entra ID (§8). Désactivée tant que l'inscription d'application « API » n'existe
+// pas ; une fois créée, renseigner entraAudience (identifiant de l'app) et passer authActivee à true.
+param authActivee = false
+param entraAudience = ''
+param entraTenantId = '7dee1557-d33e-456e-af24-5a7ffbcc22b6'

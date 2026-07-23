@@ -12,6 +12,15 @@ param suffixe string
 param deployeurObjectId string
 param deployeurLogin string
 
+@description('Active l\'exigence d\'un jeton Entra ID sur chaque appel (§8). Faux tant que l\'inscription d\'application n\'existe pas.')
+param authActivee bool = false
+
+@description('Audience des jetons : identifiant de l\'inscription d\'application « API » (§8).')
+param entraAudience string = ''
+
+@description('Locataire Entra pour la validation des jetons (GUID) ; défaut « common ».')
+param entraTenantId string = ''
+
 var court = take(suffixe, 6)
 var nomStockage = 'stdc${environnement}${suffixe}'
 var nomFunc = 'func-dc-${environnement}-${court}'
@@ -151,6 +160,10 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
         { name: 'SQL_DATABASE', value: sqlDb.name }
         { name: 'BLOB_ACCOUNT', value: storage.name }
         { name: 'BLOB_CONTAINER', value: conteneurPieces.name }
+        // Authentification Entra ID (§8) — inactive tant que authActivee = false.
+        { name: 'AUTH_ACTIVEE', value: toLower(string(authActivee)) }
+        { name: 'ENTRA_AUDIENCE', value: entraAudience }
+        { name: 'ENTRA_TENANT_ID', value: entraTenantId }
       ]
     }
   }

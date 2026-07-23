@@ -1,4 +1,5 @@
 using System.Data.Common;
+using DeuxiemeCerveau.Api.Auth;
 using DeuxiemeCerveau.Api.Persistence;
 using DeuxiemeCerveau.Api.Services;
 using DeuxiemeCerveau.Core.Migrations;
@@ -17,11 +18,23 @@ var fqdn = Environment.GetEnvironmentVariable("SQL_SERVER_FQDN");
 var baseDonnees = Environment.GetEnvironmentVariable("SQL_DATABASE");
 var modeSql = !string.IsNullOrWhiteSpace(fqdn) && !string.IsNullOrWhiteSpace(baseDonnees);
 
-var builder = new HostBuilder().ConfigureFunctionsWebApplication();
+var optionsAuth = OptionsAuth.DepuisEnvironnement();
+
+var builder = new HostBuilder().ConfigureFunctionsWebApplication(worker =>
+{
+    // Authentification Entra ID sur chaque appel HTTP (§8) — intégrée dès maintenant (Étape 3).
+    // Inactive tant que AUTH_ACTIVEE ≠ true : le middleware laisse tout passer (local, ping).
+    worker.UseMiddleware<MiddlewareAuth>();
+});
 
 builder.ConfigureServices(services =>
 {
     services.AddSingleton<IHorloge, HorlogeSysteme>();
+
+    services.AddSingleton(optionsAuth);
+    services.AddSingleton(optionsAuth.Activee
+        ? ValidateurJeton.DepuisOptions(optionsAuth)
+        : new ValidateurJeton(new Microsoft.IdentityModel.Tokens.TokenValidationParameters()));
 
     if (modeSql)
     {
