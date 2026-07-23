@@ -18,6 +18,6 @@ param deployeurLogin = 'github-deploy'
 
 // Authentification Entra ID (§8). Désactivée tant que l'inscription d'application « API » n'existe
 // pas ; une fois créée, renseigner entraAudience (identifiant de l'app) et passer authActivee à true.
-param authActivee = false
-param entraAudience = ''
+param authActivee = true
+param entraAudience = '10bd3095-8903-47d5-a93a-578c2f85ec60'
 param entraTenantId = '7dee1557-d33e-456e-af24-5a7ffbcc22b6'
