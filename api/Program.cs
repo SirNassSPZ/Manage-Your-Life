@@ -16,7 +16,27 @@ using Microsoft.Extensions.Logging;
 
 var fqdn = Environment.GetEnvironmentVariable("SQL_SERVER_FQDN");
 var baseDonnees = Environment.GetEnvironmentVariable("SQL_DATABASE");
+var identiteClientId = Environment.GetEnvironmentVariable("SQL_IDENTITY_CLIENT_ID");
 var modeSql = !string.IsNullOrWhiteSpace(fqdn) && !string.IsNullOrWhiteSpace(baseDonnees);
+
+// Chaîne de connexion Azure SQL par identité managée (aucun secret ; §8, règle 16). Quand une
+// identité ATTRIBUÉE est fournie, on la cible par son client_id ; sinon identité par défaut.
+string ChaineSql(int timeout)
+{
+    var b = new SqlConnectionStringBuilder
+    {
+        DataSource = $"tcp:{fqdn},1433",
+        InitialCatalog = baseDonnees,
+        Encrypt = true,
+        ConnectTimeout = timeout,
+        Authentication = string.IsNullOrWhiteSpace(identiteClientId)
+            ? SqlAuthenticationMethod.ActiveDirectoryDefault
+            : SqlAuthenticationMethod.ActiveDirectoryManagedIdentity,
+    };
+    if (!string.IsNullOrWhiteSpace(identiteClientId))
+        b.UserID = identiteClientId; // cible l'identité attribuée par son client_id
+    return b.ConnectionString;
+}
 
 var optionsAuth = OptionsAuth.DepuisEnvironnement();
 
@@ -38,16 +58,8 @@ builder.ConfigureServices(services =>
 
     if (modeSql)
     {
-        // Production : Azure SQL par identité managée (aucun secret ; §8, règle 16).
-        var chaine = new SqlConnectionStringBuilder
-        {
-            DataSource = $"tcp:{fqdn},1433",
-            InitialCatalog = baseDonnees,
-            Encrypt = true,
-            Authentication = SqlAuthenticationMethod.ActiveDirectoryDefault,
-            ConnectTimeout = 60, // reprise du serverless : quelques secondes au premier appel (§10.1)
-        }.ConnectionString;
-
+        // Production : Azure SQL par identité managée attribuée (aucun secret ; §8, règle 16).
+        var chaine = ChaineSql(60); // reprise du serverless : quelques secondes au premier appel (§10.1)
         DbConnection Fabrique() => new SqlConnection(chaine);
         services.AddSingleton<Func<DbConnection>>(Fabrique);
         // Le magasin SQL porte l'état de transaction : une instance par invocation (D-012).
@@ -69,22 +81,14 @@ var host = builder.Build();
 
 // Migrations appliquées au démarrage (§9, règle 18) — additives, à l'identique partout.
 if (modeSql)
-    AppliquerMigrations(host, fqdn!, baseDonnees!);
+    AppliquerMigrations(host, ChaineSql(120)); // premier appel : reprise du serverless en pause
 
 host.Run();
 return;
 
-static void AppliquerMigrations(IHost host, string fqdn, string baseDonnees)
+static void AppliquerMigrations(IHost host, string chaine)
 {
     var journal = host.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Migrations");
-    var chaine = new SqlConnectionStringBuilder
-    {
-        DataSource = $"tcp:{fqdn},1433",
-        InitialCatalog = baseDonnees,
-        Encrypt = true,
-        Authentication = SqlAuthenticationMethod.ActiveDirectoryDefault,
-        ConnectTimeout = 120, // premier appel : reprise du serverless en pause
-    }.ConnectionString;
 
     // Retry léger : la base serverless peut être en pause au premier appel (§10.1).
     for (var tentative = 1; ; tentative++)

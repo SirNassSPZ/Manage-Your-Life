@@ -25,6 +25,14 @@ var court = take(suffixe, 6)
 var nomStockage = 'stdc${environnement}${suffixe}'
 var nomFunc = 'func-dc-${environnement}-${court}'
 
+// ---------- Identité managée attribuée par l'utilisateur (accès SQL, Key Vault) ----------
+// Attribuée (et non système) : son client_id est connu de Bicep, ce qui permet de la déclarer
+// dans SQL par son SID sans que le serveur ait à interroger l'annuaire (D-012).
+resource identiteApi 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
+  name: 'id-dc-${environnement}'
+  location: region
+}
+
 // ---------- Journalisation : Log Analytics + Application Insights ----------
 resource workspace 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
   name: 'log-dc-${environnement}'
@@ -137,7 +145,12 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
   name: nomFunc
   location: region
   kind: 'functionapp'
-  identity: { type: 'SystemAssigned' } // conservée pour l'Étape 3 (SQL + Key Vault par identité)
+  identity: {
+    type: 'UserAssigned' // identité attribuée : client_id connu de Bicep (accès SQL par SID, D-012)
+    userAssignedIdentities: {
+      '${identiteApi.id}': {}
+    }
+  }
   properties: {
     serverFarmId: plan.id
     httpsOnly: true
@@ -158,6 +171,7 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
         { name: 'KEY_VAULT_URI', value: keyVault.properties.vaultUri }
         { name: 'SQL_SERVER_FQDN', value: sqlServer.properties.fullyQualifiedDomainName }
         { name: 'SQL_DATABASE', value: sqlDb.name }
+        { name: 'SQL_IDENTITY_CLIENT_ID', value: identiteApi.properties.clientId }
         { name: 'BLOB_ACCOUNT', value: storage.name }
         { name: 'BLOB_CONTAINER', value: conteneurPieces.name }
         // Authentification Entra ID (§8) — inactive tant que authActivee = false.
@@ -173,3 +187,5 @@ output nomFunctionApp string = nomFunc
 output urlFunctionApp string = 'https://${functionApp.properties.defaultHostName}'
 output sqlFqdn string = sqlServer.properties.fullyQualifiedDomainName
 output sqlDatabase string = sqlDb.name
+output identiteNom string = identiteApi.name
+output identiteClientId string = identiteApi.properties.clientId

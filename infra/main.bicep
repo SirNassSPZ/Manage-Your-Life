@@ -83,3 +83,5 @@ output urlApi string = ressources.outputs.urlFunctionApp
 output urlPing string = '${ressources.outputs.urlFunctionApp}/api/ping'
 output sqlFqdn string = ressources.outputs.sqlFqdn
 output sqlDatabase string = ressources.outputs.sqlDatabase
+output identiteNom string = ressources.outputs.identiteNom
+output identiteClientId string = ressources.outputs.identiteClientId

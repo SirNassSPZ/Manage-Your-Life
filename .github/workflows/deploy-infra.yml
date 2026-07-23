@@ -43,7 +43,8 @@ jobs:
       - name: Enregistrer les fournisseurs de ressources
         run: |
           for ns in Microsoft.Sql Microsoft.Web Microsoft.Storage Microsoft.KeyVault \
-                    Microsoft.OperationalInsights Microsoft.Insights Microsoft.Consumption; do
+                    Microsoft.OperationalInsights Microsoft.Insights Microsoft.Consumption \
+                    Microsoft.ManagedIdentity; do
             az provider register --namespace "$ns" --only-show-errors >/dev/null || true
           done
           for ns in Microsoft.Sql Microsoft.Web; do
@@ -78,6 +79,8 @@ jobs:
           echo "SQL_FQDN=$(echo "$OUT" | jq -r .sqlFqdn.value)" >> "$GITHUB_ENV"
           echo "SQL_DATABASE=$(echo "$OUT" | jq -r .sqlDatabase.value)" >> "$GITHUB_ENV"
           echo "API_URL=$(echo "$OUT" | jq -r .urlApi.value)" >> "$GITHUB_ENV"
+          echo "IDENTITE_NOM=$(echo "$OUT" | jq -r .identiteNom.value)" >> "$GITHUB_ENV"
+          echo "IDENTITE_CLIENT_ID=$(echo "$OUT" | jq -r .identiteClientId.value)" >> "$GITHUB_ENV"
 
       - uses: actions/setup-dotnet@v4
         with:
@@ -89,7 +92,8 @@ jobs:
         run: |
           export SQL_ACCESS_TOKEN=$(az account get-access-token \
             --resource https://database.windows.net/ --query accessToken -o tsv)
-          dotnet run --project tools/AccorderAccesSql -c Release -- "$SQL_FQDN" "$SQL_DATABASE" "$FUNCTION_APP"
+          dotnet run --project tools/AccorderAccesSql -c Release -- \
+            "$SQL_FQDN" "$SQL_DATABASE" "$IDENTITE_NOM" "$IDENTITE_CLIENT_ID"
 
       - name: Publier l'API (.NET 8 isolé)
         run: dotnet publish api/DeuxiemeCerveau.Api.csproj -c Release -o publish
