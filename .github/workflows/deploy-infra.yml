@@ -37,6 +37,24 @@ jobs:
       - name: Identité du déployeur (administrateur Entra ID de SQL)
         run: echo "DEPLOYER_OBJECT_ID=$(az ad sp show --id ${{ secrets.AZURE_CLIENT_ID }} --query id -o tsv)" >> "$GITHUB_ENV"
 
+      # Un abonnement neuf n'a pas encore « activé » toutes les familles de services.
+      # On enregistre les fournisseurs nécessaires et on attend ceux qui manquaient (Sql, Web).
+      - name: Enregistrer les fournisseurs de ressources
+        run: |
+          for ns in Microsoft.Sql Microsoft.Web Microsoft.Storage Microsoft.KeyVault \
+                    Microsoft.OperationalInsights Microsoft.Insights Microsoft.Consumption; do
+            az provider register --namespace "$ns" --only-show-errors >/dev/null || true
+          done
+          for ns in Microsoft.Sql Microsoft.Web; do
+            echo "Attente de l'enregistrement de $ns…"
+            for i in $(seq 1 30); do
+              etat=$(az provider show --namespace "$ns" --query registrationState -o tsv)
+              echo "  $ns : $etat"
+              [ "$etat" = "Registered" ] && break
+              sleep 10
+            done
+          done
+
       # Le modèle est déduit du « using » du .bicepparam — ne pas passer --template-file.
       - name: Valider le déploiement (compilation + contrôle ARM)
         run: |
