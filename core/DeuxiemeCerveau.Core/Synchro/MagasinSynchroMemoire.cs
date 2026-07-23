@@ -47,6 +47,9 @@ public sealed class MagasinSynchroMemoire : IMagasinSynchro
             .Take(limite)
             .ToList();
 
+    public IReadOnlyList<EtatEntite> EnumererEtats(EntiteSynchro entite)
+        => _etats.Values.Where(e => e.Entite == entite).OrderBy(e => e.ServerSeq).ToList();
+
     public IReadOnlyList<EtatEntite> TachesAFaireDuProjet(Guid projetId)
         => _etats.Values
             .Where(e => e.Entite == EntiteSynchro.Element && !e.Supprime)

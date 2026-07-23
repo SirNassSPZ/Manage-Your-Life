@@ -1,6 +1,6 @@
-# CI — cœur métier (Étape 1)
-# Les tests exhaustifs et les golden files (§12) sont vérifiés à chaque poussée :
-# la spec fait foi, la CI le prouve. Le déploiement (Étape 2, Bicep) s'ajoutera ici.
+# CI — cœur métier + contrat d'API (Étapes 1 et 3)
+# Les tests exhaustifs, les golden files (§12) et les tests de contrat §8 sont vérifiés à
+# chaque poussée : la spec fait foi, la CI le prouve. Le déploiement vit dans deploy-infra.yml.
 name: ci
 
 on:
@@ -10,7 +10,7 @@ on:
 
 jobs:
   coeur:
-    name: Tests du cœur métier
+    name: Tests du cœur et du contrat d'API
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

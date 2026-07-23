@@ -94,6 +94,18 @@ La spec (§5.1) fixe l'algorithme ; précisions nécessaires à une implémentat
 - Audit : `version ≥ 1`, `date_modification ≥ date_creation`, `appareil_source` non vide, `supprime = true` ⇔ `date_suppression` présente.
 - Taille de lot push plafonnée à 500 changements (défensif).
 
+## D-012 — API (Étape 3) : choix concrets
+**Statut : validée** (2026-07-23, décision déléguée par l'utilisateur) · Étape 3 · spec §8
+
+- **L'API est un adaptateur mince autour du cœur (règle 4).** Les endpoints §8 désérialisent, appellent les processeurs du cœur (`ProcesseurPush`, `ProcesseurPull`, `ProcesseurReglage`, `ProcesseurPurge`, `CalculateurProjection`), sérialisent. Aucune logique métier dans `/api`.
+- **Sérialisation des lots par l'adaptateur** (D-005 : le moteur n'est pas thread-safe). Un verrou de processus sérialise les opérations mutantes (push, purge, recalage) ; en SQL, la transaction assure en plus l'atomicité.
+- **Construction en incréments** : 3a endpoints + DTOs sur magasin mémoire (tests de contrat locaux) ; 3b magasin Azure SQL + migrations au démarrage ; 3c authentification Entra ID + pièces jointes. Le magasin mémoire n'est **jamais déployé** (données non partagées) — le déploiement attend le magasin SQL.
+- **Stockage serveur = tables typées §9, source de vérité unique.** Le magasin SQL (`MagasinSynchroSql`) mappe `EtatEntite` ↔ lignes typées ; le payload canonique est **reconstruit à la lecture** depuis les colonnes (pas de JSON redondant, pas de donnée dérivée stockée — règle 9). Fidélité vérifiée par des tests aller-retour.
+- **Accès de l'API à SQL par identité managée** : l'identité du Function App devient un *contained user* Entra dans la base, avec les droits CRUD. Le T-SQL de création est exécuté **par le CI** (connecté en tant que service principal, administrateur Entra de la base) — **aucune manip utilisateur**.
+- **Authentification Entra ID (§8), intégrée dès maintenant** : middleware validant le jeton Bearer (issuer/audience/signature via métadonnées OIDC). Comptes Microsoft personnels + organisation. Configurable : bypass en local et dans les tests unitaires (jeton non requis hors ligne). **Manip utilisateur unique** : créer l'inscription d'application « API » (audience/scope) — fournie en un lot une fois le code d'auth en place. Les **tests de contrat CI** s'authentifient avec un jeton du service principal (même locataire), la connexion par compte personnel étant exercée par les vraies apps (Étapes 4-5).
+- **Enregistrement d'appareil** (`POST /devices/register`) : table `devices` (§9, non synchronisée) ; renvoie un `appareil_id` (UUID serveur).
+- **Pièces jointes** (§7) : URL SAS Blob à durée limitée. Génération par **délégation d'utilisateur** (SAS signé via l'identité managée) de préférence à la clé de compte, quand disponible.
+
 ## Q-001 — Question ouverte : propagation de la purge manuelle
 **Statut : tranchée par D-010** (2026-07-23)
 

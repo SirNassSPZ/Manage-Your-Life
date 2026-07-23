@@ -28,6 +28,12 @@ public interface IMagasinSynchro
     /// <summary>États dont server_seq &gt; depuis, ordonnés par server_seq croissant, au plus limite.</summary>
     IReadOnlyList<EtatEntite> ModifiesDepuis(long depuis, int limite);
 
+    /// <summary>
+    /// Tous les états courants d'un type d'entité (supprimés compris). Sert au calcul de la projection
+    /// budgétaire (lecture de tous les Éléments financiers) — jamais stocké, calculé à la lecture (règle 9).
+    /// </summary>
+    IReadOnlyList<EtatEntite> EnumererEtats(EntiteSynchro entite);
+
     /// <summary>Tâches « a_faire » non supprimées d'un projet — cascade de fermeture (§3.2).</summary>
     IReadOnlyList<EtatEntite> TachesAFaireDuProjet(Guid projetId);
 

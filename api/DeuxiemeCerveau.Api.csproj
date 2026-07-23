@@ -7,6 +7,8 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>DeuxiemeCerveau.Api</RootNamespace>
+    <!-- Le projet de tests est niché sous api/ : l'exclure des globs du projet applicatif. -->
+    <DefaultItemExcludes>$(DefaultItemExcludes);DeuxiemeCerveau.Api.Tests/**</DefaultItemExcludes>
   </PropertyGroup>
 
   <ItemGroup>
