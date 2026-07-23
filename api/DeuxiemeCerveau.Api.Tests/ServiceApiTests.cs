@@ -1,4 +1,5 @@
 using DeuxiemeCerveau.Api.Contrats;
+using DeuxiemeCerveau.Api.Persistence;
 using DeuxiemeCerveau.Api.Services;
 using DeuxiemeCerveau.Core.Modele;
 using DeuxiemeCerveau.Core.Synchro;
@@ -19,7 +20,8 @@ public class ServiceApiTests
     public ServiceApiTests()
     {
         var horloge = new HorlogeFixe(new DateTimeOffset(2026, 7, 15, 12, 0, 0, TimeSpan.Zero));
-        _service = new ServiceApi(new MagasinSynchroMemoire(), new MagasinAppareilsMemoire(horloge), horloge);
+        _service = new ServiceApi(
+            new MagasinSynchroMemoire(), new MagasinAppareilsMemoire(horloge), horloge, new StockagePiecesMemoire());
     }
 
     [Fact]
@@ -148,4 +150,55 @@ public class ServiceApiTests
         Assert.Empty(page.Entites);
         Assert.Contains(page.Purges, p => p.Id == facture.Id);
     }
+
+    // ----- Pièces jointes (§7, §8) -----
+
+    [Fact]
+    public void Piece_jointe_url_envoi_puis_confirmation()
+    {
+        var elementId = Guid.NewGuid();
+        var envoi = _service.PreparerEnvoiPiece(elementId, tailleOctets: 2048, pieceId: null);
+
+        Assert.NotEqual(Guid.Empty, envoi.AttachmentId);
+        Assert.Contains(envoi.AttachmentId.ToString(), envoi.BlobPath); // chemin dérivé des identifiants
+        Assert.False(string.IsNullOrWhiteSpace(envoi.UploadUrl));
+
+        // Le binaire « arrive » dans le stockage (simulé) → la confirmation réussit et renvoie la taille.
+        var confirmation = _service.ConfirmerEnvoiPiece(envoi.BlobPath);
+        Assert.True(confirmation.Confirme);
+        Assert.True(confirmation.TailleOctets > 0);
+    }
+
+    [Fact]
+    public void Piece_jointe_trop_volumineuse_refusee()
+        => Assert.Throws<PieceTropVolumineuse>(() =>
+            _service.PreparerEnvoiPiece(Guid.NewGuid(), PieceJointe.TailleMaxOctets + 1, null));
+
+    [Fact]
+    public void Confirmation_sans_televersement_refusee()
+        => Assert.Throws<TeleversementAbsent>(() => _service.ConfirmerEnvoiPiece("element/piece-jamais-envoyee"));
+
+    [Fact]
+    public void Url_lecture_apres_synchro_des_metadonnees()
+    {
+        // Les métadonnées d'une pièce transitent par la synchro (§6.2), comme toute entité.
+        var elementId = Guid.NewGuid();
+        var envoi = _service.PreparerEnvoiPiece(elementId, 2048, null);
+        var piece = new PieceJointe
+        {
+            Id = envoi.AttachmentId, ElementId = elementId, NomFichier = "facture.pdf",
+            TailleOctets = 2048, BlobPath = envoi.BlobPath, Confirme = true,
+            DateCreation = FabriqueApi.T0, DateModification = FabriqueApi.T0,
+            AppareilSource = FabriqueApi.AppareilA, Version = 1,
+        };
+        _service.Pousser(FabriqueApi.Lot(FabriqueApi.Changement(piece, EntiteSynchro.PieceJointe)));
+
+        var lecture = _service.UrlLecturePiece(envoi.AttachmentId);
+        Assert.Equal("facture.pdf", lecture.NomFichier);
+        Assert.Contains(envoi.BlobPath, lecture.DownloadUrl);
+    }
+
+    [Fact]
+    public void Url_lecture_piece_inconnue_refusee()
+        => Assert.Throws<PieceIntrouvable>(() => _service.UrlLecturePiece(Guid.NewGuid()));
 }

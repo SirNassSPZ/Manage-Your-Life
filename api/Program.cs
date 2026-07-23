@@ -19,6 +19,11 @@ var baseDonnees = Environment.GetEnvironmentVariable("SQL_DATABASE");
 var identiteClientId = Environment.GetEnvironmentVariable("SQL_IDENTITY_CLIENT_ID");
 var modeSql = !string.IsNullOrWhiteSpace(fqdn) && !string.IsNullOrWhiteSpace(baseDonnees);
 
+// Stockage des pièces jointes (§7) : la chaîne du runtime porte la clé de compte (injectée par Bicep,
+// jamais dans git — règle 16), ce qui permet de signer des URL SAS sans attribution de rôle RBAC.
+var chaineStockage = Environment.GetEnvironmentVariable("AzureWebJobsStorage");
+var conteneurPieces = Environment.GetEnvironmentVariable("BLOB_CONTAINER") ?? "pieces-jointes";
+
 // Chaîne de connexion Azure SQL par identité managée (aucun secret ; §8, règle 16). Quand une
 // identité ATTRIBUÉE est fournie, on la cible par son client_id ; sinon identité par défaut.
 string ChaineSql(int timeout)
@@ -50,6 +55,13 @@ var builder = new HostBuilder().ConfigureFunctionsWebApplication(worker =>
 builder.ConfigureServices(services =>
 {
     services.AddSingleton<IHorloge, HorlogeSysteme>();
+
+    // Pièces jointes (§7) : vrai Blob Storage en production (URL SAS signées par la clé du runtime),
+    // fausse implémentation mémoire en local/tests — jamais déployée (données non partagées, D-012).
+    if (modeSql && !string.IsNullOrWhiteSpace(chaineStockage))
+        services.AddSingleton<IStockagePieces>(_ => new StockagePiecesBlob(chaineStockage, conteneurPieces));
+    else
+        services.AddSingleton<IStockagePieces, StockagePiecesMemoire>();
 
     services.AddSingleton(optionsAuth);
     services.AddSingleton(optionsAuth.Activee

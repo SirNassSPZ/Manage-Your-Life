@@ -35,7 +35,7 @@ public sealed class MagasinSynchroSqlTests : IDisposable
         DbConnection Fabrique() => _connexion; // connexion partagée (base :memory:)
         _magasin = new MagasinSynchroSql(Fabrique, DialecteSql.Sqlite);
         var horloge = new HorlogeFixe(new DateTimeOffset(2026, 7, 15, 12, 0, 0, TimeSpan.Zero));
-        _service = new ServiceApi(_magasin, new MagasinAppareilsMemoire(horloge), horloge);
+        _service = new ServiceApi(_magasin, new MagasinAppareilsMemoire(horloge), horloge, new StockagePiecesMemoire());
     }
 
     public void Dispose() => _connexion.Dispose();

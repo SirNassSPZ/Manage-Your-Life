@@ -1,5 +1,6 @@
 using System.Text.Json;
 using DeuxiemeCerveau.Api.Contrats;
+using DeuxiemeCerveau.Api.Persistence;
 using DeuxiemeCerveau.Core.Json;
 using DeuxiemeCerveau.Core.Modele;
 using DeuxiemeCerveau.Core.Projection;
@@ -12,9 +13,13 @@ namespace DeuxiemeCerveau.Api.Services;
 /// Orchestration de l'API (§8) — adaptateur mince autour du cœur (règle 4). Sérialise les opérations
 /// mutantes (le moteur n'est pas thread-safe, D-005) ; en SQL, la transaction assure l'atomicité.
 /// </summary>
-public sealed class ServiceApi(IMagasinSynchro magasin, IMagasinAppareils appareils, IHorloge horloge)
+public sealed class ServiceApi(
+    IMagasinSynchro magasin, IMagasinAppareils appareils, IHorloge horloge, IStockagePieces stockage)
 {
     private readonly object _verrou = new();
+
+    /// <summary>Validité d'une URL SAS de pièce jointe (§7) : assez courte, assez longue pour un gros fichier.</summary>
+    private static readonly TimeSpan DureeSas = TimeSpan.FromMinutes(15);
 
     public ReponseEnregistrementAppareil EnregistrerAppareil(DemandeEnregistrementAppareil demande)
     {
@@ -70,6 +75,49 @@ public sealed class ServiceApi(IMagasinSynchro magasin, IMagasinAppareils appare
             return new ProcesseurPurge(magasin, horloge).Traiter(lot);
     }
 
+    // ----- Pièces jointes (§7, §8) : courtage d'URL SAS ; le binaire ne passe jamais par l'API -----
+
+    /// <summary>
+    /// <c>GET /attachments/upload-url</c> (§8) : prépare le téléversement d'un binaire vers Blob Storage.
+    /// Renvoie l'identifiant de pièce, le chemin blob et une URL SAS d'écriture temporaire. Les
+    /// métadonnées (PieceJointe) seront, elles, poussées par la synchro (§6.2) une fois l'envoi confirmé.
+    /// </summary>
+    public ReponseUrlEnvoiDto PreparerEnvoiPiece(Guid elementId, long tailleOctets, Guid? pieceId)
+    {
+        if (tailleOctets <= 0 || tailleOctets > PieceJointe.TailleMaxOctets)
+            throw new PieceTropVolumineuse(tailleOctets);
+        var id = pieceId ?? Guid.NewGuid();
+        var blobPath = $"{elementId:D}/{id:D}"; // chemin opaque, dérivé des identifiants (jamais du nom de fichier)
+        var (url, expire) = stockage.PreparerEnvoi(blobPath, DureeSas);
+        return new ReponseUrlEnvoiDto(id, blobPath, url.ToString(), expire);
+    }
+
+    /// <summary>
+    /// <c>POST /attachments/confirm</c> (§8) : vérifie que le binaire est bien arrivé dans le stockage
+    /// (envoi terminé, §7). Renvoie la taille réelle. L'appelant peut alors marquer la pièce confirmée.
+    /// </summary>
+    public ReponseConfirmationDto ConfirmerEnvoiPiece(string blobPath)
+    {
+        var taille = stockage.TailleSiPresent(blobPath);
+        if (taille is null)
+            throw new TeleversementAbsent(blobPath);
+        return new ReponseConfirmationDto(true, taille.Value);
+    }
+
+    /// <summary>
+    /// <c>GET /attachments/{id}/download-url</c> (§8) : URL SAS de lecture. Le chemin blob est lu dans
+    /// les métadonnées synchronisées (§6.2) ; une pièce inconnue ou supprimée (§7) est refusée en 404.
+    /// </summary>
+    public ReponseUrlLectureDto UrlLecturePiece(Guid pieceId)
+    {
+        var etat = magasin.Obtenir(EntiteSynchro.PieceJointe, pieceId);
+        if (etat is null || etat.Supprime)
+            throw new PieceIntrouvable(pieceId);
+        var piece = SerialisationCanonique.Deserialiser<PieceJointe>(etat.PayloadCanonique);
+        var (url, expire) = stockage.UrlLecture(piece.BlobPath, DureeSas);
+        return new ReponseUrlLectureDto(url.ToString(), piece.NomFichier, expire);
+    }
+
     /// <summary>
     /// Projection budgétaire (§5.1) : lit le solde de référence et tous les Éléments du magasin,
     /// calcule à la lecture (jamais stocké, règle 9). Le premier mois est le mois courant.
@@ -101,3 +149,15 @@ public sealed class ServiceApi(IMagasinSynchro magasin, IMagasinAppareils appare
 /// <summary>Levée quand la projection est demandée sans solde de référence (§3.4) — 409 côté HTTP.</summary>
 public sealed class SoldeReferenceAbsent()
     : Exception("Aucun solde de référence n'a été saisi (§3.4) : la projection est impossible.");
+
+/// <summary>Pièce jointe hors limite de taille (§7) — 400 côté HTTP.</summary>
+public sealed class PieceTropVolumineuse(long taille)
+    : Exception($"Pièce jointe de {taille} octets : hors limite (≤ {PieceJointe.TailleMaxOctets} octets, soit 25 Mo, §7).");
+
+/// <summary>Confirmation demandée alors que le binaire n'est pas dans le stockage (§7) — 409 côté HTTP.</summary>
+public sealed class TeleversementAbsent(string blobPath)
+    : Exception($"Aucun téléversement présent pour « {blobPath} » : envoi non terminé (§7).");
+
+/// <summary>URL de lecture demandée pour une pièce inconnue ou supprimée (§7) — 404 côté HTTP.</summary>
+public sealed class PieceIntrouvable(Guid id)
+    : Exception($"Pièce jointe {id} inconnue ou supprimée (§7).");

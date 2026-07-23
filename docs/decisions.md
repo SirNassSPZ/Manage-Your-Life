@@ -137,3 +137,15 @@ Choix retenu : option (a) enrichie — route dédiée `POST /purge` en V1, avec 
 - **Blob** : conteneur `pieces-jointes` privé (`allowBlobPublicAccess = false`, §7 : SAS uniquement). **Key Vault** en mode RBAC, rôle *Secrets User* pour l'app (Étape 3).
 - **Journalisation** : Log Analytics PerGB2018 + Application Insights (workspace) avec échantillonnage — sous la franchise permanente de 5 Go/mois d'ingestion, coût attendu nul à notre échelle.
 - **Nommage** : `rg-dc-{env}`, suffixe `uniqueString(abonnement, env)` pour les noms globaux (storage, SQL, Key Vault, Functions) — reproductible et sans collision.
+
+## D-013 — Pièces jointes (§7, §8) : URL SAS signées par la clé du runtime, métadonnées via la synchro
+**Statut : validée** (2026-07-23, décision déléguée par l'utilisateur) · Étape 3 · spec §7, §8
+
+Précise (et corrige) la note de D-012 qui préférait la *délégation d'utilisateur* : ce chemin est écarté, pour la même raison que le stockage runtime (D-011) — signer une SAS par délégation exige que l'identité du Function App porte un rôle *Storage Blob Data* sur le compte, or l'attribution de rôle RBAC échappe au service principal *Contributeur* qui déploie. Retenu à la place :
+
+1. **Séparation binaire / métadonnées.** Le fichier vit dans Blob Storage ; ses **métadonnées** (`PieceJointe` : `element_id`, `nom_fichier`, `taille_octets`, `blob_path`, `confirme`) sont une **entité synchronisée à part entière** (`EntiteSynchro.PieceJointe`, D-006) qui transite par le push/pull ordinaire (§6.2) — même audit, même arbitrage, même journal. L'API des pièces jointes ne fait donc que **courtier des URL SAS** ; elle n'ouvre aucune seconde voie d'écriture des métadonnées.
+2. **SAS signées par la clé de compte du runtime.** `StockagePiecesBlob` construit un `BlobContainerClient` depuis la chaîne `AzureWebJobsStorage` (déjà injectée par Bicep via `listKeys`, jamais dans git — l'esprit de la règle 16 est préservé, comme pour le stockage runtime) et signe des SAS de **15 min** : écriture (`Write|Create`) pour l'envoi, lecture (`Read`) pour le téléchargement. Aucune attribution de rôle requise → déployable avec le seul *Contributeur*.
+3. **`GET /attachments/upload-url`** valide la taille (≤ 25 Mo, §7), dérive un `blob_path` **opaque** des identifiants (`{element_id}/{attachment_id}`, jamais du nom de fichier), renvoie `{attachment_id, blob_path, upload_url, expire_le}`. Le client téléverse en direct, pousse la `PieceJointe` par la synchro, puis appelle **`POST /attachments/confirm`** qui vérifie la présence réelle du binaire (envoi terminé) et renvoie sa taille. **`GET /attachments/{id}/download-url`** lit le `blob_path` dans les métadonnées synchronisées et renvoie une SAS de lecture ; pièce inconnue ou supprimée → 404.
+4. **Testabilité (règle 4).** L'interface `IStockagePieces` isole Azure ; l'implémentation mémoire (`StockagePiecesMemoire`) couvre le local et les tests (jamais déployée). Le cœur reste sans dépendance Azure.
+
+Migration V2 possible sans rupture de contrat : basculer vers la délégation d'utilisateur le jour où le déploiement dispose de *RBAC Administrator* — seul `StockagePiecesBlob` change, le §8 est inchangé.
