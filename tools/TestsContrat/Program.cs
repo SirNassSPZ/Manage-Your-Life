@@ -19,6 +19,12 @@ if (string.IsNullOrWhiteSpace(baseUrl))
     return 2;
 }
 
+// Quand l'authentification est active (§8), le flux fonctionnel exige un jeton que le CI n'émet pas :
+// on vérifie alors que l'authentification est bien APPLIQUÉE (appel sans jeton refusé). Le flux
+// fonctionnel complet reste couvert par les tests locaux et par le déploiement en auth désactivée.
+var authAttendue = string.Equals(
+    Environment.GetEnvironmentVariable("AUTH_ATTENDUE"), "true", StringComparison.OrdinalIgnoreCase);
+
 var http = new HttpClient { Timeout = TimeSpan.FromSeconds(60) };
 var options = SerialisationCanonique.Options;
 var echecs = 0;
@@ -61,6 +67,20 @@ for (var i = 1; ; i++)
         return 1;
     }
     await Task.Delay(TimeSpan.FromSeconds(6));
+}
+
+// Authentification active : on valide l'application du contrôle d'accès (401 sans jeton), le ping
+// public restant accessible. C'est la garantie de bout en bout que l'authentification est en place.
+if (authAttendue)
+{
+    var (sSansJeton, _) = await Envoyer(HttpMethod.Post, "/api/devices/register",
+        """{"nom":"CI contrat","plateforme":"ci"}""");
+    Verifier(sSansJeton == 401, "authentification appliquée : appel sans jeton refusé (401)");
+    Console.WriteLine();
+    Console.WriteLine(echecs == 0
+        ? "✓ Authentification vérifiée en ligne (flux fonctionnel couvert par les tests locaux et l'exécution auth-off)."
+        : $"✗ {echecs} test(s) de contrat en échec.");
+    return echecs == 0 ? 0 : 1;
 }
 
 // 1. Enregistrement d'appareil (§8).

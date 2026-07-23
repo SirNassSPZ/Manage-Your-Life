@@ -81,6 +81,7 @@ jobs:
           echo "API_URL=$(echo "$OUT" | jq -r .urlApi.value)" >> "$GITHUB_ENV"
           echo "IDENTITE_NOM=$(echo "$OUT" | jq -r .identiteNom.value)" >> "$GITHUB_ENV"
           echo "IDENTITE_CLIENT_ID=$(echo "$OUT" | jq -r .identiteClientId.value)" >> "$GITHUB_ENV"
+          echo "AUTH_ATTENDUE=$(echo "$OUT" | jq -r .authActivee.value)" >> "$GITHUB_ENV"
 
       - uses: actions/setup-dotnet@v4
         with:
@@ -120,4 +121,5 @@ jobs:
       - name: Tests de contrat en ligne (§8, §12 — fini quand ils passent)
         env:
           BASE_URL: ${{ env.API_URL }}
+          AUTH_ATTENDUE: ${{ env.AUTH_ATTENDUE }}
         run: dotnet run --project tools/TestsContrat -c Release
