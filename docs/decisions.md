@@ -111,3 +111,16 @@ Choix retenu : option (a) enrichie — route dédiée `POST /purge` en V1, avec 
 5. **Idempotence et atomicité** comme le push : `change_id` par demande, lot tout-ou-rien pour les erreurs de validation (les refus sont des résultats, pas des erreurs).
 
 Écarté : (b) purge différée en V2 — laisserait la « seule destruction réelle » inopérante en multi-appareils ; (c) suppression serveur sans tombale — résurrection garantie par le premier appareil resté hors-ligne.
+
+## D-011 — Infrastructure Étape 2 : choix concrets
+**Statut : validée** (2026-07-23, décision déléguée par l'utilisateur) · Étape 2 · spec §10
+
+- **Région : West Europe** (`westeurope`) — l'un des deux choix autorisés (§10.1), retenu pour la disponibilité la plus large des offres gratuites ; basculer sur `francecentral` reste un paramètre.
+- **Authentification GitHub → Azure : fédération OIDC** (aucun secret stocké, cohérent règle 16). Trois identifiants non secrets dans les secrets GitHub : `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`. Le déploiement ne part que de la branche `main` (credential fédérée liée à `refs/heads/main`).
+- **Droits du service principal** : *Contributeur* (déployer) + ***Role Based Access Control Administrator*** sur l'abonnement — nécessaire pour que Bicep attribue les rôles à l'identité managée du Function App ; plus étroit qu'*Owner*.
+- **Ordre de déploiement garanti** : le module `budget.bicep` (alerte 50 % prévu / 90 % / 100 % réel, filtrée sur `rg-dc-dev`, plafond 5 €/mois paramétrable) est une dépendance explicite de toutes les autres ressources (§10.3 : l'alerte d'abord).
+- **SQL serverless palier gratuit permanent** : `GP_S_Gen5_2`, `useFreeLimit = true`, `freeLimitExhaustionBehavior = AutoPause` (quota épuisé → pause, jamais de facturation), pause auto à 60 min, 32 Go. **Entra ID uniquement** (`azureADOnlyAuthentication`) — aucun mot de passe SQL n'existe ; l'administrateur est le service principal de déploiement (les migrations passeront par lui, Étape 3).
+- **Function App Windows, plan Consommation Y1**, .NET 8 isolé, identité managée système ; **stockage du runtime par identité** (`AzureWebJobsStorage__accountName`, aucune clé de compte en clair) — d'où les rôles Blob Data Owner + Queue Data Contributor.
+- **Blob** : conteneur `pieces-jointes` privé (`allowBlobPublicAccess = false`, §7 : SAS uniquement). **Key Vault** en mode RBAC, rôle *Secrets User* pour l'app (Étape 3).
+- **Journalisation** : Log Analytics PerGB2018 + Application Insights (workspace) avec échantillonnage — sous la franchise permanente de 5 Go/mois d'ingestion, coût attendu nul à notre échelle.
+- **Nommage** : `rg-dc-{env}`, suffixe `uniqueString(abonnement, env)` pour les noms globaux (storage, SQL, Key Vault, Functions) — reproductible et sans collision.
