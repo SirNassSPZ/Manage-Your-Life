@@ -10,6 +10,7 @@ on:
     paths:
       - "infra/**"
       - "api/**"
+      - "tools/**" # outils de déploiement (octroi d'accès SQL, tests de contrat)
       - ".github/workflows/deploy-infra.yml"
 
 permissions:
