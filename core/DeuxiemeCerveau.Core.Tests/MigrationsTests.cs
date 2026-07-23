@@ -94,7 +94,7 @@ public class MigrationsTests
     }
 
     [Fact]
-    public void Base_en_version_1_ne_recoit_que_la_migration_002()
+    public void Base_en_version_1_recoit_les_migrations_manquantes()
     {
         using var cible = new CibleSqlite();
         ExecuteurMigrations.Appliquer(cible, DialecteSql.Sqlite, [ListeMigrations.Toutes[0]]);
@@ -102,8 +102,9 @@ public class MigrationsTests
 
         // Au démarrage suivant (liste complète), seules les migrations manquantes s'appliquent (règle 18).
         var appliquees = ExecuteurMigrations.Appliquer(cible, DialecteSql.Sqlite);
-        Assert.Equal([2], appliquees.Select(m => m.Numero));
+        Assert.Equal(Enumerable.Range(2, ListeMigrations.Toutes.Count - 1), appliquees.Select(m => m.Numero));
         Assert.Contains("purges", cible.Tables());
+        Assert.Contains("payload", cible.Colonnes("elements"));
     }
 
     [Fact]
@@ -119,6 +120,7 @@ public class MigrationsTests
             "sens", "projet_id", "budget_id", "est_obligatoire", "score_points", "priorite",
             "ordre_manuel", "statut", "rappels", "date_creation", "date_modification",
             "appareil_source", "version", "server_seq", "supprime", "date_suppression",
+            "payload", // ajoutée par la migration 003 (D-012)
         ];
         Assert.Equal(attendues, cible.Colonnes("elements"));
     }

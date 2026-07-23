@@ -1,25 +1,93 @@
+using System.Data.Common;
+using DeuxiemeCerveau.Api.Persistence;
 using DeuxiemeCerveau.Api.Services;
+using DeuxiemeCerveau.Core.Migrations;
 using DeuxiemeCerveau.Core.Synchro;
 using DeuxiemeCerveau.Core.Temps;
+using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 // Hôte Functions .NET 8 isolé (§8, plan Consommation), intégration ASP.NET Core.
 // L'API est la fine couche d'adaptateurs autour du cœur (§4) : elle câble les implémentations
 // concrètes (magasin, horloge) que le cœur ne connaît que par interface (règle 4).
-var host = new HostBuilder()
-    .ConfigureFunctionsWebApplication()
-    .ConfigureServices(services =>
-    {
-        services.AddSingleton<IHorloge, HorlogeSysteme>();
 
-        // Incrément 3a : magasin mémoire (jamais déployé — données non partagées, D-012).
-        // Incrément 3b : remplacé par MagasinSynchroSql (Azure SQL), même interface.
+var fqdn = Environment.GetEnvironmentVariable("SQL_SERVER_FQDN");
+var baseDonnees = Environment.GetEnvironmentVariable("SQL_DATABASE");
+var modeSql = !string.IsNullOrWhiteSpace(fqdn) && !string.IsNullOrWhiteSpace(baseDonnees);
+
+var builder = new HostBuilder().ConfigureFunctionsWebApplication();
+
+builder.ConfigureServices(services =>
+{
+    services.AddSingleton<IHorloge, HorlogeSysteme>();
+
+    if (modeSql)
+    {
+        // Production : Azure SQL par identité managée (aucun secret ; §8, règle 16).
+        var chaine = new SqlConnectionStringBuilder
+        {
+            DataSource = $"tcp:{fqdn},1433",
+            InitialCatalog = baseDonnees,
+            Encrypt = true,
+            Authentication = SqlAuthenticationMethod.ActiveDirectoryDefault,
+            ConnectTimeout = 60, // reprise du serverless : quelques secondes au premier appel (§10.1)
+        }.ConnectionString;
+
+        DbConnection Fabrique() => new SqlConnection(chaine);
+        services.AddSingleton<Func<DbConnection>>(Fabrique);
+        // Le magasin SQL porte l'état de transaction : une instance par invocation (D-012).
+        services.AddScoped<IMagasinSynchro>(sp => new MagasinSynchroSql(Fabrique, DialecteSql.AzureSql));
+        services.AddScoped<IMagasinAppareils>(sp =>
+            new MagasinAppareilsSql(Fabrique, sp.GetRequiredService<IHorloge>()));
+        services.AddScoped<ServiceApi>();
+    }
+    else
+    {
+        // Local / tests : magasin mémoire (jamais déployé — données non partagées, D-012).
         services.AddSingleton<IMagasinSynchro, MagasinSynchroMemoire>();
         services.AddSingleton<IMagasinAppareils, MagasinAppareilsMemoire>();
-
         services.AddSingleton<ServiceApi>();
-    })
-    .Build();
+    }
+});
+
+var host = builder.Build();
+
+// Migrations appliquées au démarrage (§9, règle 18) — additives, à l'identique partout.
+if (modeSql)
+    AppliquerMigrations(host, fqdn!, baseDonnees!);
 
 host.Run();
+return;
+
+static void AppliquerMigrations(IHost host, string fqdn, string baseDonnees)
+{
+    var journal = host.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Migrations");
+    var chaine = new SqlConnectionStringBuilder
+    {
+        DataSource = $"tcp:{fqdn},1433",
+        InitialCatalog = baseDonnees,
+        Encrypt = true,
+        Authentication = SqlAuthenticationMethod.ActiveDirectoryDefault,
+        ConnectTimeout = 120, // premier appel : reprise du serverless en pause
+    }.ConnectionString;
+
+    // Retry léger : la base serverless peut être en pause au premier appel (§10.1).
+    for (var tentative = 1; ; tentative++)
+    {
+        try
+        {
+            using var connexion = new SqlConnection(chaine);
+            connexion.Open();
+            var appliquees = new CibleMigrationSql(connexion, DialecteSql.AzureSql).AppliquerAuDemarrage();
+            journal.LogInformation("Migrations appliquées : {N}", appliquees.Count);
+            return;
+        }
+        catch (Exception ex) when (tentative < 5)
+        {
+            journal.LogWarning(ex, "Reprise SQL (tentative {T}) — nouvel essai…", tentative);
+            Thread.Sleep(TimeSpan.FromSeconds(5 * tentative));
+        }
+    }
+}

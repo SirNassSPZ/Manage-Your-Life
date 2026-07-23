@@ -11,5 +11,6 @@ public static class ListeMigrations
     [
         Migration001SchemaInitial.Definition,
         Migration002Purges.Definition,
+        Migration003Payload.Definition,
     ];
 }

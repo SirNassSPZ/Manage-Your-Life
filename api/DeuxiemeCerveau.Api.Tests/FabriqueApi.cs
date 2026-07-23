@@ -53,4 +53,7 @@ public static class FabriqueApi
 
     public static Element Copier(Element element)
         => SerialisationCanonique.Deserialiser<Element>(SerialisationCanonique.Serialiser(element));
+
+    public static Projet Copier2(Projet projet)
+        => SerialisationCanonique.Deserialiser<Projet>(SerialisationCanonique.Serialiser(projet));
 }
