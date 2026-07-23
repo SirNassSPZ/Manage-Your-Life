@@ -28,12 +28,18 @@ var chaine = new SqlConnectionStringBuilder
     ConnectTimeout = 120, // la base serverless peut être en pause (§10.1)
 }.ConnectionString;
 
-// QUOTENAME protège le nom du principal ; @identite reste paramétré.
+// QUOTENAME protège le nom du principal ; @identite reste paramétré. On construit la commande
+// dans une variable avant EXEC : T-SQL n'accepte pas d'appel de fonction directement dans EXEC(...).
 const string sql = """
     DECLARE @n sysname = @identite;
+    DECLARE @sql nvarchar(max);
     IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = @n)
-        EXEC('CREATE USER ' + QUOTENAME(@n) + ' FROM EXTERNAL PROVIDER;');
-    EXEC('ALTER ROLE db_owner ADD MEMBER ' + QUOTENAME(@n) + ';');
+    BEGIN
+        SET @sql = N'CREATE USER ' + QUOTENAME(@n) + N' FROM EXTERNAL PROVIDER;';
+        EXEC (@sql);
+    END;
+    SET @sql = N'ALTER ROLE db_owner ADD MEMBER ' + QUOTENAME(@n) + N';';
+    EXEC (@sql);
     """;
 
 for (var tentative = 1; ; tentative++)
