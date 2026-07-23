@@ -222,25 +222,32 @@ public sealed class MagasinSynchroSql(Func<DbConnection> fabriqueConnexion, Dial
             });
 
     public long AjouterJournal(EntreeJournal entree)
-        => Executer(
-            "INSERT INTO change_log (change_id, entite, element_id, payload, appareil_id, resultat, recu_le) " +
-            "VALUES (@change_id, @entite, @element_id, @payload, @appareil_id, @resultat, @recu_le)",
-            cmd =>
-            {
-                Param(cmd, "@change_id", entree.ChangeId);
-                Param(cmd, "@entite", NomEntite(entree.Entite));
-                Param(cmd, "@element_id", entree.EntiteId);
-                Param(cmd, "@payload", entree.Payload);
-                Param(cmd, "@appareil_id", entree.AppareilId);
-                Param(cmd, "@resultat", NomResultat(entree.Resultat));
-                Param(cmd, "@recu_le", entree.RecuLe.UtcDateTime);
-                cmd.ExecuteNonQuery();
-                // Le server_seq auto-incrémenté du journal : seul point spécifique au dialecte (D-012).
-                using var seq = cmd.Connection!.CreateCommand();
-                seq.Transaction = cmd.Transaction;
-                seq.CommandText = dialecte == DialecteSql.Sqlite ? "SELECT last_insert_rowid()" : "SELECT SCOPE_IDENTITY()";
-                return Convert.ToInt64(seq.ExecuteScalar(), CultureInfo.InvariantCulture);
-            });
+    {
+        var sql = dialecte == DialecteSql.Sqlite
+            ? """
+              INSERT INTO change_log (change_id, entite, element_id, payload, appareil_id, resultat, recu_le)
+              VALUES (@change_id, @entite, @element_id, @payload, @appareil_id, @resultat, @recu_le);
+              SELECT last_insert_rowid();
+              """
+            : """
+              INSERT INTO change_log (change_id, entite, element_id, payload, appareil_id, resultat, recu_le)
+              OUTPUT INSERTED.server_seq
+              VALUES (@change_id, @entite, @element_id, @payload, @appareil_id, @resultat, @recu_le);
+              """;
+
+        return Executer(sql, cmd =>
+        {
+            Param(cmd, "@change_id", entree.ChangeId);
+            Param(cmd, "@entite", NomEntite(entree.Entite));
+            Param(cmd, "@element_id", entree.EntiteId);
+            Param(cmd, "@payload", entree.Payload);
+            Param(cmd, "@appareil_id", entree.AppareilId);
+            Param(cmd, "@resultat", NomResultat(entree.Resultat));
+            Param(cmd, "@recu_le", entree.RecuLe.UtcDateTime);
+            var id = cmd.ExecuteScalar();
+            return Convert.ToInt64(id, CultureInfo.InvariantCulture);
+        });
+    }
 
     public long SeqCourante
         => Executer("SELECT COALESCE(MAX(server_seq), 0) FROM change_log",
