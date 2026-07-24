@@ -67,6 +67,15 @@ public sealed class FinancesViewModel : ViewModelBase
     public bool EstPaiement => TypeSelectionne == TypeElement.Paiement;
     public bool EstRevenu => TypeSelectionne == TypeElement.Revenu;
 
+    public ObservableCollection<Categorie> Categories { get; } = new();
+
+    private Categorie? _categorieSelectionnee;
+    public Categorie? CategorieSelectionnee
+    {
+        get => _categorieSelectionnee;
+        set => SetProperty(ref _categorieSelectionnee, value);
+    }
+
     private string _rechercheTexte = string.Empty;
     public string RechercheTexte
     {
@@ -100,6 +109,14 @@ public sealed class FinancesViewModel : ViewModelBase
     {
         var soldeRef = _depot.ObtenirSoldeReference();
         SoldeCentimes = soldeRef?.SoldeReferenceCentimes ?? 0;
+
+        Categories.Clear();
+        var cats = _depot.ListerCategories();
+        foreach (var c in cats)
+        {
+            Categories.Add(c);
+        }
+        CategorieSelectionnee = Categories.FirstOrDefault();
 
         _toutesTransactions = _depot.ListerElements()
             .Where(e => e.Type is TypeElement.Facture or TypeElement.Paiement or TypeElement.Revenu)
@@ -142,6 +159,11 @@ public sealed class FinancesViewModel : ViewModelBase
             Sens = TypeSelectionne == TypeElement.Revenu ? Sens.Entree : Sens.Sortie,
             Statut = TypeSelectionne == TypeElement.Revenu ? StatutElement.Attendu : StatutElement.AVenir
         };
+
+        if (CategorieSelectionnee is not null)
+        {
+            elem.Categories.Add(CategorieSelectionnee.Id);
+        }
 
         _depot.EnregistrerElement(elem);
 
