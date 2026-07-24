@@ -149,3 +149,19 @@ Précise (et corrige) la note de D-012 qui préférait la *délégation d'utilis
 4. **Testabilité (règle 4).** L'interface `IStockagePieces` isole Azure ; l'implémentation mémoire (`StockagePiecesMemoire`) couvre le local et les tests (jamais déployée). Le cœur reste sans dépendance Azure.
 
 Migration V2 possible sans rupture de contrat : basculer vers la délégation d'utilisateur le jour où le déploiement dispose de *RBAC Administrator* — seul `StockagePiecesBlob` change, le §8 est inchangé.
+
+## D-014 — Structure de l'app Windows : cœur applicatif cross-plateforme + coquille WinUI
+**Statut : validée** (2026-07-24, décision déléguée par l'utilisateur) · Étape 4 · spec §4, §6
+
+L'app Windows (`/apps/windows`) est scindée en deux, pour maximiser ce qui est testable et minimiser ce qui est écrit deux fois (Swift/C#) :
+
+1. **`DeuxiemeCerveau.App`** — cœur applicatif **cross-plateforme** (`net8.0`, **sans WinUI**), donc compilable et **testé en CI Linux**. Il porte les parties risquées de l'app : base locale SQLite, outbox, client de synchro (§6), services de lecture, export/import local (§5.7). Référence `/core` (modèle, JSON canonique, migrations, validations, projection, RRULE), **jamais** `/api` (règle 4 : le client ne connaît pas le serveur).
+2. **`DeuxiemeCerveau.Windows`** — coquille **WinUI** (`net8.0-windows`, Windows uniquement) : vues XAML, navigation, services plateforme (notifications, sélecteurs de fichiers, chemin de la base). Elle **affiche et saisit** seulement (garde-fou-architecture, règle 2) ; toute la logique vit dans le cœur applicatif.
+3. **`DeuxiemeCerveau.App.Tests`** (`net8.0`) — couvre les scénarios de parité solo (§12) indépendants de l'UI. Référence `/api` **en test uniquement**, pour adosser le fake d'API au vrai `ServiceApi` in-process (aller-retour client↔serveur réaliste) — jamais en production.
+
+Choix structurants :
+- **Base locale montée par les MÊMES migrations que le serveur** (`ListeMigrations` du cœur, dialecte `Sqlite`) via une cible d'application locale (`CibleMigrationLocale`) — jamais de schéma transcrit à la main (D-008 : une divergence de schéma = perte de données silencieuse). Le stockage des entités reprend le motif du serveur (payload canonique + colonnes typées §9).
+- **`server_seq` jamais généré côté client** (§6.2) : 0 tant qu'une entité n'a pas été tirée du serveur (le pull pose la valeur autoritaire).
+- **Filet 1 dès la persistance** : `BaseLocale` est le point d'écriture locale immédiate ; le réseau vient ensuite (client de synchro, incrément 4d).
+
+Cette structure vaut pour la seule app Windows (C#) ; l'app Apple (Swift, §5) réimplémente la même couche §6 depuis la **spec**, jamais depuis ce code (garde-fou-synchro).

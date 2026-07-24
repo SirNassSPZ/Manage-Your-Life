@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Cœur applicatif de l'app Windows — cross-plateforme (net8.0, SANS WinUI), donc compilable et
+    TESTABLE partout, y compris en CI Linux. Il porte les parties risquées de l'app (base locale,
+    outbox, client de synchro §6, services de lecture, export §5.7) ; la coquille WinUI ne fait
+    qu'afficher et saisir (garde-fou-architecture, règle 2). Aucune dépendance Azure (règle 4).
+  -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <RootNamespace>DeuxiemeCerveau.App</RootNamespace>
+    <!-- ICU requis pour les fuseaux IANA (comme le cœur) : jamais d'InvariantGlobalization. -->
+    <InvariantGlobalization>false</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Base locale des apps (SQLite) — adaptateur de persistance (règle 4 : hors du cœur). -->
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.8" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Modèle, JSON canonique, migrations (§9), validations, projection, RRULE — partagés (règle 2). -->
+    <ProjectReference Include="../../../core/DeuxiemeCerveau.Core/DeuxiemeCerveau.Core.csproj" />
+  </ItemGroup>
+
+</Project>
