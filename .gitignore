@@ -17,3 +17,9 @@ local.settings.json
 Thumbs.db
 .idea/
 .vscode/
+
+# Skills d'assistance installés localement (outillage de dev, pas du code produit) —
+# réinstallables via « npx skills add … » ; on ne pollue pas l'historique produit.
+.agents/
+skills-lock.json
+.claude/skills/make-interfaces-feel-better
