@@ -74,6 +74,10 @@ public sealed class DepotLocal(SqliteConnection connexion)
                 cmd => Peupler(cmd, etat, colonnes, payload));
     }
 
+    /// <summary>Écrit une entité à partir de son seul payload canonique (import §5.7).</summary>
+    public void EcrirePayload(EntiteSynchro entite, string payloadCanonique)
+        => Ecrire(EtatDepuisPayload(entite, payloadCanonique));
+
     public EtatEntite? Obtenir(EntiteSynchro entite, Guid id)
     {
         if (entite == EntiteSynchro.Reglage)

@@ -44,6 +44,9 @@ public sealed class FauxClientApi(ServiceApi service) : IClientApi
             r.PurgesInduites.Select(p => new ChangementInduitClient(p.ChangeId, p.Entite, p.EntiteId, p.ServerSeq)).ToList()));
     }
 
+    public Task<ReponseProjectionClient> Projeter(int mois, CancellationToken jeton = default)
+        => Task.FromResult(Fil<ReponseProjectionDto, ReponseProjectionClient>(service.Projeter(mois)));
+
     /// <summary>Sérialise la réponse serveur en JSON canonique puis la relit en DTO client (vrai format du fil).</summary>
     private static TCible Fil<TSource, TCible>(TSource source)
         => SerialisationCanonique.Deserialiser<TCible>(SerialisationCanonique.Serialiser(source));

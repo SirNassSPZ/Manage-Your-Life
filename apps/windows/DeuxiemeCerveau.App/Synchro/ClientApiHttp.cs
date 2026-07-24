@@ -37,6 +37,12 @@ public sealed class ClientApiHttp(HttpClient http) : IClientApi
         return SerialisationCanonique.Deserialiser<ReponsePurgeClient>(reponse);
     }
 
+    public async Task<ReponseProjectionClient> Projeter(int mois, CancellationToken jeton = default)
+    {
+        var reponse = await Envoyer(HttpMethod.Get, $"api/projection/budget?mois={mois}", null, jeton);
+        return SerialisationCanonique.Deserialiser<ReponseProjectionClient>(reponse);
+    }
+
     private async Task<string> Envoyer(HttpMethod methode, string chemin, string? corps, CancellationToken jeton)
     {
         using var requete = new HttpRequestMessage(methode, chemin);

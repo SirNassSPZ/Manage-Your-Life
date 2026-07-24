@@ -17,4 +17,7 @@ public interface IClientApi
     Task<ReponsePullClient> Tirer(long depuis, int limite, CancellationToken jeton = default);
 
     Task<ReponsePurgeClient> Purger(LotPurge lot, CancellationToken jeton = default);
+
+    /// <summary>Projection budgétaire (§5.1) — calculée par le serveur sur les données synchronisées (§4).</summary>
+    Task<ReponseProjectionClient> Projeter(int mois, CancellationToken jeton = default);
 }

@@ -67,3 +67,16 @@ public sealed record ResultatPurgeClient(
 public sealed record ReponsePurgeClient(
     IReadOnlyList<ResultatPurgeClient> Resultats,
     [property: JsonPropertyName("purges_induites")] IReadOnlyList<ChangementInduitClient> PurgesInduites);
+
+/// <summary>Un mois de la projection budgétaire (§5.1) — calculée par le serveur, affichée par l'app.</summary>
+public sealed record MoisProjeteClient(
+    string Mois,
+    [property: JsonPropertyName("ouverture_centimes")] long? OuvertureCentimes,
+    [property: JsonPropertyName("entrees_centimes")] long EntreesCentimes,
+    [property: JsonPropertyName("sorties_centimes")] long SortiesCentimes,
+    [property: JsonPropertyName("cloture_centimes")] long? ClotureCentimes,
+    bool Decouvert,
+    [property: JsonPropertyName("avant_reference")] bool AvantReference);
+
+/// <summary>Réponse de <c>GET /projection/budget</c> (§8).</summary>
+public sealed record ReponseProjectionClient(IReadOnlyList<MoisProjeteClient> Mois);
