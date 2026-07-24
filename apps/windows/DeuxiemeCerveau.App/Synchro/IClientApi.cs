@@ -20,4 +20,12 @@ public interface IClientApi
 
     /// <summary>Projection budgétaire (§5.1) — calculée par le serveur sur les données synchronisées (§4).</summary>
     Task<ReponseProjectionClient> Projeter(int mois, CancellationToken jeton = default);
+
+    // ----- Pièces jointes (§7) : courtage d'URL SAS ; le binaire transite en direct vers Blob -----
+
+    Task<ReponseUrlEnvoiClient> PreparerEnvoiPiece(Guid elementId, long tailleOctets, Guid attachmentId, CancellationToken jeton = default);
+
+    Task<ReponseConfirmationClient> ConfirmerPiece(string blobPath, CancellationToken jeton = default);
+
+    Task<ReponseUrlLectureClient> UrlLecturePiece(Guid attachmentId, CancellationToken jeton = default);
 }

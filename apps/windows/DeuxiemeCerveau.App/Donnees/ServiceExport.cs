@@ -1,6 +1,7 @@
 using System.IO.Compression;
 using System.Text;
 using System.Text.Json;
+using DeuxiemeCerveau.App.Fichiers;
 using DeuxiemeCerveau.App.Local;
 using DeuxiemeCerveau.Core.Json;
 using DeuxiemeCerveau.Core.Modele;
@@ -15,7 +16,7 @@ namespace DeuxiemeCerveau.App.Donnees;
 /// lisible sans l'app. C'est le point décisif : l'export doit fonctionner au moment précis où le
 /// serveur est inaccessible — aucune dépendance serveur autorisée.
 /// </summary>
-public sealed class ServiceExport(DepotLocal depot, IHorloge horloge)
+public sealed class ServiceExport(DepotLocal depot, IHorloge horloge, IStockageFichiersLocal? cache = null)
 {
     public const string FichierDonnees = "donnees.json";
     public const string DossierPieces = "pieces_jointes/";
@@ -33,10 +34,31 @@ public sealed class ServiceExport(DepotLocal depot, IHorloge horloge)
             flux.Write(octets, 0, octets.Length);
         }
 
-        // Dossier des pièces jointes (§7) : alimenté par le cache local des fichiers. Le cache n'est pas
-        // encore constitué (feature client à venir) — une pièce absente du cache est, par la spec,
-        // signalée manquante ; ici le dossier est simplement vide.
+        // Pièces jointes (§7) : le dossier reçoit les fichiers présents dans le cache local. Une pièce
+        // absente du cache est simplement omise (elle sera signalée manquante par sa présence dans
+        // donnees.json sans fichier, §5.7). Nom d'entrée = « {id}__{nom} » : l'identifiant, robuste, en
+        // tête, puis le nom d'origine pour rester lisible.
         zip.CreateEntry(DossierPieces);
+        if (cache is not null)
+            foreach (var etat in depot.Enumerer(EntiteSynchro.PieceJointe))
+            {
+                var piece = SerialisationCanonique.Deserialiser<PieceJointe>(etat.PayloadCanonique);
+                if (piece.Supprime)
+                    continue;
+                if (cache.Lire(piece.Id) is not { } contenu)
+                    continue;
+                var nom = $"{DossierPieces}{piece.Id:D}__{NomSur(piece.NomFichier)}";
+                var e = zip.CreateEntry(nom, CompressionLevel.Optimal);
+                using var f = e.Open();
+                f.Write(contenu, 0, contenu.Length);
+            }
+    }
+
+    private static string NomSur(string nom)
+    {
+        var invalides = Path.GetInvalidFileNameChars();
+        var propre = new string(nom.Select(c => invalides.Contains(c) ? '_' : c).ToArray());
+        return string.IsNullOrWhiteSpace(propre) ? "fichier" : propre;
     }
 
     private string ConstruireDonnees()

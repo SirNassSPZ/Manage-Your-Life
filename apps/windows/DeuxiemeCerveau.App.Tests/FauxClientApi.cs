@@ -47,6 +47,15 @@ public sealed class FauxClientApi(ServiceApi service) : IClientApi
     public Task<ReponseProjectionClient> Projeter(int mois, CancellationToken jeton = default)
         => Task.FromResult(Fil<ReponseProjectionDto, ReponseProjectionClient>(service.Projeter(mois)));
 
+    public Task<ReponseUrlEnvoiClient> PreparerEnvoiPiece(Guid elementId, long tailleOctets, Guid attachmentId, CancellationToken jeton = default)
+        => Task.FromResult(Fil<ReponseUrlEnvoiDto, ReponseUrlEnvoiClient>(service.PreparerEnvoiPiece(elementId, tailleOctets, attachmentId)));
+
+    public Task<ReponseConfirmationClient> ConfirmerPiece(string blobPath, CancellationToken jeton = default)
+        => Task.FromResult(Fil<ReponseConfirmationDto, ReponseConfirmationClient>(service.ConfirmerEnvoiPiece(blobPath)));
+
+    public Task<ReponseUrlLectureClient> UrlLecturePiece(Guid attachmentId, CancellationToken jeton = default)
+        => Task.FromResult(Fil<ReponseUrlLectureDto, ReponseUrlLectureClient>(service.UrlLecturePiece(attachmentId)));
+
     /// <summary>Sérialise la réponse serveur en JSON canonique puis la relit en DTO client (vrai format du fil).</summary>
     private static TCible Fil<TSource, TCible>(TSource source)
         => SerialisationCanonique.Deserialiser<TCible>(SerialisationCanonique.Serialiser(source));

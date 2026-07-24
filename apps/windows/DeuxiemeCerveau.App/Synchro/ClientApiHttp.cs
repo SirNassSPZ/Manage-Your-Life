@@ -43,6 +43,26 @@ public sealed class ClientApiHttp(HttpClient http) : IClientApi
         return SerialisationCanonique.Deserialiser<ReponseProjectionClient>(reponse);
     }
 
+    public async Task<ReponseUrlEnvoiClient> PreparerEnvoiPiece(Guid elementId, long tailleOctets, Guid attachmentId, CancellationToken jeton = default)
+    {
+        var chemin = $"api/attachments/upload-url?element_id={elementId}&taille_octets={tailleOctets}&attachment_id={attachmentId}";
+        var reponse = await Envoyer(HttpMethod.Get, chemin, null, jeton);
+        return SerialisationCanonique.Deserialiser<ReponseUrlEnvoiClient>(reponse);
+    }
+
+    public async Task<ReponseConfirmationClient> ConfirmerPiece(string blobPath, CancellationToken jeton = default)
+    {
+        var corps = SerialisationCanonique.Serialiser(new DemandeConfirmationClient(blobPath));
+        var reponse = await Envoyer(HttpMethod.Post, "api/attachments/confirm", corps, jeton);
+        return SerialisationCanonique.Deserialiser<ReponseConfirmationClient>(reponse);
+    }
+
+    public async Task<ReponseUrlLectureClient> UrlLecturePiece(Guid attachmentId, CancellationToken jeton = default)
+    {
+        var reponse = await Envoyer(HttpMethod.Get, $"api/attachments/{attachmentId}/download-url", null, jeton);
+        return SerialisationCanonique.Deserialiser<ReponseUrlLectureClient>(reponse);
+    }
+
     private async Task<string> Envoyer(HttpMethod methode, string chemin, string? corps, CancellationToken jeton)
     {
         using var requete = new HttpRequestMessage(methode, chemin);

@@ -80,3 +80,23 @@ public sealed record MoisProjeteClient(
 
 /// <summary>Réponse de <c>GET /projection/budget</c> (§8).</summary>
 public sealed record ReponseProjectionClient(IReadOnlyList<MoisProjeteClient> Mois);
+
+/// <summary>Réponse de <c>GET /attachments/upload-url</c> (§7, §8) : où et comment téléverser le binaire.</summary>
+public sealed record ReponseUrlEnvoiClient(
+    [property: JsonPropertyName("attachment_id")] Guid AttachmentId,
+    [property: JsonPropertyName("blob_path")] string BlobPath,
+    [property: JsonPropertyName("upload_url")] string UploadUrl,
+    [property: JsonPropertyName("expire_le")] DateTimeOffset ExpireLe);
+
+/// <summary>Corps de <c>POST /attachments/confirm</c>.</summary>
+public sealed record DemandeConfirmationClient([property: JsonPropertyName("blob_path")] string BlobPath);
+
+public sealed record ReponseConfirmationClient(
+    bool Confirme,
+    [property: JsonPropertyName("taille_octets")] long TailleOctets);
+
+/// <summary>Réponse de <c>GET /attachments/{id}/download-url</c>.</summary>
+public sealed record ReponseUrlLectureClient(
+    [property: JsonPropertyName("download_url")] string DownloadUrl,
+    [property: JsonPropertyName("nom_fichier")] string NomFichier,
+    [property: JsonPropertyName("expire_le")] DateTimeOffset ExpireLe);

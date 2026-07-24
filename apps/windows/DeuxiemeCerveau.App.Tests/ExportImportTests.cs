@@ -1,5 +1,6 @@
 using System.IO.Compression;
 using DeuxiemeCerveau.App.Donnees;
+using DeuxiemeCerveau.App.Fichiers;
 using DeuxiemeCerveau.App.Local;
 using DeuxiemeCerveau.App.Services;
 using DeuxiemeCerveau.Core.Modele;
@@ -82,4 +83,35 @@ public sealed class ExportImportTests
         using var b = FabriqueLocale.BaseMemoire();
         Assert.Throws<ErreurImport>(() => new ServiceImport(b.Depot).Importer(flux));
     }
+
+    [Fact]
+    public void Export_import_inclut_les_fichiers_de_pieces_jointes_en_cache()
+    {
+        using var a = FabriqueLocale.BaseMemoire();
+        var cacheA = new StockageFichiersMemoire();
+        var elementId = Guid.NewGuid();
+        var pieceId = Guid.NewGuid();
+        var contenu = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 };
+        cacheA.Ecrire(pieceId, contenu);
+        Saisie(a).Enregistrer(
+            new PieceJointe
+            {
+                Id = pieceId, ElementId = elementId, NomFichier = "facture.pdf",
+                TailleOctets = contenu.Length, BlobPath = $"{elementId:D}/{pieceId:D}", Confirme = true,
+            },
+            EntiteSynchro.PieceJointe);
+
+        using var flux = new MemoryStream();
+        new ServiceExport(a.Depot, new HorlogeFixe(FabriqueLocale.T0), cacheA).Exporter(flux);
+        flux.Position = 0;
+
+        using var b = FabriqueLocale.BaseMemoire();
+        var cacheB = new StockageFichiersMemoire();
+        new ServiceImport(b.Depot, cacheB).Importer(flux);
+
+        Assert.Single(b.Depot.Enumerer(EntiteSynchro.PieceJointe)); // métadonnées restaurées
+        Assert.True(cacheB.Existe(pieceId));                        // fichier restauré dans le cache
+        Assert.Equal(contenu, cacheB.Lire(pieceId));                // à l'identique
+    }
 }
+
