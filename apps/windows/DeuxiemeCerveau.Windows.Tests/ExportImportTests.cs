@@ -16,8 +16,7 @@ public sealed class ExportImportTests
 
         try
         {
-            using var depotSrc = new DepotLocalSqlite($"Data Source={fDbSource}");
-
+            using var depotSrc = new DepotLocalSqlite($"Data Source={fDbSource}", amorcerDonnees: false);
             var elem1 = new Element { Titre = "Loyer", Type = TypeElement.Facture, MontantCentimes = 80000, Statut = StatutElement.AVenir };
             var elem2 = new Element { Titre = "Note supprimée", Type = TypeElement.Note, Statut = StatutElement.Active };
             depotSrc.EnregistrerElement(elem1);
@@ -32,7 +31,7 @@ public sealed class ExportImportTests
             Assert.True(File.Exists(fZip));
 
             // Importation dans une base vierge
-            using var depotDst = new DepotLocalSqlite($"Data Source={fDbCible}");
+            using var depotDst = new DepotLocalSqlite($"Data Source={fDbCible}", amorcerDonnees: false);
             var donnees = ImportateurLocal.ImporterZip(depotDst, fZip);
 
             Assert.Equal(2, donnees.Elements.Count);

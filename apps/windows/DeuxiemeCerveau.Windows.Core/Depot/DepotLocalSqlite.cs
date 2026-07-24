@@ -18,7 +18,7 @@ public sealed class DepotLocalSqlite : IDepotLocal
 
     public Guid AppareilId => _appareilId;
 
-    public DepotLocalSqlite(string chaineConnexion, Guid? appareilId = null)
+    public DepotLocalSqlite(string chaineConnexion, Guid? appareilId = null, bool amorcerDonnees = true)
     {
         _chaineConnexion = chaineConnexion;
         _appareilId = appareilId ?? Guid.NewGuid();
@@ -27,6 +27,8 @@ public sealed class DepotLocalSqlite : IDepotLocal
         var cible = new CibleMigrationSqlite(_chaineConnexion);
         ExecuteurMigrations.Appliquer(cible, DialecteSql.Sqlite);
         InitialiserTablesLocales();
+        if (amorcerDonnees)
+            InitialiserDonneesDepart();
 
         if (appareilId.HasValue)
         {
@@ -65,6 +67,77 @@ public sealed class DepotLocalSqlite : IDepotLocal
             );
         ";
         cmd.ExecuteNonQuery();
+    }
+
+    private void InitialiserDonneesDepart()
+    {
+        if (ObtenirSoldeReference() is null)
+        {
+            RecalerSoldeReference(new ReglageSolde
+            {
+                SoldeReferenceCentimes = 245000,
+                SoldeReferenceDate = DateOnly.FromDateTime(DateTime.Today)
+            }, Guid.NewGuid());
+        }
+
+        if (ListerCategories().Count == 0)
+        {
+            EnregistrerCategorie(new Categorie { Nom = "Santé", Couleur = "#10B981", Origine = OrigineCategorie.Transversale });
+            EnregistrerCategorie(new Categorie { Nom = "Sport", Couleur = "#F59E0B", Origine = OrigineCategorie.Transversale });
+            EnregistrerCategorie(new Categorie { Nom = "Productivité", Couleur = "#6366F1", Origine = OrigineCategorie.Transversale });
+            EnregistrerCategorie(new Categorie { Nom = "École", Couleur = "#3B82F6", Origine = OrigineCategorie.Transversale });
+            EnregistrerCategorie(new Categorie { Nom = "Justice", Couleur = "#EC4899", Origine = OrigineCategorie.Transversale });
+        }
+
+        if (ListerElements().Count == 0)
+        {
+            EnregistrerElement(new Element
+            {
+                Titre = "Salaire Mensuel",
+                Type = TypeElement.Revenu,
+                MontantCentimes = 280000,
+                Devise = "EUR",
+                Sens = Sens.Entree,
+                Statut = StatutElement.Recu
+            });
+
+            EnregistrerElement(new Element
+            {
+                Titre = "Loyer Appartement",
+                Type = TypeElement.Facture,
+                MontantCentimes = 85000,
+                Devise = "EUR",
+                Sens = Sens.Sortie,
+                Statut = StatutElement.AVenir
+            });
+
+            EnregistrerElement(new Element
+            {
+                Titre = "Abonnement Salles de Sport",
+                Type = TypeElement.Paiement,
+                MontantCentimes = 4500,
+                Devise = "EUR",
+                Sens = Sens.Sortie,
+                Statut = StatutElement.Paye
+            });
+
+            EnregistrerElement(new Element
+            {
+                Titre = "Rendez-vous Médecin de Famille",
+                Type = TypeElement.Rendezvous,
+                DateDebut = DateTimeOffset.UtcNow.AddDays(3),
+                Fuseau = "Europe/Paris",
+                Statut = StatutElement.Planifie
+            });
+
+            EnregistrerElement(new Element
+            {
+                Titre = "Idées de projets d'apprentissage .NET 8",
+                Description = "Explorer WinUI 3, SQLite local-first, et les micro-animations WPF.",
+                Type = TypeElement.Note,
+                Statut = StatutElement.Active
+            });
+        }
     }
 
     public void DefinirAppareilId(Guid id)

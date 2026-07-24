@@ -12,7 +12,7 @@ public sealed class DepotLocalTests : IDisposable
     public DepotLocalTests()
     {
         _fichDb = Path.Combine(Path.GetTempPath(), $"test_db_{Guid.NewGuid()}.db");
-        _depot = new DepotLocalSqlite($"Data Source={_fichDb}");
+        _depot = new DepotLocalSqlite($"Data Source={_fichDb}", amorcerDonnees: false);
     }
 
     [Fact]
