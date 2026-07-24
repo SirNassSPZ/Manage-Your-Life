@@ -261,7 +261,7 @@ L'endroit exact où les applications perdent des données. À implémenter **à 
 
 ### 6.2 Protocole concret
 
-**Enregistrement.** Chaque appareil s'enregistre à la première connexion (`POST /devices/register`) et reçoit son `appareil_id`.
+**Enregistrement.** Chaque appareil possède un `appareil_id` **généré localement au premier lancement** — la saisie hors-ligne (filet 1) ne peut pas attendre un aller-retour serveur — et s'enregistre à la première connexion (`POST /devices/register`), où il **adopte** l'`appareil_id` renvoyé par le serveur. Les entités déjà créées hors-ligne conservent l'id provisoire comme simple marqueur de provenance (sans effet sur l'arbitrage, qui tranche sur `date_modification`). Voir D-015.
 
 **Outbox locale.** Chaque modification locale (création, édition, marquage supprimé) produit une entrée d'outbox : `{ change_id: UUID généré localement, element_id, version, payload complet, date_modification, appareil_id }`. L'outbox est persistante : elle survit au redémarrage de l'app.
 

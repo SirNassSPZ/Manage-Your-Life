@@ -165,3 +165,11 @@ Choix structurants :
 - **Filet 1 dès la persistance** : `BaseLocale` est le point d'écriture locale immédiate ; le réseau vient ensuite (client de synchro, incrément 4d).
 
 Cette structure vaut pour la seule app Windows (C#) ; l'app Apple (Swift, §5) réimplémente la même couche §6 depuis la **spec**, jamais depuis ce code (garde-fou-synchro).
+
+## D-015 — Client de synchro : identité d'appareil et acheminement du réglage
+**Statut : validée** (2026-07-24, décision déléguée par l'utilisateur) · Étape 4 · spec §6.2, §8 (clarification portée dans la spec)
+
+- **`appareil_id` généré localement, puis adopté du serveur.** Pour honorer le filet 1 (saisie hors-ligne immédiate), le client génère un `appareil_id` provisoire dès le premier lancement (stocké dans `sync_etat`). À la première connexion, `POST /devices/register` renvoie un id que le client **adopte** pour la suite. Les entités créées hors-ligne gardent l'id provisoire en `appareil_source` — un marqueur de provenance sans effet sur l'arbitrage (qui tranche sur `date_modification`, §6.2.3) ni sur l'idempotence (par `change_id`). Le §6.2 de la spec a été clarifié en conséquence (spec-first).
+- **Un seul aiguillage d'entités, partagé.** La désérialisation/validation/sérialisation par type est extraite en `AiguilleurEntites` dans `/core`, utilisée par le serveur (`ProcesseurPush`) **et** par le client (saisie, application du pull). Éviter deux aiguillages qui divergeraient est une précaution directe contre le risque n° 1 (garde-fou-synchro).
+- **Le réglage du solde transite par la synchro ordinaire.** Le client pousse **toutes** les entités synchronisées — y compris le `reglage` (§3.4) — via l'outbox → `POST /sync/push`, et les reçoit via `GET /sync/pull` (le serveur traite et renvoie le `reglage` comme toute entité, D-006). La route dédiée `PUT /settings/solde-reference` (§8) reste au contrat pour un recalage direct, mais n'est pas le chemin de ce client : un seul flux (outbox/curseur) porte tout, ce qui simplifie et uniformise la reprise après coupure.
+- **DTOs du fil côté client.** L'app définit ses propres DTOs de réponse (format §8), comme le fera l'app Apple en Swift. Ils sont validés contre la sortie **réelle** du serveur par les tests (aller-retour JSON canonique via le vrai `ServiceApi` en process), ce qui fait échouer franchement toute divergence de nom de champ.
