@@ -6,6 +6,8 @@ namespace DeuxiemeCerveau.Windows.App.ViewModels;
 public sealed class MainViewModel : ViewModelBase
 {
     public FinancesViewModel FinancesVM { get; }
+    public BudgetProjeteViewModel BudgetProjeteVM { get; }
+    public EnviesViewModel EnviesVM { get; }
     public CalendrierViewModel CalendrierVM { get; }
     public NotesViewModel NotesVM { get; }
     public CorbeilleViewModel CorbeilleVM { get; }
@@ -19,6 +21,8 @@ public sealed class MainViewModel : ViewModelBase
     }
 
     public ICommand NaviguerFinancesCommand { get; }
+    public ICommand NaviguerBudgetProjeteCommand { get; }
+    public ICommand NaviguerEnviesCommand { get; }
     public ICommand NaviguerCalendrierCommand { get; }
     public ICommand NaviguerNotesCommand { get; }
     public ICommand NaviguerCorbeilleCommand { get; }
@@ -27,6 +31,8 @@ public sealed class MainViewModel : ViewModelBase
     public MainViewModel(IDepotLocal depot)
     {
         FinancesVM = new FinancesViewModel(depot);
+        BudgetProjeteVM = new BudgetProjeteViewModel(depot);
+        EnviesVM = new EnviesViewModel(depot);
         CalendrierVM = new CalendrierViewModel(depot);
         NotesVM = new NotesViewModel(depot);
         CorbeilleVM = new CorbeilleViewModel(depot);
@@ -35,6 +41,8 @@ public sealed class MainViewModel : ViewModelBase
         _vueCourante = FinancesVM;
 
         NaviguerFinancesCommand = new RelayCommand(() => { FinancesVM.Recharger(); VueCourante = FinancesVM; });
+        NaviguerBudgetProjeteCommand = new RelayCommand(() => { BudgetProjeteVM.Recharger(); VueCourante = BudgetProjeteVM; });
+        NaviguerEnviesCommand = new RelayCommand(() => { EnviesVM.Recharger(); VueCourante = EnviesVM; });
         NaviguerCalendrierCommand = new RelayCommand(() => { CalendrierVM.Recharger(); VueCourante = CalendrierVM; });
         NaviguerNotesCommand = new RelayCommand(() => { NotesVM.Recharger(); VueCourante = NotesVM; });
         NaviguerCorbeilleCommand = new RelayCommand(() => { CorbeilleVM.Recharger(); VueCourante = CorbeilleVM; });

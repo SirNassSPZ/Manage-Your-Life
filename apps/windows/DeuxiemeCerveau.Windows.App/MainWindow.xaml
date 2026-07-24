@@ -2,31 +2,33 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="clr-namespace:DeuxiemeCerveau.Windows.App.ViewModels"
-        Title="Deuxième Cerveau — Spécification v3.1" Height="840" Width="1360"
+        Title="Deuxième Cerveau — Spécification v3.1 Complète" Height="860" Width="1380"
         Background="{StaticResource BgCanvas}"
         WindowStartupLocation="CenterScreen">
     <Grid>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="240"/>
+            <ColumnDefinition Width="250"/>
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
 
-        <!-- SIDEBAR NAVIGATION (Apple / Linear Minimalist Sidebar) -->
+        <!-- SIDEBAR NAVIGATION -->
         <Border Grid.Column="0" Background="{StaticResource BgSidebar}" BorderBrush="{StaticResource BorderLight}" BorderThickness="0,0,1,0">
             <DockPanel Margin="16,24">
-                <!-- App Brand Header -->
-                <StackPanel DockPanel.Dock="Top" Margin="4,0,0,28">
+                <!-- App Header -->
+                <StackPanel DockPanel.Dock="Top" Margin="4,0,0,24">
                     <TextBlock Text="Deuxième Cerveau" Foreground="{StaticResource TextMain}" FontSize="17" FontWeight="Bold"/>
                     <TextBlock Text="Gestion Personnelle Local-First" Foreground="{StaticResource TextMuted}" FontSize="11" Margin="0,2,0,0"/>
                 </StackPanel>
 
                 <!-- Navigation List -->
                 <StackPanel DockPanel.Dock="Top">
-                    <RadioButton Content="Finances &amp; Budgets" Command="{Binding NaviguerFinancesCommand}" IsChecked="True" Style="{StaticResource NavTabButton}"/>
-                    <RadioButton Content="Calendrier Apple" Command="{Binding NaviguerCalendrierCommand}" Style="{StaticResource NavTabButton}"/>
-                    <RadioButton Content="Notes" Command="{Binding NaviguerNotesCommand}" Style="{StaticResource NavTabButton}"/>
-                    <RadioButton Content="Corbeille" Command="{Binding NaviguerCorbeilleCommand}" Style="{StaticResource NavTabButton}"/>
-                    <RadioButton Content="Paramètres &amp; Export" Command="{Binding NaviguerReglagesCommand}" Style="{StaticResource NavTabButton}"/>
+                    <RadioButton Content="Finances" Command="{Binding NaviguerFinancesCommand}" IsChecked="True" Style="{StaticResource NavTabButton}"/>
+                    <RadioButton Content="Budget projeté 12M (§5.1)" Command="{Binding NaviguerBudgetProjeteCommand}" Style="{StaticResource NavTabButton}"/>
+                    <RadioButton Content="Envies &amp; Achats (§5.1)" Command="{Binding NaviguerEnviesCommand}" Style="{StaticResource NavTabButton}"/>
+                    <RadioButton Content="Calendrier Apple (§5.4)" Command="{Binding NaviguerCalendrierCommand}" Style="{StaticResource NavTabButton}"/>
+                    <RadioButton Content="Notes libres (§5.5)" Command="{Binding NaviguerNotesCommand}" Style="{StaticResource NavTabButton}"/>
+                    <RadioButton Content="Corbeille (§5.6)" Command="{Binding NaviguerCorbeilleCommand}" Style="{StaticResource NavTabButton}"/>
+                    <RadioButton Content="Paramètres (§5.7)" Command="{Binding NaviguerReglagesCommand}" Style="{StaticResource NavTabButton}"/>
                 </StackPanel>
 
                 <!-- Status Footer -->
@@ -51,7 +53,7 @@
                         <DataTemplate DataType="{x:Type vm:FinancesViewModel}">
                             <StackPanel>
                                 <TextBlock Text="Finances" Foreground="{StaticResource TextMain}" FontSize="24" FontWeight="Bold" Margin="0,0,0,4"/>
-                                <TextBlock Text="Suivi du solde de référence et catégorisation des dépenses (§3.1, §5.1)" Foreground="{StaticResource TextSub}" FontSize="13" Margin="0,0,0,24"/>
+                                <TextBlock Text="Suivi du solde de référence et enregistrement des transactions (§5.1)" Foreground="{StaticResource TextSub}" FontSize="13" Margin="0,0,0,24"/>
 
                                 <Grid Margin="0,0,0,24">
                                     <Grid.ColumnDefinitions>
@@ -120,7 +122,6 @@
                                         </ItemsControl>
                                     </StackPanel>
 
-                                    <!-- Formulaire Saisie avec Catégorisation (§3.1, §3.3) -->
                                     <Border Grid.Column="2" Style="{StaticResource CleanCard}" VerticalAlignment="Top">
                                         <StackPanel>
                                             <TextBlock Text="Nouvelle transaction" Foreground="{StaticResource TextMain}" FontSize="15" FontWeight="Bold" Margin="0,0,0,16"/>
@@ -153,13 +154,110 @@
                             </StackPanel>
                         </DataTemplate>
 
+                        <!-- ================= BUDGET PROJETÉ 12M TEMPLATE ================= -->
+                        <DataTemplate DataType="{x:Type vm:BudgetProjeteViewModel}">
+                            <StackPanel>
+                                <TextBlock Text="Budget projeté (12 mois glissants) (§5.1)" Foreground="{StaticResource TextMain}" FontSize="24" FontWeight="Bold" Margin="0,0,0,4"/>
+                                <TextBlock Text="Algorithme de projection officielle : solde de référence + cascade mensuelle + mise en évidence des mois déficitaires" Foreground="{StaticResource TextSub}" FontSize="13" Margin="0,0,0,24"/>
+
+                                <ItemsControl ItemsSource="{Binding Projections}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Style="{StaticResource CleanCard}" Margin="0,4" Padding="16">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="200"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="180"/>
+                                                    </Grid.ColumnDefinitions>
+
+                                                    <TextBlock Grid.Column="0" Text="{Binding NomMois}" Foreground="{StaticResource TextMain}" FontSize="15" FontWeight="Bold" VerticalAlignment="Center"/>
+                                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                        <TextBlock Text="Ouverture" Foreground="{StaticResource TextMuted}" FontSize="10"/>
+                                                        <TextBlock Text="{Binding SoldeOuvertureFormatted}" Foreground="{StaticResource TextSub}" FontSize="14"/>
+                                                    </StackPanel>
+                                                    <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                                                        <TextBlock Text="Entrées" Foreground="{StaticResource TextMuted}" FontSize="10"/>
+                                                        <TextBlock Text="{Binding TotalEntreesFormatted}" Foreground="{StaticResource AccentSuccess}" FontSize="14" FontWeight="SemiBold"/>
+                                                    </StackPanel>
+                                                    <StackPanel Grid.Column="3" VerticalAlignment="Center">
+                                                        <TextBlock Text="Sorties" Foreground="{StaticResource TextMuted}" FontSize="10"/>
+                                                        <TextBlock Text="{Binding TotalSortiesFormatted}" Foreground="{StaticResource AccentDanger}" FontSize="14" FontWeight="SemiBold"/>
+                                                    </StackPanel>
+
+                                                    <Border Grid.Column="4" CornerRadius="6" Padding="12,6" VerticalAlignment="Center" Background="#161822" BorderBrush="{StaticResource BorderLight}" BorderThickness="1">
+                                                        <StackPanel HorizontalAlignment="Center">
+                                                            <TextBlock Text="Clôture estimée" Foreground="{StaticResource TextMuted}" FontSize="10" HorizontalAlignment="Center"/>
+                                                            <TextBlock Text="{Binding SoldeClotureFormatted}" Foreground="{StaticResource TextMain}" FontSize="15" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                                        </StackPanel>
+                                                    </Border>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </DataTemplate>
+
+                        <!-- ================= ENVIES & ACHATS TEMPLATE ================= -->
+                        <DataTemplate DataType="{x:Type vm:EnviesViewModel}">
+                            <StackPanel>
+                                <TextBlock Text="Envies &amp; Achats souhaités (§5.1)" Foreground="{StaticResource TextMain}" FontSize="24" FontWeight="Bold" Margin="0,0,0,4"/>
+                                <TextBlock Text="Liste de souhaits confrontable au budget projeté pour arbitrer les achats non essentiels" Foreground="{StaticResource TextSub}" FontSize="13" Margin="0,0,0,24"/>
+
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="20"/>
+                                        <ColumnDefinition Width="340"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <StackPanel Grid.Column="0">
+                                        <ItemsControl ItemsSource="{Binding Envies}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border Style="{StaticResource CleanCard}" Margin="0,3" Padding="14">
+                                                        <Grid>
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="*"/>
+                                                                <ColumnDefinition Width="Auto"/>
+                                                            </Grid.ColumnDefinitions>
+                                                            <StackPanel Grid.Column="0">
+                                                                <TextBlock Text="{Binding Titre}" Foreground="{StaticResource TextMain}" FontWeight="SemiBold" FontSize="14"/>
+                                                                <TextBlock Text="{Binding Statut}" Foreground="{StaticResource TextMuted}" FontSize="12" Margin="0,2,0,0"/>
+                                                            </StackPanel>
+                                                            <TextBlock Grid.Column="1" Text="{Binding MontantCentimes}" Foreground="{StaticResource TextMain}" FontWeight="Bold" FontSize="15" VerticalAlignment="Center"/>
+                                                        </Grid>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+
+                                    <Border Grid.Column="2" Style="{StaticResource CleanCard}" VerticalAlignment="Top">
+                                        <StackPanel>
+                                            <TextBlock Text="Ajouter une envie d'achat" Foreground="{StaticResource TextMain}" FontSize="15" FontWeight="Bold" Margin="0,0,0,12"/>
+                                            <TextBlock Text="Libellé de l'envie" Foreground="{StaticResource TextSub}" FontSize="12" Margin="0,0,0,4"/>
+                                            <TextBox Text="{Binding NouvelleEnvieTitre, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ModernTextBox}" Margin="0,0,0,12"/>
+
+                                            <TextBlock Text="Montant estimé (€)" Foreground="{StaticResource TextSub}" FontSize="12" Margin="0,0,0,4"/>
+                                            <TextBox Text="{Binding NouvelleEnvieMontantEuros, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ModernTextBox}" Margin="0,0,0,16"/>
+
+                                            <Button Content="Enregistrer l'envie" Command="{Binding AjouterEnvieCommand}" Style="{StaticResource PrimaryButton}" HorizontalAlignment="Stretch"/>
+                                        </StackPanel>
+                                    </Border>
+                                </Grid>
+                            </StackPanel>
+                        </DataTemplate>
+
                         <!-- ================= CALENDRIER APPLE TEMPLATE ================= -->
                         <DataTemplate DataType="{x:Type vm:CalendrierViewModel}">
                             <StackPanel>
                                 <TextBlock Text="Calendrier Style Apple (§5.4)" Foreground="{StaticResource TextMain}" FontSize="24" FontWeight="Bold" Margin="0,0,0,4"/>
                                 <TextBlock Text="Superposition des rendez-vous et des échéances financières avec grille mensuelle" Foreground="{StaticResource TextSub}" FontSize="13" Margin="0,0,0,20"/>
 
-                                <!-- Header Bar Month Navigation -->
                                 <Border Style="{StaticResource CleanCard}" Margin="0,0,0,20" Padding="16">
                                     <Grid>
                                         <Grid.ColumnDefinitions>
@@ -178,7 +276,6 @@
                                     </Grid>
                                 </Border>
 
-                                <!-- Categories Filter Bar (§3.3) -->
                                 <Border Style="{StaticResource CleanCard}" Margin="0,0,0,20" Padding="12">
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock Text="Filtres catégories : " Foreground="{StaticResource TextMuted}" FontSize="12" VerticalAlignment="Center" Margin="0,0,12,0"/>
@@ -197,7 +294,6 @@
                                     </StackPanel>
                                 </Border>
 
-                                <!-- 2-Column Split: Apple Month Grid vs Event Details -->
                                 <Grid>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
@@ -205,9 +301,7 @@
                                         <ColumnDefinition Width="340"/>
                                     </Grid.ColumnDefinitions>
 
-                                    <!-- Apple Month Grid (7 columns) -->
                                     <StackPanel Grid.Column="0">
-                                        <!-- Days Header -->
                                         <UniformGrid Columns="7" Margin="0,0,0,8">
                                             <TextBlock Text="LUN" Foreground="{StaticResource TextMuted}" FontSize="11" FontWeight="Bold" HorizontalAlignment="Center"/>
                                             <TextBlock Text="MAR" Foreground="{StaticResource TextMuted}" FontSize="11" FontWeight="Bold" HorizontalAlignment="Center"/>
@@ -218,7 +312,6 @@
                                             <TextBlock Text="DIM" Foreground="{StaticResource TextMuted}" FontSize="11" FontWeight="Bold" HorizontalAlignment="Center"/>
                                         </UniformGrid>
 
-                                        <!-- Days Grid Items -->
                                         <ItemsControl ItemsSource="{Binding GrilleJours}">
                                             <ItemsControl.ItemsPanel>
                                                 <ItemsPanelTemplate>
@@ -246,7 +339,6 @@
                                         </ItemsControl>
                                     </StackPanel>
 
-                                    <!-- Right Column: Nouveau RDV Form -->
                                     <Border Grid.Column="2" Style="{StaticResource CleanCard}" VerticalAlignment="Top">
                                         <StackPanel>
                                             <TextBlock Text="Planifier un rendez-vous" Foreground="{StaticResource TextMain}" FontSize="15" FontWeight="Bold" Margin="0,0,0,12"/>
