@@ -183,3 +183,20 @@ Cette structure vaut pour la seule app Windows (C#) ; l'app Apple (Swift, §5) r
 - **Lecture** : depuis le cache si présent, sinon `GET /attachments/{id}/download-url` → téléchargement → mise en cache.
 - **Alimente l'export (§5.7)** : les fichiers présents dans le cache sont inclus dans l'archive ZIP (`pieces_jointes/{id}__{nom}`) ; une pièce absente du cache est omise (repérable par sa présence dans `donnees.json` sans fichier — « signalée manquante »). L'import restaure les fichiers dans le cache.
 - **Adaptateurs (règle 4)** : `IStockageFichiersLocal` (disque en prod / mémoire en test) et `ITransfertBlob` (HTTP en prod / mémoire en test). Le cœur reste sans dépendance ; le binaire ne transite jamais par l'API.
+
+## D-017 — Confirmation « payé/reçu » : acquis en V1 pour les Éléments simples ; à trancher pour les occurrences récurrentes
+**Statut : À VALIDER par l'utilisateur** (soulevé le 2026-07-24, demande utilisateur : « valider si le paiement a été fait / si le paiement récurrent est venu, avec sélection multiple »)  · Étape 4 · spec §3.1, §3.4, §5.1, §3.6
+
+**Constat (la spec fait foi).**
+- **Déjà en V1, sans rien ajouter :** confirmer qu'un paiement/une facture est réglé, ou qu'un revenu est arrivé, **est** un changement de **statut** de l'Élément (§3.1) : `facture`/`paiement` : `a_venir` → `paye` ; `revenu` : `attendu` → `recu`. Cela passe par la saisie locale-d'abord et la synchro ordinaire (§6). Le budget projeté (§5.1) et le suivi d'enveloppe (§3.6 : « dépensé = occurrences `paye` ») s'appuient sur ce statut.
+- **Sélection multiple (« confirmer en lot ») :** simple commodité d'UI qui applique le même changement de statut à N Éléments sélectionnés — **aucun** changement de modèle. Compatible V1.
+- **Trou dans la spec :** le statut vit sur **l'Élément entier**. Pour un Élément **récurrent** (RRULE), les occurrences sont **développées pour l'affichage seulement** (§4) et **ne sont pas stockées** — il n'existe donc **aucun** moyen, dans le modèle actuel, de marquer « le loyer de juillet est payé mais pas celui d'août ». Or §5.1 et §3.6 **parlent** d'« occurrences `paye` », ce qui présuppose un statut par occurrence absent du §3.1. Incohérence réelle à trancher.
+
+**Lecture fidèle au périmètre (recommandée par défaut).** Le §3.4 désigne le **recalage du solde** comme « **l'unique geste de correction** si la réalité et la projection s'écartent ». Donc la réponse V1 native pour le récurrent : on **n'coche pas** chaque échéance ; la projection suppose qu'elles ont lieu, et tout écart réel se corrige par un recalage. → **V1 = confirmation `payé/reçu` sur les Éléments ponctuels (+ sélection multiple) ; la confirmation par occurrence d'une série récurrente est reportée.**
+
+**Options si l'utilisateur veut la confirmation par occurrence dès la V1 (élargit le périmètre → exige de modifier la spec d'abord, CLAUDE.md) :**
+- **Option A — Report V2 (recommandée).** Tenir la V1 telle que ci-dessus ; consigner la confirmation par occurrence en V2. Aucun risque, aucune migration.
+- **Option B — Registre de confirmations d'occurrence (additif).** Nouvelle entité synchronisée `ConfirmationOccurrence { element_id, date_occurrence, statut, champs d'audit }`, **additive** (règle 18, pas de migration destructive), lue par la projection et le suivi d'enveloppe. Évite de matérialiser/altérer les RRULE. Coût : une entité de plus à implémenter **à l'identique dans les deux apps** (risque n° 1) + règles d'arbitrage.
+- **Option C — Matérialisation d'occurrence (exception de série).** Cocher une occurrence la **détache** en un Élément daté propre (`paye`), la série récurrente recevant un `EXDATE`. Standard « éditer une occurrence » des agendas, mais introduit EXDATE/overrides absents de la spec — plus lourd et plus risqué.
+
+**En attente de validation :** aucune de B/C n'est codée. La maquette montre le geste de confirmation (V1 sur les ponctuels + sélection multiple) et signale que le pointage par occurrence des récurrents est un choix de périmètre.
