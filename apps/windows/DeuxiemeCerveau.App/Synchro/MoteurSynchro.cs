@@ -18,11 +18,14 @@ public sealed class MoteurSynchro(DepotLocal depot, IdentiteAppareil identite, I
     /// <summary>Lot de push ≤ limite serveur (500, D-009) — on reste prudemment en dessous.</summary>
     public const int TailleLot = 200;
 
-    /// <summary>Un cycle complet (§6.2 « Cycle. Push puis pull ») : enregistrement si besoin, push, pull.</summary>
+    private readonly FilePurges _purges = new(depot);
+
+    /// <summary>Un cycle complet (§6.2 « Cycle. Push puis pull ») : enregistrement si besoin, push, purges, pull.</summary>
     public async Task Synchroniser(string nomAppareil, string plateforme, CancellationToken jeton = default)
     {
         await AssurerEnregistrement(nomAppareil, plateforme, jeton);
         await Pousser(jeton);
+        await PousserPurges(jeton);
         await Tirer(jeton);
     }
 
@@ -75,6 +78,27 @@ public sealed class MoteurSynchro(DepotLocal depot, IdentiteAppareil identite, I
                 }
             }
         }
+    }
+
+    /// <summary>
+    /// Envoie les purges en attente (§5.6) via <c>POST /purge</c>, puis les retire de la file. Le serveur
+    /// a répondu (purgée, refusée, ou rejouée) : la demande est traitée. Une purge refusée fait revenir
+    /// l'entité au pull suivant (la conservation gagne toute course, D-010). Idempotent par change_id.
+    /// </summary>
+    public async Task PousserPurges(CancellationToken jeton = default)
+    {
+        var enAttente = _purges.Lister();
+        if (enAttente.Count == 0)
+            return;
+        var lot = new LotPurge
+        {
+            AppareilId = identite.Obtenir(),
+            Purges = enAttente
+                .Select(p => new DemandePurge { ChangeId = p.ChangeId, Entite = p.Entite, EntiteId = p.EntiteId })
+                .ToList(),
+        };
+        var reponse = await api.Purger(lot, jeton);
+        _purges.Retirer(reponse.Resultats.Select(r => r.ChangeId));
     }
 
     /// <summary>

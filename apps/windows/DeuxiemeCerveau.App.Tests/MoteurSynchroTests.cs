@@ -155,4 +155,26 @@ public sealed class MoteurSynchroTests : IDisposable
         await mb.Synchroniser("B", "windows"); // B tire : la purge est transportée
         Assert.Null(bb.Depot.Obtenir(EntiteSynchro.Element, facture.Id)); // la copie locale de B a disparu
     }
+
+    [Fact]
+    public async Task Purge_depuis_la_corbeille_detruit_en_local_et_se_propage()
+    {
+        var (ba, sa, ma) = Appareil();
+        var purge = new ServicePurge(ba.Depot, new FilePurges(ba.Depot));
+        var facture = FabriqueLocale.NouvelleFacture();
+        sa.Enregistrer(facture, EntiteSynchro.Element);
+        sa.Supprimer(EntiteSynchro.Element, facture.Id);
+        await ma.Synchroniser("A", "windows");
+
+        var (bb, _, mb) = Appareil();
+        await mb.Synchroniser("B", "windows");
+        Assert.NotNull(bb.Depot.Obtenir(EntiteSynchro.Element, facture.Id));
+
+        purge.Purger(EntiteSynchro.Element, facture.Id);
+        Assert.Null(ba.Depot.Obtenir(EntiteSynchro.Element, facture.Id)); // détruit localement tout de suite (§5.6)
+        await ma.Synchroniser("A", "windows");                            // la purge part au serveur
+
+        await mb.Synchroniser("B", "windows");                            // B tire la purge
+        Assert.Null(bb.Depot.Obtenir(EntiteSynchro.Element, facture.Id));
+    }
 }
