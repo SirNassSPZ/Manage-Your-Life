@@ -18,11 +18,5 @@ Thumbs.db
 .idea/
 .vscode/
 
-# Skills d'assistance installés localement (outillage de dev, pas du code produit) —
-# réinstallables via « npx skills add … » ; on ne pollue pas l'historique produit.
-# Liste blanche : seuls les skills PRODUIT (garde-fous) sont suivis ; tout skill installé l'est en local.
-.agents/
-skills-lock.json
-.claude/skills/*
-!.claude/skills/garde-fou-architecture
-!.claude/skills/garde-fou-synchro
+# Note : les skills d'assistance installés (via « npx skills add … ») SONT suivis dans le dépôt,
+# à la demande de l'utilisateur — voir .agents/skills, .claude/skills et skills-lock.json.
