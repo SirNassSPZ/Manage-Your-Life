@@ -2,7 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="clr-namespace:DeuxiemeCerveau.Windows.App.ViewModels"
-        Title="Deuxième Cerveau" Height="800" Width="1280"
+        Title="Deuxième Cerveau — Spécification v3.1 Complète" Height="800" Width="1280"
         Background="{StaticResource BgCanvas}"
         WindowStartupLocation="CenterScreen">
     <Grid>
@@ -11,22 +11,22 @@
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
 
-        <!-- SIDEBAR NAVIGATION (Minimalist Desktop Sidebar) -->
+        <!-- SIDEBAR NAVIGATION -->
         <Border Grid.Column="0" Background="{StaticResource BgSidebar}" BorderBrush="{StaticResource BorderLight}" BorderThickness="0,0,1,0">
             <DockPanel Margin="16,24">
-                <!-- App Brand Header -->
+                <!-- App Header -->
                 <StackPanel DockPanel.Dock="Top" Margin="4,0,0,24">
                     <TextBlock Text="Deuxième Cerveau" Foreground="{StaticResource TextMain}" FontSize="16" FontWeight="Bold"/>
-                    <TextBlock Text="Gestion personnelle" Foreground="{StaticResource TextMuted}" FontSize="11" Margin="0,2,0,0"/>
+                    <TextBlock Text="Gestion Personnelle Local-First" Foreground="{StaticResource TextMuted}" FontSize="11" Margin="0,2,0,0"/>
                 </StackPanel>
 
                 <!-- Navigation List -->
                 <StackPanel DockPanel.Dock="Top">
                     <RadioButton Content="Finances" Command="{Binding NaviguerFinancesCommand}" IsChecked="True" Style="{StaticResource NavTabButton}"/>
                     <RadioButton Content="Calendrier &amp; Échéances" Command="{Binding NaviguerCalendrierCommand}" Style="{StaticResource NavTabButton}"/>
-                    <RadioButton Content="Notes" Command="{Binding NaviguerNotesCommand}" Style="{StaticResource NavTabButton}"/>
+                    <RadioButton Content="Notes libres" Command="{Binding NaviguerNotesCommand}" Style="{StaticResource NavTabButton}"/>
                     <RadioButton Content="Corbeille" Command="{Binding NaviguerCorbeilleCommand}" Style="{StaticResource NavTabButton}"/>
-                    <RadioButton Content="Paramètres" Command="{Binding NaviguerReglagesCommand}" Style="{StaticResource NavTabButton}"/>
+                    <RadioButton Content="Paramètres &amp; Export/Import" Command="{Binding NaviguerReglagesCommand}" Style="{StaticResource NavTabButton}"/>
                 </StackPanel>
 
                 <!-- Status Footer -->
@@ -34,7 +34,7 @@
                     <Border Style="{StaticResource CleanCard}" Padding="12">
                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                             <Ellipse Width="6" Height="6" Fill="#10B981" Margin="0,0,8,0"/>
-                            <TextBlock Text="Base SQLite locale active" Foreground="{StaticResource TextSub}" FontSize="11"/>
+                            <TextBlock Text="Base local-first active" Foreground="{StaticResource TextSub}" FontSize="11"/>
                         </StackPanel>
                     </Border>
                 </StackPanel>
@@ -50,11 +50,9 @@
                         <!-- ================= FINANCES TEMPLATE ================= -->
                         <DataTemplate DataType="{x:Type vm:FinancesViewModel}">
                             <StackPanel>
-                                <!-- Header -->
                                 <TextBlock Text="Finances" Foreground="{StaticResource TextMain}" FontSize="22" FontWeight="Bold" Margin="0,0,0,4"/>
-                                <TextBlock Text="Suivi du solde de référence et enregistrement des transactions" Foreground="{StaticResource TextSub}" FontSize="13" Margin="0,0,0,24"/>
+                                <TextBlock Text="Suivi du solde de référence et enregistrement des transactions (§5.1)" Foreground="{StaticResource TextSub}" FontSize="13" Margin="0,0,0,24"/>
 
-                                <!-- Key Metrics Ribbon -->
                                 <Grid Margin="0,0,0,24">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
@@ -64,15 +62,13 @@
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
 
-                                    <!-- Solde Card -->
                                     <Border Grid.Column="0" Style="{StaticResource CleanCard}">
                                         <StackPanel>
-                                            <TextBlock Text="SOLDE DE RÉFÉRENCE" Foreground="{StaticResource TextMuted}" FontSize="11" FontWeight="Bold"/>
+                                            <TextBlock Text="SOLDE DE RÉFÉRENCE (§3.4)" Foreground="{StaticResource TextMuted}" FontSize="11" FontWeight="Bold"/>
                                             <TextBlock Text="{Binding SoldeEurosFormatted}" Foreground="{StaticResource AccentSuccess}" FontSize="26" FontWeight="Bold" Margin="0,6,0,0"/>
                                         </StackPanel>
                                     </Border>
 
-                                    <!-- Entrées Card -->
                                     <Border Grid.Column="2" Style="{StaticResource CleanCard}">
                                         <StackPanel>
                                             <TextBlock Text="REVENUS CUMULÉS" Foreground="{StaticResource TextMuted}" FontSize="11" FontWeight="Bold"/>
@@ -80,7 +76,6 @@
                                         </StackPanel>
                                     </Border>
 
-                                    <!-- Sorties Card -->
                                     <Border Grid.Column="4" Style="{StaticResource CleanCard}">
                                         <StackPanel>
                                             <TextBlock Text="DÉPENSES CUMULÉES" Foreground="{StaticResource TextMuted}" FontSize="11" FontWeight="Bold"/>
@@ -89,7 +84,6 @@
                                     </Border>
                                 </Grid>
 
-                                <!-- 2-Column Main Content -->
                                 <Grid>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
@@ -97,7 +91,6 @@
                                         <ColumnDefinition Width="340"/>
                                     </Grid.ColumnDefinitions>
 
-                                    <!-- Left Column: Transactions Stream -->
                                     <StackPanel Grid.Column="0">
                                         <TextBox Text="{Binding RechercheTexte, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ModernTextBox}" Margin="0,0,0,12"/>
 
@@ -127,7 +120,6 @@
                                         </ItemsControl>
                                     </StackPanel>
 
-                                    <!-- Right Column: Saisie Form -->
                                     <Border Grid.Column="2" Style="{StaticResource CleanCard}" VerticalAlignment="Top">
                                         <StackPanel>
                                             <TextBlock Text="Nouvelle transaction" Foreground="{StaticResource TextMain}" FontSize="15" FontWeight="Bold" Margin="0,0,0,16"/>
@@ -161,7 +153,26 @@
                         <DataTemplate DataType="{x:Type vm:CalendrierViewModel}">
                             <StackPanel>
                                 <TextBlock Text="Calendrier &amp; Échéances" Foreground="{StaticResource TextMain}" FontSize="22" FontWeight="Bold" Margin="0,0,0,4"/>
-                                <TextBlock Text="Rendez-vous et échéances financières datées" Foreground="{StaticResource TextSub}" FontSize="13" Margin="0,0,0,24"/>
+                                <TextBlock Text="Superposition des rendez-vous et des échéances financières avec filtres par catégorie (§3.3, §5.4)" Foreground="{StaticResource TextSub}" FontSize="13" Margin="0,0,0,20"/>
+
+                                <!-- Categories Filter Bar (§3.3) -->
+                                <Border Style="{StaticResource CleanCard}" Margin="0,0,0,20" Padding="12">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="Filtres catégories (§3.3) : " Foreground="{StaticResource TextMuted}" FontSize="12" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                                        <ItemsControl ItemsSource="{Binding FiltresCategories}">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <StackPanel Orientation="Horizontal"/>
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <CheckBox IsChecked="{Binding EstActif, Mode=TwoWay}" Content="{Binding Categorie.Nom}" Foreground="{StaticResource TextMain}" FontSize="12" Margin="0,0,16,0" VerticalAlignment="Center"/>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </Border>
 
                                 <Grid>
                                     <Grid.ColumnDefinitions>
@@ -182,7 +193,10 @@
                                                             </Grid.ColumnDefinitions>
                                                             <StackPanel Grid.Column="0">
                                                                 <TextBlock Text="{Binding Titre}" Foreground="{StaticResource TextMain}" FontWeight="SemiBold" FontSize="14"/>
-                                                                <TextBlock Text="{Binding Type}" Foreground="{StaticResource TextSub}" FontSize="12" Margin="0,2,0,0"/>
+                                                                <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                                                                    <TextBlock Text="{Binding Type}" Foreground="{StaticResource TextSub}" FontSize="12" Margin="0,0,8,0"/>
+                                                                    <TextBlock Text="{Binding Recurrence}" Foreground="{StaticResource TextMuted}" FontSize="11" VerticalAlignment="Center"/>
+                                                                </StackPanel>
                                                             </StackPanel>
                                                             <Border Grid.Column="2" Background="#161822" BorderBrush="{StaticResource BorderLight}" BorderThickness="1" CornerRadius="4" Padding="8,2" VerticalAlignment="Center">
                                                                 <TextBlock Text="{Binding Statut}" Foreground="{StaticResource TextMain}" FontSize="11"/>
@@ -197,7 +211,17 @@
                                     <Border Grid.Column="2" Style="{StaticResource CleanCard}" VerticalAlignment="Top">
                                         <StackPanel>
                                             <TextBlock Text="Nouveau rendez-vous" Foreground="{StaticResource TextMain}" FontSize="15" FontWeight="Bold" Margin="0,0,0,12"/>
-                                            <TextBox Text="{Binding NouveauRendezvousTitre, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ModernTextBox}" Margin="0,0,0,16"/>
+                                            <TextBlock Text="Titre" Foreground="{StaticResource TextSub}" FontSize="12" Margin="0,0,0,4"/>
+                                            <TextBox Text="{Binding NouveauRendezvousTitre, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ModernTextBox}" Margin="0,0,0,12"/>
+
+                                            <TextBlock Text="Récurrence RRULE (§3.1)" Foreground="{StaticResource TextSub}" FontSize="12" Margin="0,0,0,4"/>
+                                            <ComboBox SelectedValue="{Binding RecurrenceSelectionnee, Mode=TwoWay}" Margin="0,0,0,16" Padding="10,6" Background="{StaticResource BgInput}" Foreground="{StaticResource TextMain}">
+                                                <ComboBoxItem Content="Aucune"/>
+                                                <ComboBoxItem Content="Quotidienne"/>
+                                                <ComboBoxItem Content="Hebdomadaire"/>
+                                                <ComboBoxItem Content="Mensuelle"/>
+                                            </ComboBox>
+
                                             <Button Content="Ajouter au calendrier" Command="{Binding AjouterRendezvousCommand}" Style="{StaticResource PrimaryButton}" HorizontalAlignment="Stretch"/>
                                         </StackPanel>
                                     </Border>
@@ -209,7 +233,7 @@
                         <DataTemplate DataType="{x:Type vm:NotesViewModel}">
                             <StackPanel>
                                 <TextBlock Text="Notes" Foreground="{StaticResource TextMain}" FontSize="22" FontWeight="Bold" Margin="0,0,0,4"/>
-                                <TextBlock Text="Brouillons de texte libre" Foreground="{StaticResource TextSub}" FontSize="13" Margin="0,0,0,24"/>
+                                <TextBlock Text="Brouillons de texte libre (§5.5)" Foreground="{StaticResource TextSub}" FontSize="13" Margin="0,0,0,24"/>
 
                                 <Border Style="{StaticResource CleanCard}" Margin="0,0,0,24">
                                     <StackPanel>
@@ -235,11 +259,11 @@
                         <DataTemplate DataType="{x:Type vm:CorbeilleViewModel}">
                             <StackPanel>
                                 <TextBlock Text="Corbeille" Foreground="{StaticResource TextMain}" FontSize="22" FontWeight="Bold" Margin="0,0,0,4"/>
-                                <TextBlock Text="Éléments supprimés en attente de purge définitive" Foreground="{StaticResource TextSub}" FontSize="13" Margin="0,0,0,24"/>
+                                <TextBlock Text="Vue des éléments marqués supprime = true. Seule la purge manuelle détruit (§5.6)." Foreground="{StaticResource TextSub}" FontSize="13" Margin="0,0,0,24"/>
 
                                 <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
                                     <Button Content="Restaurer l'élément" Command="{Binding RestaurerCommand}" Style="{StaticResource PrimaryButton}" Margin="0,0,10,0"/>
-                                    <Button Content="Purger définitivement" Command="{Binding PurgerCommand}" Style="{StaticResource SecondaryButton}"/>
+                                    <Button Content="Purger définitivement (§5.6)" Command="{Binding PurgerCommand}" Style="{StaticResource SecondaryButton}"/>
                                 </StackPanel>
 
                                 <ItemsControl ItemsSource="{Binding ElementsSupprimes}">
@@ -257,12 +281,12 @@
                         <!-- ================= PARAMÈTRES TEMPLATE ================= -->
                         <DataTemplate DataType="{x:Type vm:ReglagesViewModel}">
                             <StackPanel>
-                                <TextBlock Text="Paramètres" Foreground="{StaticResource TextMain}" FontSize="22" FontWeight="Bold" Margin="0,0,0,4"/>
-                                <TextBlock Text="Configuration de l'application et exportation locale" Foreground="{StaticResource TextSub}" FontSize="13" Margin="0,0,0,24"/>
+                                <TextBlock Text="Paramètres &amp; Export/Import (§5.7)" Foreground="{StaticResource TextMain}" FontSize="22" FontWeight="Bold" Margin="0,0,0,4"/>
+                                <TextBlock Text="Configuration de l'application, recalage du solde et gestion des sauvegardes ZIP local-first" Foreground="{StaticResource TextSub}" FontSize="13" Margin="0,0,0,24"/>
 
                                 <Border Style="{StaticResource CleanCard}" Margin="0,0,0,20">
                                     <StackPanel>
-                                        <TextBlock Text="Solde de référence (€)" Foreground="{StaticResource TextMain}" FontSize="15" FontWeight="Bold" Margin="0,0,0,12"/>
+                                        <TextBlock Text="Solde de référence (§3.4)" Foreground="{StaticResource TextMain}" FontSize="15" FontWeight="Bold" Margin="0,0,0,12"/>
                                         <TextBox Text="{Binding NouveauSoldeReferenceEuros, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ModernTextBox}" Margin="0,0,0,14"/>
                                         <Button Content="Recaler le solde" Command="{Binding RecalerSoldeCommand}" Style="{StaticResource PrimaryButton}" HorizontalAlignment="Left"/>
                                     </StackPanel>
@@ -270,10 +294,17 @@
 
                                 <Border Style="{StaticResource CleanCard}">
                                     <StackPanel>
-                                        <TextBlock Text="Exportation complète hors-ligne (§5.7)" Foreground="{StaticResource TextMain}" FontSize="15" FontWeight="Bold" Margin="0,0,0,6"/>
-                                        <TextBlock Text="Génère une archive ZIP (donnees.json et pièces jointes) sur le Bureau." Foreground="{StaticResource TextSub}" FontSize="13" Margin="0,0,0,16"/>
-                                        <Button Content="Exporter mes données en ZIP" Command="{Binding ExporterZipCommand}" Style="{StaticResource SecondaryButton}" HorizontalAlignment="Left"/>
-                                        <TextBlock Text="{Binding StatutSynchro}" Foreground="{StaticResource TextSub}" FontSize="12" Margin="0,12,0,0"/>
+                                        <TextBlock Text="Exportation &amp; Importation locale ZIP (§5.7)" Foreground="{StaticResource TextMain}" FontSize="15" FontWeight="Bold" Margin="0,0,0,6"/>
+                                        <TextBlock Text="Génère ou réimporte une archive ZIP (donnees.json et pièces jointes) 100% hors-ligne sans dépendance serveur." Foreground="{StaticResource TextSub}" FontSize="13" Margin="0,0,0,16"/>
+
+                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
+                                            <Button Content="Exporter mes données (ZIP)" Command="{Binding ExporterZipCommand}" Style="{StaticResource PrimaryButton}" Margin="0,0,12,0"/>
+                                            <Button Content="Importer une archive (ZIP)" Command="{Binding ImporterZipCommand}" Style="{StaticResource SecondaryButton}"/>
+                                        </StackPanel>
+
+                                        <CheckBox IsChecked="{Binding RappelExportMensuelActif, Mode=TwoWay}" Content="Activer le rappel mensuel d'exportation (§5.7)" Foreground="{StaticResource TextMain}" FontSize="13" Margin="0,0,0,12"/>
+
+                                        <TextBlock Text="{Binding StatutSynchro}" Foreground="{StaticResource TextSub}" FontSize="12"/>
                                     </StackPanel>
                                 </Border>
                             </StackPanel>
