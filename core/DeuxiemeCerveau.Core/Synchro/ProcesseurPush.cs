@@ -74,7 +74,7 @@ public sealed class ProcesseurPush(IMagasinSynchro magasin, IHorloge horloge)
         EntiteSynchronisee entite;
         try
         {
-            entite = Deserialiser(changement.Entite, changement.Payload);
+            entite = AiguilleurEntites.Deserialiser(changement.Entite, changement.Payload);
         }
         catch (JsonException ex)
         {
@@ -82,7 +82,7 @@ public sealed class ProcesseurPush(IMagasinSynchro magasin, IHorloge horloge)
             return erreurs;
         }
 
-        erreurs.AddRange(ValiderEntite(changement.Entite, entite));
+        erreurs.AddRange(AiguilleurEntites.Valider(changement.Entite, entite));
 
         // Cohérence enveloppe ↔ payload : l'arbitrage se fait sur l'enveloppe, le payload est la vérité —
         // toute divergence est un bug client et rejette le lot.
@@ -101,29 +101,6 @@ public sealed class ProcesseurPush(IMagasinSynchro magasin, IHorloge horloge)
             prepare = new ChangementPrepare(changement, entite);
         return erreurs;
     }
-
-    private static EntiteSynchronisee Deserialiser(EntiteSynchro entite, JsonElement payload) => entite switch
-    {
-        EntiteSynchro.Element => SerialisationCanonique.Deserialiser<Element>(payload),
-        EntiteSynchro.Categorie => SerialisationCanonique.Deserialiser<Categorie>(payload),
-        EntiteSynchro.Projet => SerialisationCanonique.Deserialiser<Projet>(payload),
-        EntiteSynchro.Budget => SerialisationCanonique.Deserialiser<Budget>(payload),
-        EntiteSynchro.PieceJointe => SerialisationCanonique.Deserialiser<PieceJointe>(payload),
-        EntiteSynchro.Reglage => SerialisationCanonique.Deserialiser<ReglageSolde>(payload),
-        _ => throw new JsonException($"Entité inconnue : {entite}."),
-    };
-
-    private static IReadOnlyList<ErreurValidation> ValiderEntite(EntiteSynchro type, EntiteSynchronisee entite)
-        => type switch
-        {
-            EntiteSynchro.Element => ValidateurElement.Valider((Element)entite),
-            EntiteSynchro.Categorie => ValidateurEntites.Valider((Categorie)entite),
-            EntiteSynchro.Projet => ValidateurEntites.Valider((Projet)entite),
-            EntiteSynchro.Budget => ValidateurEntites.Valider((Budget)entite),
-            EntiteSynchro.PieceJointe => ValidateurEntites.Valider((PieceJointe)entite),
-            EntiteSynchro.Reglage => ValidateurEntites.Valider((ReglageSolde)entite),
-            _ => [new ErreurValidation("entite", "entite_inconnue", $"Entité inconnue : {type}.")],
-        };
 
     private ResultatPush AppliquerUn(ChangementPrepare prepare, List<ChangementInduit> induits)
     {
@@ -190,14 +167,14 @@ public sealed class ProcesseurPush(IMagasinSynchro magasin, IHorloge horloge)
         entite.AppareilSource = appareilId;
 
         entite.ServerSeq = null;
-        var payloadJournal = SerialiserSelonType(entite, type);
+        var payloadJournal = AiguilleurEntites.Serialiser(type, entite);
         var seq = magasin.AjouterJournal(new EntreeJournal(
             ServerSeq: 0, changeId, type, entite.Id, payloadJournal, appareilId,
             ResultatChangement.Applique, horloge.MaintenantUtc));
 
         entite.ServerSeq = seq;
         magasin.Ecrire(new EtatEntite(type, entite.Id, versionAppliquee, entite.DateModification,
-            entite.Supprime, seq, SerialiserSelonType(entite, type)));
+            entite.Supprime, seq, AiguilleurEntites.Serialiser(type, entite)));
         return seq;
     }
 
@@ -219,15 +196,4 @@ public sealed class ProcesseurPush(IMagasinSynchro magasin, IHorloge horloge)
             induits.Add(new ChangementInduit(changeId, EntiteSynchro.Element, tache.Id, seq));
         }
     }
-
-    private static string SerialiserSelonType(EntiteSynchronisee entite, EntiteSynchro type) => type switch
-    {
-        EntiteSynchro.Element => SerialisationCanonique.Serialiser((Element)entite),
-        EntiteSynchro.Categorie => SerialisationCanonique.Serialiser((Categorie)entite),
-        EntiteSynchro.Projet => SerialisationCanonique.Serialiser((Projet)entite),
-        EntiteSynchro.Budget => SerialisationCanonique.Serialiser((Budget)entite),
-        EntiteSynchro.PieceJointe => SerialisationCanonique.Serialiser((PieceJointe)entite),
-        EntiteSynchro.Reglage => SerialisationCanonique.Serialiser((ReglageSolde)entite),
-        _ => throw new ArgumentOutOfRangeException(nameof(type)),
-    };
 }

@@ -3,8 +3,15 @@ using DeuxiemeCerveau.App.Local;
 using DeuxiemeCerveau.Core.Json;
 using DeuxiemeCerveau.Core.Modele;
 using DeuxiemeCerveau.Core.Synchro;
+using DeuxiemeCerveau.Core.Temps;
 
 namespace DeuxiemeCerveau.App.Tests;
+
+/// <summary>Horloge fixe pour des tests déterministes (dates d'audit, arbitrage).</summary>
+public sealed class HorlogeFixe(DateTimeOffset maintenant) : IHorloge
+{
+    public DateTimeOffset MaintenantUtc { get; set; } = maintenant;
+}
 
 /// <summary>Fabrique d'objets pour les tests de l'app Windows (base locale, outbox, synchro client).</summary>
 public static class FabriqueLocale
@@ -14,6 +21,21 @@ public static class FabriqueLocale
 
     /// <summary>Base locale SQLite en mémoire : la connexion unique de <see cref="BaseLocale"/> la maintient vivante.</summary>
     public static BaseLocale BaseMemoire() => new("Data Source=:memory:");
+
+    /// <summary>Un Élément « frais » tel que saisi dans l'UI : sans id ni audit (le service les pose).</summary>
+    public static Element NouvelleFacture(string titre = "Loyer", long montant = 80000, string? recurrence = null)
+        => new()
+        {
+            Type = TypeElement.Facture,
+            Titre = titre,
+            DateDebut = new DateTimeOffset(2026, 7, 5, 7, 0, 0, TimeSpan.Zero),
+            Fuseau = "Europe/Paris",
+            Recurrence = recurrence,
+            MontantCentimes = montant,
+            Devise = "EUR",
+            Sens = Sens.Sortie,
+            Statut = StatutElement.AVenir,
+        };
 
     public static Element Facture(
         Guid? id = null, string titre = "Loyer", long montant = 80000,
