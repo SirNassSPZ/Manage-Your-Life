@@ -68,7 +68,12 @@ public partial class App : Application
     private static async Task CapturerPuisQuitter(FenetrePrincipale fenetre, string cible)
     {
         // Laisser une passe de mise en page et de rendu s'achever avant de photographier.
-        await Task.Delay(1500);
+        // --capture-delai <ms> pour attendre un chargement réseau (réveil SQL serverless : ~61 s).
+        var arguments = Environment.GetCommandLineArgs();
+        var iDelai = Array.IndexOf(arguments, "--capture-delai");
+        var delai = iDelai >= 0 && iDelai + 1 < arguments.Length
+            && int.TryParse(arguments[iDelai + 1], out var ms) ? ms : 1500;
+        await Task.Delay(delai);
         try
         {
             await Outils.CaptureVisuel.Enregistrer(fenetre.Contenu, cible);
