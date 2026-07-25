@@ -174,11 +174,14 @@ public sealed class OpaciteFiltre : IValueConverter
     public object ConvertBack(object value, Type t, object p, string l) => throw new NotSupportedException();
 }
 
-/// <summary>Encre du numéro de jour : pâle hors du mois affiché, blanche sur la pastille du jour.</summary>
+/// <summary>
+/// Encre du numéro de jour. Hors du mois affiché, c'est du contexte adjacent qu'on estompe
+/// délibérément (Encre4), pas du texte à lire — d'où le seul usage de l'encre la plus pâle.
+/// </summary>
 public sealed class EncreJour : IValueConverter
 {
     public object Convert(object value, Type t, object p, string l) =>
-        value is true ? Pinceaux.Par("Encre3") : Pinceaux.Par("Encre2");
+        value is true ? Pinceaux.Par("Encre4") : Pinceaux.Par("Encre2");
 
     public object ConvertBack(object value, Type t, object p, string l) => throw new NotSupportedException();
 }

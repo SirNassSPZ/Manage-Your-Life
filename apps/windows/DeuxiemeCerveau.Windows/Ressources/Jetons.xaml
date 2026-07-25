@@ -14,7 +14,18 @@
     <Color x:Key="CouleurSurface2">#EFEDEA</Color>
     <Color x:Key="CouleurEncre">#1A1917</Color>
     <Color x:Key="CouleurEncre2">#605C58</Color>
-    <Color x:Key="CouleurEncre3">#9A938C</Color>
+
+    <!--
+        Encre3 — écart ASSUMÉ avec la maquette, décidé en faveur de la lisibilité.
+        La maquette pose #9A938C, mesuré à 2,6:1 sur Surface2 : sous le seuil WCAG AA de 4,5:1 pour
+        du petit texte, or c'est précisément l'encre des libellés en petites capitales (en-têtes de
+        jours, « SOLDE DE RÉFÉRENCE », intitulés de section). #6E6862 tient 4,7:1 sur Surface2 et
+        5,5:1 sur blanc, en gardant le même ton chaud et les trois niveaux d'encre distincts.
+    -->
+    <Color x:Key="CouleurEncre3">#6E6862</Color>
+
+    <!-- Estompage VRAI (jours hors du mois affiché) : ni du texte à lire, ni un contrôle. -->
+    <Color x:Key="CouleurEncre4">#9A938C</Color>
     <Color x:Key="CouleurTrait">#E7E5E1</Color>
     <Color x:Key="CouleurTrait2">#EFEDEA</Color>
 
@@ -24,6 +35,7 @@
     <SolidColorBrush x:Key="Encre" Color="{StaticResource CouleurEncre}" />
     <SolidColorBrush x:Key="Encre2" Color="{StaticResource CouleurEncre2}" />
     <SolidColorBrush x:Key="Encre3" Color="{StaticResource CouleurEncre3}" />
+    <SolidColorBrush x:Key="Encre4" Color="{StaticResource CouleurEncre4}" />
     <SolidColorBrush x:Key="Trait" Color="{StaticResource CouleurTrait}" />
     <SolidColorBrush x:Key="Trait2" Color="{StaticResource CouleurTrait2}" />
 
