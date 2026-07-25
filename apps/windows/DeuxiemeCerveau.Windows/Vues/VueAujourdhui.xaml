@@ -10,28 +10,8 @@
         <pres:CouleurMontant x:Key="CouleurMontant" />
         <pres:TexteVersVisibilite x:Key="SiTexte" />
         <pres:BoolVersVisibilite x:Key="SiVrai" />
-
-        <Style x:Key="BoutonPrimaire" TargetType="Button">
-            <Setter Property="Background" Value="{StaticResource Marque}" />
-            <Setter Property="Foreground" Value="White" />
-            <Setter Property="BorderThickness" Value="0" />
-            <Setter Property="CornerRadius" Value="9" />
-            <Setter Property="Padding" Value="14,8" />
-            <Setter Property="FontSize" Value="13" />
-            <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="FontFamily" Value="{StaticResource PoliceUI}" />
-        </Style>
-
-        <Style x:Key="BoutonDiscret" TargetType="Button">
-            <Setter Property="Background" Value="{StaticResource Surface}" />
-            <Setter Property="Foreground" Value="{StaticResource Encre}" />
-            <Setter Property="BorderBrush" Value="{StaticResource Trait}" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="9" />
-            <Setter Property="Padding" Value="14,8" />
-            <Setter Property="FontSize" Value="13" />
-            <Setter Property="FontFamily" Value="{StaticResource PoliceUI}" />
-        </Style>
+        <!-- BoutonPrimaire / BoutonDiscret viennent de Ressources/Jetons.xaml : une seule
+             définition pour toute l'app, sinon les vues divergent en silence. -->
     </UserControl.Resources>
 
     <ScrollViewer Background="{StaticResource Surface}" Padding="22,20,22,22">

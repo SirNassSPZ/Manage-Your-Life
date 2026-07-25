@@ -61,6 +61,85 @@
     <CornerRadius x:Key="RayonPilule">7</CornerRadius>
     <CornerRadius x:Key="RayonBouton">9</CornerRadius>
 
+    <!--
+        ============ Reprise des jetons de WinUI ============
+        Sans ces surcharges, les contrôles d'origine gardent l'accent bleu SYSTÈME de Windows,
+        des coins à 4 px et le soulignement de focus des TextBox : trois signatures visuelles
+        étrangères à la maquette, qui la contredisent dès qu'un champ apparaît à l'écran.
+        Les clés ci-dessous sont celles du thème WinUI ; les redéfinir ici les remplace partout.
+    -->
+    <CornerRadius x:Key="ControlCornerRadius">10</CornerRadius>
+    <CornerRadius x:Key="OverlayCornerRadius">12</CornerRadius>
+
+    <!-- L'accent devient LE bleu de la marque : cases à cocher, focus, sélection. -->
+    <SolidColorBrush x:Key="AccentFillColorDefaultBrush" Color="{StaticResource CouleurMarque}" />
+    <SolidColorBrush x:Key="AccentFillColorSecondaryBrush" Color="{StaticResource CouleurMarqueEncre}" />
+    <SolidColorBrush x:Key="AccentFillColorTertiaryBrush" Color="{StaticResource CouleurMarqueEncre}" />
+    <SolidColorBrush x:Key="SystemAccentColorLight2" Color="{StaticResource CouleurMarque}" />
+
+    <!-- Champs de saisie : une carte bordée, pas un champ souligné. -->
+    <Thickness x:Key="TextControlBorderThemeThickness">1</Thickness>
+    <Thickness x:Key="TextControlBorderThemeThicknessFocused">1</Thickness>
+    <SolidColorBrush x:Key="TextControlBackground" Color="{StaticResource CouleurSurface}" />
+    <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="{StaticResource CouleurSurface}" />
+    <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="{StaticResource CouleurSurface}" />
+    <SolidColorBrush x:Key="TextControlBorderBrush" Color="{StaticResource CouleurTrait}" />
+    <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="{StaticResource CouleurEncre3}" />
+    <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="{StaticResource CouleurMarque}" />
+
+    <!-- ============ Formes partagées ============ -->
+    <!-- Une carte : surface blanche, trait fin, rayon 12 — le conteneur de base de la maquette. -->
+    <Style x:Key="Carte" TargetType="Border">
+        <Setter Property="Background" Value="{StaticResource Surface}" />
+        <Setter Property="BorderBrush" Value="{StaticResource Trait}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="{StaticResource RayonCarte}" />
+        <Setter Property="Padding" Value="16,14" />
+    </Style>
+
+    <!--
+        Bouton d'action. Le dégradé très léger reproduit le « inset 0 1px 0 rgba(255,255,255,.18) »
+        de la maquette : sans lui le bouton paraît plat et imprimé, pas posé sur la surface.
+    -->
+    <Style x:Key="BoutonPrimaire" TargetType="Button">
+        <Setter Property="Foreground" Value="White" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="CornerRadius" Value="{StaticResource RayonBouton}" />
+        <Setter Property="Padding" Value="15,9" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="FontFamily" Value="{StaticResource PoliceUI}" />
+        <Setter Property="Background">
+            <Setter.Value>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                    <GradientStop Offset="0" Color="#1F8AE8" />
+                    <GradientStop Offset="1" Color="{StaticResource CouleurMarque}" />
+                </LinearGradientBrush>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="BoutonDiscret" TargetType="Button">
+        <Setter Property="Background" Value="{StaticResource Surface}" />
+        <Setter Property="Foreground" Value="{StaticResource Encre}" />
+        <Setter Property="BorderBrush" Value="{StaticResource Trait}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="{StaticResource RayonBouton}" />
+        <Setter Property="Padding" Value="15,9" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="FontWeight" Value="Normal" />
+        <Setter Property="FontFamily" Value="{StaticResource PoliceUI}" />
+    </Style>
+
+    <!-- Champ de montant : aligné à droite, tabulaire de fait, sans spinner. -->
+    <Style x:Key="ChampMontant" TargetType="TextBox">
+        <Setter Property="FontFamily" Value="{StaticResource PoliceUI}" />
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="HorizontalContentAlignment" Value="Right" />
+        <Setter Property="CornerRadius" Value="10" />
+        <Setter Property="Padding" Value="12,8" />
+    </Style>
+
     <!-- ============ Typographie ============ -->
     <!-- L'approche (CharacterSpacing) est en millièmes de cadratin : -25 ≈ -0,025em. -->
     <FontFamily x:Key="PoliceUI">Segoe UI Variable Display, Segoe UI Variable, Segoe UI</FontFamily>

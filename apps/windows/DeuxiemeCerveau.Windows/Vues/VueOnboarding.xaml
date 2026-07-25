@@ -8,87 +8,105 @@
     <UserControl.Resources>
         <pres:TexteVersVisibilite x:Key="SiTexte" />
 
-        <Style x:Key="BoutonPrimaire" TargetType="Button">
-            <Setter Property="Background" Value="{StaticResource Marque}" />
-            <Setter Property="Foreground" Value="White" />
-            <Setter Property="BorderThickness" Value="0" />
-            <Setter Property="CornerRadius" Value="9" />
-            <Setter Property="Padding" Value="18,10" />
-            <Setter Property="FontSize" Value="13.5" />
-            <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="FontFamily" Value="{StaticResource PoliceUI}" />
-        </Style>
-
-        <!-- Une ligne de preset : coche, libellé, montant, jour du mois. -->
+        <!--
+            Une ligne de preset. Reprend le vocabulaire de .lrow dans la maquette : grille
+            régulière, séparateur fin, jamais de boîte autour de chaque champ.
+        -->
         <DataTemplate x:Key="GabaritPreset" x:DataType="vm:LignePreset">
-            <Grid ColumnSpacing="12" Padding="0,5">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="180" />
-                    <ColumnDefinition Width="130" />
-                    <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
-                <!-- Retenu est bool? pour coller au type de IsChecked. L'état coché se lit au fond
-                     bleu ; le glyphe de coche de WinUI se rend en tiret à cette taille (cosmétique). -->
-                <CheckBox Content="{Binding Titre}" IsChecked="{Binding Retenu, Mode=TwoWay}"
-                          IsThreeState="False" MinWidth="0" VerticalAlignment="Center" />
-                <TextBox Grid.Column="1" Text="{Binding Montant, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                         PlaceholderText="0,00" VerticalAlignment="Center"
-                         HorizontalContentAlignment="Right" CornerRadius="8" />
-                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="7" VerticalAlignment="Center">
-                    <TextBlock Text="le" FontSize="13" Foreground="{StaticResource Encre3}"
-                               VerticalAlignment="Center" />
-                    <NumberBox Value="{Binding Jour, Mode=TwoWay}" Minimum="1" Maximum="28"
-                               SpinButtonPlacementMode="Compact" Width="96" />
-                </StackPanel>
-            </Grid>
+            <Border BorderBrush="{StaticResource Trait2}" BorderThickness="0,0,0,1" Padding="2,9">
+                <Grid ColumnSpacing="14">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="128" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <CheckBox Content="{Binding Titre}" IsChecked="{Binding Retenu, Mode=TwoWay}"
+                              IsThreeState="False" MinWidth="0" VerticalAlignment="Center"
+                              FontSize="14" FontFamily="{StaticResource PoliceUI}">
+                        <!-- Le rayon global de 10 arrondit la case en cercle ; la maquette la veut
+                             carrée à rayon 5. Surcharge locale, pour ne pas dérégler le reste. -->
+                        <CheckBox.Resources>
+                            <CornerRadius x:Key="ControlCornerRadius">5</CornerRadius>
+                        </CheckBox.Resources>
+                    </CheckBox>
+
+                    <TextBox Grid.Column="1" Style="{StaticResource ChampMontant}"
+                             Text="{Binding Montant, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                             PlaceholderText="0,00" VerticalAlignment="Center" />
+
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <TextBlock Text="le" FontSize="13" Foreground="{StaticResource Encre3}"
+                                   VerticalAlignment="Center" />
+                        <!-- Spinner masqué : les flèches natives sont une signature Windows
+                             étrangère à la maquette. -->
+                        <NumberBox Value="{Binding Jour, Mode=TwoWay}" Minimum="1" Maximum="28"
+                                   SpinButtonPlacementMode="Hidden" Width="58"
+                                   HorizontalContentAlignment="Center" CornerRadius="10" />
+                        <TextBlock Text="du mois" FontSize="13" Foreground="{StaticResource Encre3}"
+                                   VerticalAlignment="Center" />
+                    </StackPanel>
+                </Grid>
+            </Border>
         </DataTemplate>
     </UserControl.Resources>
 
-    <ScrollViewer Background="{StaticResource Surface}" Padding="34,28,34,34">
-        <StackPanel MaxWidth="640" HorizontalAlignment="Left" Spacing="30">
+    <!-- Fond papier chaud : l'onboarding est un empilement de cartes posées dessus, pas une page blanche. -->
+    <ScrollViewer Background="{StaticResource Fond}" Padding="34,30,34,40">
+        <StackPanel MaxWidth="680" HorizontalAlignment="Left" Spacing="16">
 
-            <StackPanel Spacing="10">
+            <StackPanel Spacing="10" Margin="2,0,0,6">
                 <TextBlock Text="Bienvenue" Style="{StaticResource TitreVue}" />
-                <TextBlock Style="{StaticResource TexteCourant}" FontSize="14" MaxWidth="520"
+                <TextBlock Style="{StaticResource TexteCourant}" FontSize="14" MaxWidth="540"
                            HorizontalAlignment="Left"
                            Text="Trois gestes et l'application peut projeter tes mois à venir. Tu pourras tout corriger ensuite — rien n'est définitif." />
             </StackPanel>
 
             <!-- Geste 1 — le point de départ -->
-            <StackPanel Spacing="9">
-                <TextBlock Text="1 · AUJOURD'HUI, J'AI" Style="{StaticResource EtiquetteMajuscule}" />
-                <TextBox Text="{x:Bind Modele.Solde, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                         PlaceholderText="2 480,00" FontSize="26" Width="260" CornerRadius="10"
-                         HorizontalAlignment="Left" HorizontalContentAlignment="Right" />
-                <TextBlock Style="{StaticResource TexteCourant}" FontSize="12.5" MaxWidth="520"
-                           HorizontalAlignment="Left"
-                           Text="C'est le solde de référence : le point de départ de toute projection. Un découvert se saisit avec un signe moins." />
-            </StackPanel>
+            <Border Style="{StaticResource Carte}">
+                <StackPanel Spacing="10">
+                    <TextBlock Text="1 · AUJOURD'HUI, J'AI" Style="{StaticResource EtiquetteMajuscule}" />
+                    <TextBox Text="{x:Bind Modele.Solde, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                             PlaceholderText="2 480,00" FontSize="30" Width="280"
+                             CornerRadius="12" Padding="16,10"
+                             FontFamily="{StaticResource PoliceUI}"
+                             HorizontalAlignment="Left" HorizontalContentAlignment="Right" />
+                    <TextBlock Style="{StaticResource TexteCourant}" FontSize="12.5" MaxWidth="540"
+                               HorizontalAlignment="Left"
+                               Text="C'est le solde de référence : le point de départ de toute projection. Un découvert se saisit avec un signe moins." />
+                </StackPanel>
+            </Border>
 
             <!-- Geste 2 — ce qui rentre -->
-            <StackPanel Spacing="9">
-                <TextBlock Text="2 · CE QUI RENTRE CHAQUE MOIS" Style="{StaticResource EtiquetteMajuscule}" />
-                <ItemsControl ItemsSource="{x:Bind Modele.Revenus}" ItemTemplate="{StaticResource GabaritPreset}" />
-            </StackPanel>
+            <Border Style="{StaticResource Carte}">
+                <StackPanel Spacing="6">
+                    <TextBlock Text="2 · CE QUI RENTRE CHAQUE MOIS" Style="{StaticResource EtiquetteMajuscule}"
+                               Margin="0,0,0,4" />
+                    <ItemsControl ItemsSource="{x:Bind Modele.Revenus}" ItemTemplate="{StaticResource GabaritPreset}" />
+                </StackPanel>
+            </Border>
 
             <!-- Geste 3 — ce qui sort -->
-            <StackPanel Spacing="9">
-                <TextBlock Text="3 · CE QUI SORT CHAQUE MOIS" Style="{StaticResource EtiquetteMajuscule}" />
-                <TextBlock Style="{StaticResource TexteCourant}" FontSize="12.5" MaxWidth="520"
-                           HorizontalAlignment="Left"
-                           Text="Coche ce qui te concerne et complète le montant. Tu pourras en ajouter d'autres à tout moment." />
-                <ItemsControl ItemsSource="{x:Bind Modele.Charges}" ItemTemplate="{StaticResource GabaritPreset}" />
-            </StackPanel>
+            <Border Style="{StaticResource Carte}">
+                <StackPanel Spacing="6">
+                    <TextBlock Text="3 · CE QUI SORT CHAQUE MOIS" Style="{StaticResource EtiquetteMajuscule}" />
+                    <TextBlock Style="{StaticResource TexteCourant}" FontSize="12.5" MaxWidth="540"
+                               HorizontalAlignment="Left" Margin="0,0,0,4"
+                               Text="Coche ce qui te concerne et complète le montant. Tu pourras en ajouter d'autres à tout moment." />
+                    <ItemsControl ItemsSource="{x:Bind Modele.Charges}" ItemTemplate="{StaticResource GabaritPreset}" />
+                </StackPanel>
+            </Border>
 
-            <StackPanel Spacing="12">
-                <Border Visibility="{x:Bind Modele.Erreur, Mode=OneWay, Converter={StaticResource SiTexte}}"
-                        Background="{StaticResource NegatifDouce}" CornerRadius="10" Padding="14,11">
-                    <TextBlock Text="{x:Bind Modele.Erreur, Mode=OneWay}" FontSize="13"
-                               Foreground="{StaticResource Negatif}" TextWrapping="Wrap" />
-                </Border>
-                <Button Style="{StaticResource BoutonPrimaire}" Content="C'est parti"
-                        HorizontalAlignment="Left" Click="SurValider" />
-            </StackPanel>
+            <Border Visibility="{x:Bind Modele.Erreur, Mode=OneWay, Converter={StaticResource SiTexte}}"
+                    Background="{StaticResource NegatifDouce}" CornerRadius="{StaticResource RayonCarte}"
+                    Padding="16,13">
+                <TextBlock Text="{x:Bind Modele.Erreur, Mode=OneWay}" FontSize="13"
+                           Foreground="{StaticResource Negatif}" TextWrapping="Wrap" />
+            </Border>
+
+            <Button Style="{StaticResource BoutonPrimaire}" Content="C'est parti"
+                    Padding="20,11" FontSize="14"
+                    HorizontalAlignment="Left" Margin="2,4,0,0" Click="SurValider" />
 
         </StackPanel>
     </ScrollViewer>

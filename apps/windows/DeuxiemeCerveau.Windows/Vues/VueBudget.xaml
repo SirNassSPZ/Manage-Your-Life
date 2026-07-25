@@ -10,17 +10,7 @@
         <pres:BoolVersVisibilite x:Key="SiVrai" />
         <pres:FondDecouvert x:Key="FondDecouvert" />
         <pres:EncreDecouvert x:Key="EncreDecouvert" />
-
-        <Style x:Key="BoutonDiscret" TargetType="Button">
-            <Setter Property="Background" Value="{StaticResource Surface}" />
-            <Setter Property="Foreground" Value="{StaticResource Encre}" />
-            <Setter Property="BorderBrush" Value="{StaticResource Trait}" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="9" />
-            <Setter Property="Padding" Value="14,8" />
-            <Setter Property="FontSize" Value="13" />
-            <Setter Property="FontFamily" Value="{StaticResource PoliceUI}" />
-        </Style>
+        <!-- BoutonDiscret vient de Ressources/Jetons.xaml. -->
     </UserControl.Resources>
 
     <ScrollViewer Background="{StaticResource Surface}" Padding="22,20,22,22">
