@@ -22,6 +22,16 @@ public static class Format
         return sens == Sens.Entree ? "+" + montant : "−" + montant;
     }
 
+    /// <summary>
+    /// « +2 400 » / « −800 » — arrondi à l'euro, sans symbole. Une case de calendrier est trop
+    /// étroite pour « +2 400,00 € » ; la maquette montre bien la forme courte.
+    /// </summary>
+    public static string EurosCompact(long centimes, Sens sens)
+    {
+        var euros = Math.Round(Math.Abs(centimes) / 100m, MidpointRounding.AwayFromZero);
+        return (sens == Sens.Entree ? "+" : "−") + euros.ToString("N0", Fr);
+    }
+
     /// <summary>Montant signé d'après le solde lui-même (projection : une clôture peut être négative).</summary>
     public static string EurosRelatif(long centimes) =>
         centimes < 0 ? "−" + Euros(Math.Abs(centimes)) : Euros(centimes);

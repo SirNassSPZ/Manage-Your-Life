@@ -43,6 +43,11 @@ public sealed partial class VueModeleCoquille : ObservableObject
         Accueil = new VueModeleAujourdhui(composition);
         Onboarding = new VueModeleOnboarding(composition);
         Budget = new VueModeleBudget(composition);
+
+        // Le calendrier lit les filtres ICI plutôt que d'en tenir une copie : deux listes de
+        // catégories qui divergent, c'est un filtre qui ment.
+        Calendrier = new VueModeleCalendrier(composition, CategoriesVisibles);
+
         Aller(Zone.Aujourdhui);
     }
 
@@ -57,6 +62,26 @@ public sealed partial class VueModeleCoquille : ObservableObject
     public VueModeleAujourdhui Accueil { get; }
     public VueModeleOnboarding Onboarding { get; }
     public VueModeleBudget Budget { get; }
+    public VueModeleCalendrier Calendrier { get; }
+
+    /// <summary>
+    /// Les catégories cochées, ou null si elles le sont toutes — le service traite null comme
+    /// « aucun filtre » et évite ainsi de parcourir un ensemble pour rien.
+    /// </summary>
+    private IReadOnlySet<Guid>? CategoriesVisibles() =>
+        Calendriers.All(c => c.Visible) ? null : Calendriers.Where(c => c.Visible).Select(c => c.Id).ToHashSet();
+
+    /// <summary>Affiche ou masque un calendrier (§5.4) et recharge la grille.</summary>
+    [RelayCommand]
+    private void BasculerCalendrier(FiltreCalendrier filtre)
+    {
+        filtre.Visible = !filtre.Visible;
+        Calendrier.Charger();
+    }
+
+    /// <summary>Faux quand la zone active n'a pas de sous-vues : l'intitulé ne doit pas rester seul.</summary>
+    [ObservableProperty]
+    private bool _aSousVues;
 
     [ObservableProperty]
     private Zone _zone = Zone.Aujourdhui;
@@ -141,15 +166,18 @@ public sealed partial class VueModeleCoquille : ObservableObject
         foreach (var entree in Principales) entree.Actif = entree.Zone == zone;
 
         SousVues.Clear();
+
+        // Pas de cas « Calendrier » ici : ses sous-vues SONT les calendriers, déjà listés dans leur
+        // propre section. L'y répéter affichait « Mes calendriers » deux fois, dont une à vide.
         TitreSousVues = zone switch
         {
             Zone.Finances => "Finances",
-            Zone.Calendrier => "Mes calendriers",
             _ => "Vue",
         };
 
         foreach (var sousVue in SousVuesDe(zone)) SousVues.Add(sousVue);
         if (SousVues.Count > 0) SousVues[0].Actif = true;
+        ASousVues = SousVues.Count > 0;
 
         Rafraichir();
     }
@@ -176,13 +204,16 @@ public sealed partial class VueModeleCoquille : ObservableObject
     /// <summary>Recharge la vue active et l'entête. À rappeler après toute écriture.</summary>
     public void Rafraichir()
     {
+        // Les filtres D'ABORD : la grille du calendrier les lit, elle ne peut pas partir de l'état
+        // précédent.
+        ChargerCalendriers();
+
         if (Zone == Zone.Aujourdhui) Accueil.Charger();
+        if (Zone == Zone.Calendrier) Calendrier.Charger();
 
         var solde = _composition.Acces.Lire(() => _composition.Aujourdhui.SoldeDeReference());
         EntetePossedeSolde = solde is not null;
         SoldeEntete = solde is null ? "—" : Format.Euros(solde.Centimes);
-
-        ChargerCalendriers();
 
         var enAttente = _composition.Acces.Lire(() => _composition.Depot.Outbox().Count);
         EtatSynchro = (enAttente, Compte) switch
@@ -199,6 +230,11 @@ public sealed partial class VueModeleCoquille : ObservableObject
 
     private void ChargerCalendriers()
     {
+        // Ce que l'utilisateur a masqué doit le RESTER. La liste étant reconstruite à chaque
+        // rafraîchissement, sans cette mémoire le moindre changement de vue ou de saisie
+        // rallumerait en silence les calendriers qu'il venait d'éteindre.
+        var masques = Calendriers.Where(c => !c.Visible).Select(c => c.Id).ToHashSet();
+
         var categories = _composition.Acces.Lire(() => _composition.Lecture.Categories());
         Calendriers.Clear();
         foreach (var categorie in categories)
@@ -207,6 +243,7 @@ public sealed partial class VueModeleCoquille : ObservableObject
                 Id = categorie.Id,
                 Nom = categorie.Nom,
                 Couleur = string.IsNullOrWhiteSpace(categorie.Couleur) ? "#7A6AA6" : categorie.Couleur,
+                Visible = !masques.Contains(categorie.Id),
             });
     }
 }

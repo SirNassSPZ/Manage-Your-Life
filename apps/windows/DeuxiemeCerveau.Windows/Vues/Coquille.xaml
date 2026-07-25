@@ -23,6 +23,8 @@
         <pres:EncreActif x:Key="EncreActif" />
         <pres:TraceGeometrie x:Key="Trace" />
         <pres:HexPinceau x:Key="Hex" />
+        <pres:EncreFiltre x:Key="EncreFiltre" />
+        <pres:OpaciteFiltre x:Key="OpaciteFiltre" />
         <pres:TexteVersVisibilite x:Key="SiTexte" />
         <pres:BoolVersVisibilite x:Key="SiVrai" />
         <pres:BoolInverse x:Key="SiFaux" />
@@ -134,7 +136,7 @@
             <Border Background="{StaticResource Surface2}" BorderBrush="{StaticResource Trait}"
                     BorderThickness="0,0,1,0" Padding="12,16">
                 <StackPanel Spacing="20">
-                    <StackPanel>
+                    <StackPanel Visibility="{x:Bind Modele.ASousVues, Mode=OneWay, Converter={StaticResource SiVrai}}">
                         <TextBlock Text="{x:Bind Modele.TitreSousVues, Mode=OneWay}"
                                    Style="{StaticResource EtiquetteMajuscule}" Margin="10,0,0,8" />
                         <ItemsControl ItemsSource="{x:Bind Modele.SousVues}">
@@ -173,12 +175,22 @@
                         <ItemsControl ItemsSource="{x:Bind Modele.Calendriers}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate x:DataType="vm:FiltreCalendrier">
-                                    <StackPanel Orientation="Horizontal" Spacing="10" Padding="10,7">
-                                        <Border Width="11" Height="11" CornerRadius="4" VerticalAlignment="Center"
-                                                Background="{Binding Couleur, Converter={StaticResource Hex}}" />
-                                        <TextBlock Text="{Binding Nom}" FontSize="13"
-                                                   Foreground="{StaticResource Encre}" VerticalAlignment="Center" />
-                                    </StackPanel>
+                                    <!-- Un vrai Button, pas un StackPanel décoré : afficher ou masquer
+                                         un calendrier est une action, elle doit être atteignable au
+                                         clavier et annoncée comme telle. -->
+                                    <Button Style="{StaticResource BoutonNav}" Padding="10,7"
+                                            HorizontalAlignment="Stretch" Margin="0,0,0,1"
+                                            Command="{Binding DataContext.BasculerCalendrierCommand, ElementName=Racine}"
+                                            CommandParameter="{Binding}"
+                                            AutomationProperties.Name="{Binding Nom}">
+                                        <StackPanel Orientation="Horizontal" Spacing="10">
+                                            <Border Width="11" Height="11" CornerRadius="4" VerticalAlignment="Center"
+                                                    Opacity="{Binding Visible, Converter={StaticResource OpaciteFiltre}}"
+                                                    Background="{Binding Couleur, Converter={StaticResource Hex}}" />
+                                            <TextBlock Text="{Binding Nom}" FontSize="13" VerticalAlignment="Center"
+                                                       Foreground="{Binding Visible, Converter={StaticResource EncreFiltre}}" />
+                                        </StackPanel>
+                                    </Button>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>

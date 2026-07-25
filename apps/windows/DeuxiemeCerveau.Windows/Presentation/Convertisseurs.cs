@@ -135,6 +135,54 @@ public sealed class EncreDecouvert : IValueConverter
     public object ConvertBack(object value, Type t, object p, string l) => throw new NotSupportedException();
 }
 
+/// <summary>
+/// Fond doux d'une pastille de calendrier, assorti à la couleur de type (sauge/terre cuite/…).
+/// La maquette pose la pastille sur son propre fond teinté, pas sur du blanc.
+/// </summary>
+public sealed class FondType : IValueConverter
+{
+    public object Convert(object value, Type t, object p, string l) => value switch
+    {
+        TypeElement.Revenu => Pinceaux.Par("SaugeDouce"),
+        TypeElement.Facture or TypeElement.Paiement => Pinceaux.Par("TerreCuiteDouce"),
+        TypeElement.Rendezvous => Pinceaux.Par("ArdoiseDouce"),
+        TypeElement.Tache => Pinceaux.Par("OcreDouce"),
+        _ => Pinceaux.Par("MauveDouce"),
+    };
+
+    public object ConvertBack(object value, Type t, object p, string l) => throw new NotSupportedException();
+}
+
+/// <summary>Encre d'un filtre de calendrier : pleine s'il est affiché, pâle s'il est masqué.</summary>
+public sealed class EncreFiltre : IValueConverter
+{
+    public object Convert(object value, Type t, object p, string l) =>
+        value is true ? Pinceaux.Par("Encre") : Pinceaux.Par("Encre3");
+
+    public object ConvertBack(object value, Type t, object p, string l) => throw new NotSupportedException();
+}
+
+/// <summary>
+/// Pastille d'un filtre masqué : presque effacée. La maquette la montre creuse ; l'opacité donne
+/// le même signal sans dupliquer la forme, et le libellé pâlit en même temps — la couleur n'est
+/// donc jamais le seul indice de l'état.
+/// </summary>
+public sealed class OpaciteFiltre : IValueConverter
+{
+    public object Convert(object value, Type t, object p, string l) => value is true ? 1.0 : 0.25;
+
+    public object ConvertBack(object value, Type t, object p, string l) => throw new NotSupportedException();
+}
+
+/// <summary>Encre du numéro de jour : pâle hors du mois affiché, blanche sur la pastille du jour.</summary>
+public sealed class EncreJour : IValueConverter
+{
+    public object Convert(object value, Type t, object p, string l) =>
+        value is true ? Pinceaux.Par("Encre3") : Pinceaux.Par("Encre2");
+
+    public object ConvertBack(object value, Type t, object p, string l) => throw new NotSupportedException();
+}
+
 /// <summary>Un solde négatif ressort en terre cuite — la seule alarme visuelle de l'app.</summary>
 public sealed class CouleurSolde : IValueConverter
 {
