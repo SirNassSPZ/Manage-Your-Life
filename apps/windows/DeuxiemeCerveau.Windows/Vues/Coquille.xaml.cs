@@ -62,7 +62,7 @@ public sealed partial class Coquille : UserControl
     {
         Zone.Aujourdhui => Brancher(new VueAujourdhui(), Modele.Accueil),
         Zone.BudgetProjete => new VueBudget(Modele.Budget),
-        Zone.Calendrier => new VueCalendrier(Modele.Calendrier),
+        Zone.Calendrier => new VueCalendrier(Modele.Calendrier, Modele.Categories),
         Zone.Finances => new VueFinances(Modele.Finances),
         _ => new VueAChantier(zone),
     };

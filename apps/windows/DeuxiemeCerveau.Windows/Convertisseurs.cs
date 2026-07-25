@@ -41,6 +41,19 @@ public sealed class BoolVersVisibilite : IValueConverter
     public object ConvertBack(object value, Type t, object p, string l) => throw new NotSupportedException();
 }
 
+/// <summary>
+/// Masque quand la condition est VRAIE. Un convertisseur dédié plutôt qu'un paramètre : x:Bind ne
+/// transmet pas de ConverterParameter aussi simplement que {Binding}, et un « inverse » implicite
+/// se lit mal sur la ligne d'à côté.
+/// </summary>
+public sealed class BoolVersVisibiliteInverse : IValueConverter
+{
+    public object Convert(object value, Type t, object p, string l) =>
+        value is true ? Visibility.Collapsed : Visibility.Visible;
+
+    public object ConvertBack(object value, Type t, object p, string l) => throw new NotSupportedException();
+}
+
 /// <summary>Inverse un booléen — pour désactiver un contrôle pendant une opération en cours.</summary>
 public sealed class BoolInverse : IValueConverter
 {
@@ -174,6 +187,18 @@ public sealed class FondType : IValueConverter
         TypeElement.Tache => Pinceaux.Par("OcreDouce"),
         _ => Pinceaux.Par("MauveDouce"),
     };
+
+    public object ConvertBack(object value, Type t, object p, string l) => throw new NotSupportedException();
+}
+
+/// <summary>
+/// Intitulé du jour dans la vue « 7 prochains jours » : bleu de marque pour aujourd'hui, encre
+/// ordinaire ensuite. Seul usage du bleu hors des actions, comme la pastille du jour dans la grille.
+/// </summary>
+public sealed class EncreJourCourant : IValueConverter
+{
+    public object Convert(object value, Type t, object p, string l) =>
+        value is true ? Pinceaux.Par("MarqueEncre") : Pinceaux.Par("Encre3");
 
     public object ConvertBack(object value, Type t, object p, string l) => throw new NotSupportedException();
 }

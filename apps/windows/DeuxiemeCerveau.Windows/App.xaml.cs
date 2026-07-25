@@ -64,6 +64,25 @@ public partial class App : Application
                     principale.Modele.Aller(zone);
             }
 
+            // --mode <Mois|SeptJours|Gestion> : la zone Calendrier porte trois lectures, et la
+            // capture doit pouvoir atteindre les deux autres que celle d'ouverture.
+            var iMode = Array.IndexOf(arguments, "--mode");
+            if (iMode >= 0 && iMode + 1 < arguments.Length
+                && Enum.TryParse<DeuxiemeCerveau.Presentation.VueModeles.ModeCalendrier>(
+                    arguments[iMode + 1], ignoreCase: true, out var mode))
+            {
+                // On passe par la sous-vue, pas par le mode directement : c'est le chemin que
+                // l'utilisateur emprunte, et lui seul met aussi à jour la barre latérale.
+                var titre = mode switch
+                {
+                    DeuxiemeCerveau.Presentation.VueModeles.ModeCalendrier.SeptJours => "7 prochains jours",
+                    DeuxiemeCerveau.Presentation.VueModeles.ModeCalendrier.Gestion => "Gérer les calendriers",
+                    _ => "Grille du mois",
+                };
+                if (principale.Modele.SousVues.FirstOrDefault(s => s.Titre == titre) is { } sousVue)
+                    principale.Modele.ChoisirSousVueCommand.Execute(sousVue);
+            }
+
             if (Outils.CaptureVisuel.CheminDemande(arguments) is { } cible)
                 await CapturerPuisQuitter(principale, cible);
         }

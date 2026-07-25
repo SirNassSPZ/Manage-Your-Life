@@ -9,11 +9,14 @@
         <pres:CouleurType x:Key="CouleurType" />
         <pres:FondType x:Key="FondType" />
         <pres:EncreJour x:Key="EncreJour" />
+        <pres:EncreJourCourant x:Key="EncreJourCourant" />
+        <pres:HexPinceau x:Key="Hex" />
         <pres:TexteVersVisibilite x:Key="SiTexte" />
         <pres:BoolVersVisibilite x:Key="SiVrai" />
+        <pres:BoolVersVisibiliteInverse x:Key="SiFaux" />
     </UserControl.Resources>
 
-    <Grid Background="{StaticResource Surface}" Padding="22,20,22,22" RowSpacing="18">
+    <Grid x:Name="RacineCal" Background="{StaticResource Surface}" Padding="22,20,22,22" RowSpacing="18">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
@@ -28,13 +31,22 @@
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
 
-            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center"
+                        Visibility="{x:Bind Modele.EstMois, Mode=OneWay, Converter={StaticResource SiVrai}}">
                 <TextBlock Text="{x:Bind Modele.MoisAffiche, Mode=OneWay}" Style="{StaticResource TitreVue}" />
                 <TextBlock Text="{x:Bind Modele.AnneeAffichee, Mode=OneWay}"
                            Style="{StaticResource TitreVueAccessoire}" VerticalAlignment="Bottom" />
             </StackPanel>
 
-            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+            <TextBlock Text="7 prochains jours" Style="{StaticResource TitreVue}" VerticalAlignment="Center"
+                       Visibility="{x:Bind Modele.EstSeptJours, Mode=OneWay, Converter={StaticResource SiVrai}}" />
+            <TextBlock Text="Mes calendriers" Style="{StaticResource TitreVue}" VerticalAlignment="Center"
+                       Visibility="{x:Bind Modele.EstGestion, Mode=OneWay, Converter={StaticResource SiVrai}}" />
+
+            <!-- La navigation par mois ne vaut que pour la grille : la semaine est glissante à
+                 partir d'aujourd'hui, et la gestion des calendriers n'a pas de mois. -->
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center"
+                        Visibility="{x:Bind Modele.EstMois, Mode=OneWay, Converter={StaticResource SiVrai}}">
                 <Button Width="30" Height="30" Padding="0" CornerRadius="8"
                         Background="{StaticResource Surface}" BorderBrush="{StaticResource Trait}"
                         BorderThickness="1" Command="{x:Bind Modele.MoisPrecedentCommand}"
@@ -67,13 +79,17 @@
                         Visibility="{x:Bind Modele.HorsMoisCourant, Mode=OneWay, Converter={StaticResource SiVrai}}" />
             </StackPanel>
 
+            <!-- Pas d'« ajouter un élément » quand on gère les calendriers : le bouton de création
+                 de cette page est « Créer », juste dessous. -->
             <Button Grid.Column="3" Style="{StaticResource BoutonPrimaire}" Content="Nouvel élément"
-                    VerticalAlignment="Center" />
+                    VerticalAlignment="Center"
+                    Visibility="{x:Bind Modele.EstGestion, Mode=OneWay, Converter={StaticResource SiFaux}}" />
         </Grid>
 
         <!-- Grille mensuelle : entête des jours + six semaines pleines -->
         <Border Grid.Row="1" BorderBrush="{StaticResource Trait}" BorderThickness="1"
-                CornerRadius="12" Background="{StaticResource Surface}">
+                CornerRadius="12" Background="{StaticResource Surface}"
+                Visibility="{x:Bind Modele.EstMois, Mode=OneWay, Converter={StaticResource SiVrai}}">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
@@ -164,5 +180,162 @@
                 </ItemsRepeater>
             </Grid>
         </Border>
+
+        <!-- ============ 7 PROCHAINS JOURS — la même matière, lue autrement ============ -->
+        <ScrollViewer Grid.Row="1"
+                      Visibility="{x:Bind Modele.EstSeptJours, Mode=OneWay, Converter={StaticResource SiVrai}}">
+            <ItemsRepeater ItemsSource="{x:Bind Modele.Semaine}">
+                <ItemsRepeater.ItemTemplate>
+                    <DataTemplate x:DataType="vm:JourSemaine">
+                        <StackPanel Margin="0,0,0,4">
+                            <Grid Padding="4,14,4,6">
+                                <TextBlock Text="{x:Bind Intitule}" Style="{StaticResource EtiquetteMajuscule}"
+                                           Foreground="{x:Bind EstAujourdhui, Converter={StaticResource EncreJourCourant}}" />
+                                <TextBlock Text="{x:Bind Resume}" FontSize="11" HorizontalAlignment="Right"
+                                           Foreground="{StaticResource Encre3}" />
+                            </Grid>
+                            <ItemsRepeater ItemsSource="{x:Bind Pastilles}">
+                                <ItemsRepeater.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:PastilleAgenda">
+                                        <Border BorderBrush="{StaticResource Trait2}" BorderThickness="0,0,0,1"
+                                                Padding="8,10">
+                                            <Grid ColumnSpacing="9">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+                                                <Border Width="9" Height="9" CornerRadius="3" VerticalAlignment="Center"
+                                                        Background="{x:Bind Type, Converter={StaticResource CouleurType}}" />
+                                                <TextBlock Grid.Column="1" Text="{x:Bind Titre}" FontSize="14"
+                                                           Foreground="{StaticResource Encre}"
+                                                           TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                                <TextBlock Grid.Column="2" Text="{x:Bind Montant}" FontSize="14"
+                                                           FontWeight="SemiBold" CharacterSpacing="-10"
+                                                           Foreground="{StaticResource Encre}" VerticalAlignment="Center"
+                                                           Visibility="{x:Bind Montant, Converter={StaticResource SiTexte}}" />
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsRepeater.ItemTemplate>
+                            </ItemsRepeater>
+                        </StackPanel>
+                    </DataTemplate>
+                </ItemsRepeater.ItemTemplate>
+            </ItemsRepeater>
+        </ScrollViewer>
+
+        <!-- ============ GÉRER LES CALENDRIERS (§3.3) ============ -->
+        <ScrollViewer Grid.Row="1"
+                      Visibility="{x:Bind Modele.EstGestion, Mode=OneWay, Converter={StaticResource SiVrai}}">
+            <StackPanel MaxWidth="620" HorizontalAlignment="Left" Spacing="14">
+
+                <TextBlock Style="{StaticResource TexteCourant}" FontSize="13" MaxWidth="560"
+                           HorizontalAlignment="Left"
+                           Text="Un calendrier est aussi une catégorie : le même objet sert à ranger tes éléments et à filtrer ta grille. Le mettre à la corbeille ne détruit rien." />
+
+                <!-- Créer -->
+                <Border Style="{StaticResource Carte}">
+                    <StackPanel Spacing="11">
+                        <TextBlock Text="NOUVEAU CALENDRIER" Style="{StaticResource EtiquetteMajuscule}" />
+                        <Grid ColumnSpacing="10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBox Text="{x:Bind Categories.NouveauNom, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                     PlaceholderText="Sport, École, Justice…"
+                                     AutomationProperties.Name="Nom du nouveau calendrier" />
+                            <Button Grid.Column="1" Style="{StaticResource BoutonPrimaire}" Content="Créer"
+                                    Command="{x:Bind Categories.AjouterCommand}" />
+                        </Grid>
+                        <ItemsRepeater ItemsSource="{x:Bind Categories.Couleurs}">
+                            <ItemsRepeater.Layout>
+                                <StackLayout Orientation="Horizontal" Spacing="8" />
+                            </ItemsRepeater.Layout>
+                            <ItemsRepeater.ItemTemplate>
+                                <DataTemplate x:DataType="x:String">
+                                    <Button Width="30" Height="30" Padding="0" CornerRadius="9" BorderThickness="1"
+                                            BorderBrush="{StaticResource Trait}"
+                                            Background="{x:Bind Converter={StaticResource Hex}}"
+                                            Command="{Binding DataContext.Categories.ChoisirCouleurCommand, ElementName=RacineCal}"
+                                            CommandParameter="{x:Bind}"
+                                            AutomationProperties.Name="Choisir cette couleur" />
+                                </DataTemplate>
+                            </ItemsRepeater.ItemTemplate>
+                        </ItemsRepeater>
+                    </StackPanel>
+                </Border>
+
+                <Border Visibility="{x:Bind Categories.Message, Mode=OneWay, Converter={StaticResource SiTexte}}"
+                        Background="{StaticResource Surface2}" CornerRadius="10" Padding="14,11">
+                    <TextBlock Text="{x:Bind Categories.Message, Mode=OneWay}" FontSize="13"
+                               Foreground="{StaticResource Encre2}" TextWrapping="Wrap" />
+                </Border>
+
+                <!-- Liste -->
+                <ItemsRepeater ItemsSource="{x:Bind Categories.Categories}">
+                    <ItemsRepeater.ItemTemplate>
+                        <DataTemplate x:DataType="vm:LigneCategorie">
+                            <Border Style="{StaticResource Carte}" Margin="0,0,0,8">
+                                <StackPanel Spacing="10">
+                                    <Grid ColumnSpacing="11">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <Border Width="13" Height="13" CornerRadius="4" VerticalAlignment="Center"
+                                                Background="{x:Bind Couleur, Mode=OneWay, Converter={StaticResource Hex}}" />
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                            <TextBlock Text="{x:Bind Nom, Mode=OneWay}" FontSize="14"
+                                                       Foreground="{StaticResource Encre}" />
+                                            <TextBlock Text="{x:Bind Resume}" FontSize="11.5"
+                                                       Foreground="{StaticResource Encre3}" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6">
+                                            <Button Style="{StaticResource BoutonDiscret}" Content="Modifier"
+                                                    Padding="11,6" FontSize="12.5"
+                                                    Command="{Binding DataContext.Categories.ModifierCommand, ElementName=RacineCal}"
+                                                    CommandParameter="{Binding}" />
+                                            <Button Style="{StaticResource BoutonDiscret}" Content="Corbeille"
+                                                    Padding="11,6" FontSize="12.5"
+                                                    Command="{Binding DataContext.Categories.SupprimerCommand, ElementName=RacineCal}"
+                                                    CommandParameter="{Binding}" />
+                                        </StackPanel>
+                                    </Grid>
+
+                                    <!-- Édition dépliée sous la ligne : le contexte reste visible. -->
+                                    <StackPanel Spacing="10"
+                                                Visibility="{x:Bind EnEdition, Mode=OneWay, Converter={StaticResource SiVrai}}">
+                                        <TextBox Text="{x:Bind NomEnCours, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                 AutomationProperties.Name="Renommer le calendrier" />
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <Button Style="{StaticResource BoutonPrimaire}" Content="Enregistrer"
+                                                    Padding="12,7" FontSize="12.5"
+                                                    Command="{Binding DataContext.Categories.EnregistrerCommand, ElementName=RacineCal}"
+                                                    CommandParameter="{Binding}" />
+                                            <Button Style="{StaticResource BoutonDiscret}" Content="Annuler"
+                                                    Padding="12,7" FontSize="12.5"
+                                                    Command="{Binding DataContext.Categories.AnnulerCommand, ElementName=RacineCal}"
+                                                    CommandParameter="{Binding}" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsRepeater.ItemTemplate>
+                </ItemsRepeater>
+
+                <StackPanel Spacing="6" Margin="2,4,0,0"
+                            Visibility="{x:Bind Categories.AucuneCategorie, Mode=OneWay, Converter={StaticResource SiVrai}}">
+                    <TextBlock Text="Aucun calendrier pour l'instant." FontSize="14"
+                               Foreground="{StaticResource Encre2}" />
+                    <TextBlock Style="{StaticResource TexteCourant}" FontSize="13" MaxWidth="460"
+                               HorizontalAlignment="Left"
+                               Text="Crées-en un ci-dessus : il deviendra un filtre de ta grille et une étiquette pour tes éléments." />
+                </StackPanel>
+            </StackPanel>
+        </ScrollViewer>
     </Grid>
 </UserControl>

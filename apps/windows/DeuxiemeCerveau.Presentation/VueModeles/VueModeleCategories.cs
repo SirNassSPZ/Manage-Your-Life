@@ -78,6 +78,9 @@ public sealed partial class VueModeleCategories : ObservableObject
     /// </summary>
     public Action? ApresChangement { get; set; }
 
+    /// <summary>La même palette, atteignable depuis une liaison de vue (x:Bind exige une instance).</summary>
+    public IReadOnlyList<string> Couleurs => Palette;
+
     public ObservableCollection<LigneCategorie> Categories { get; } = [];
 
     [ObservableProperty]
