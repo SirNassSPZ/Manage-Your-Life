@@ -212,3 +212,29 @@ Quatre affinements d'**expérience** validés, choisis parce qu'ils **réduisent
 4. **Digest hebdomadaire (I-rec #13).** Une **notification locale** récurrente (« point du dimanche »), planifiée par chaque appareil **à partir des données synchronisées** — strictement dans le cadre des **notifications locales du §4** (aucun push serveur, reporté V3). Rare et actionnable, pour créer le rendez-vous d'habitude.
 
 **Garde-fou.** Ces quatre points restent V1 **parce qu'**ils n'ajoutent ni entité, ni champ, ni règle de synchro. Toute dérive (un preset qui stockerait un plafond = enveloppe §3.6 V2 ; une suggestion qui deviendrait une catégorisation auto imposée ; un parsing NLP) sortirait du périmètre et repasserait par une décision.
+
+## D-019 — Coquille WinUI : `Main` écrit à la main plutôt que généré
+**Statut : à valider** · Étape 4f · **consignée après coup** (2026-07-25) — la décision avait été prise et implémentée pendant le développement local de la coquille, mais jamais écrite ici. Reconstituée depuis le code (`Programme.cs`, `DeuxiemeCerveau.Windows.csproj`).
+
+- `DISABLE_XAML_GENERATED_MAIN` est activé et `Programme.Main` est écrit à la main. Motif : la coquille doit pouvoir démarrer en **modes sans interface** — `--rappels` et `--digest` (notifications locales et digest hebdo, D-018 #4), qu'une tâche planifiée déclenchera sans ouvrir de fenêtre — et porter l'**instance unique** ainsi que l'activation par toast.
+- Conséquence obligatoire : `WinRT.ComWrappersSupport.InitializeComWrappers()` doit être appelé en premier ; sans lui, toute activation COM WinRT échoue en `E_NOINTERFACE` dès `new App()`.
+- L'application est **non empaquetée** (`WindowsPackageType=None`), dépendante du framework (`WindowsAppSDKSelfContained=false`, valeur explicite car le paquet Base a `true` par défaut), avec `RuntimeIdentifier=win-x64` — sans RID, les DLL natives du bootstrapper et de WinUI ne sont pas copiées et le lancement échoue en `DllNotFoundException`.
+- **Reste à faire** : les modes `--rappels` / `--digest` ne sont pas encore implémentés ; seul le mode outil `--capture` / `--vue` / `--capture-delai` (comparaison du rendu à la maquette) l'est.
+
+## D-020 — La coquille WinUI vit hors de `DeuxiemeCerveau.sln`
+**Statut : à valider** · Étape 4f · **consignée après coup** (2026-07-25), reconstituée depuis `DeuxiemeCerveau.Windows.csproj`.
+
+`DeuxiemeCerveau.Windows` est **exclu de la solution**. La CI applicative tourne sur `ubuntu-latest` et WinUI ne compile que sous Windows (D-014) : l'inclure casserait `dotnet build` et `dotnet test` à la racine pour tout le monde. La coquille se compile par **chemin de `.csproj`**, dans un job `windows-latest` dédié — même motif que les projets de `tools/`.
+
+Conséquence acceptée : `dotnet test` à la racine ne couvre **pas** la coquille. C'est cohérent avec D-014 (toute la logique vit dans `DeuxiemeCerveau.App`, testé en CI Linux) et avec la règle 2 (la coquille affiche et saisit, rien d'autre) — mais cela veut dire que toute logique qui se glisserait dans la coquille échapperait aux tests. À surveiller en revue.
+
+## D-021 — Contraste : l'encre secondaire s'écarte de la maquette
+**Statut : validée** (2026-07-25, décision de l'utilisateur : **lisibilité**) · Étape 4f · spec §5.4
+
+`docs/maquette.html` pose `--ink-3: #9A938C` pour les libellés en petites capitales. Mesuré sur `--surface-2` (`#EFEDEA`) : **2,6:1**, très en dessous du seuil WCAG AA de **4,5:1** pour du petit texte. Or cette encre porte de l'information qu'on lit vraiment : en-têtes de jours du calendrier, « SOLDE DE RÉFÉRENCE », intitulés de section, état de synchro.
+
+**Retenu.** `Encre3` passe à **`#6E6862`** — 4,7:1 sur `Surface2`, 5,5:1 sur blanc, même ton chaud, et les trois niveaux d'encre restent distincts à l'œil.
+
+Un **quatrième niveau**, `Encre4` (l'ancien `#9A938C`), est conservé pour l'estompage réellement voulu : les jours hors du mois affiché dans la grille du calendrier. Ce sont du **contexte adjacent**, pas du texte à lire — la seule place où l'encre la plus pâle se justifie.
+
+**Portée.** La maquette reste la référence de ton, de disposition et de palette ; c'est un écart **ponctuel et documenté**, pas une réécriture. **L'app Apple doit reprendre les mêmes valeurs** — une divergence de contraste entre les deux apps serait exactement le risque n° 1. `docs/maquette.html` n'est volontairement pas modifiée : elle garde la trace de la proposition d'origine.
