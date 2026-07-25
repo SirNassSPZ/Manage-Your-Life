@@ -100,6 +100,72 @@
     <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="{StaticResource CouleurMarque}" />
 
     <!-- ============ Formes partagées ============ -->
+
+    <!--
+        Gabarit de bouton commun aux trois styles. WinUI n'a aucun équivalent de
+        « transform: scale(0.96) » au clic : sans ce gabarit, les boutons ne répondent pas au
+        doigt et l'interface paraît sourde.
+
+        0,96 et 120 ms : les valeurs de la maquette. En dessous de 0,95 le geste devient
+        caricatural ; au-delà de ~160 ms il traîne. La transition est portée par des états
+        visuels, donc INTERRUPTIBLE — un clic rapide n'attend pas la fin du précédent.
+    -->
+    <ControlTemplate x:Key="GabaritBouton" TargetType="Button">
+        <Grid x:Name="Racine" RenderTransformOrigin="0.5,0.5"
+              Background="{TemplateBinding Background}"
+              BorderBrush="{TemplateBinding BorderBrush}"
+              BorderThickness="{TemplateBinding BorderThickness}"
+              CornerRadius="{TemplateBinding CornerRadius}">
+            <Grid.RenderTransform>
+                <ScaleTransform x:Name="Echelle" />
+            </Grid.RenderTransform>
+
+            <ContentPresenter
+                Content="{TemplateBinding Content}"
+                ContentTemplate="{TemplateBinding ContentTemplate}"
+                Padding="{TemplateBinding Padding}"
+                Foreground="{TemplateBinding Foreground}"
+                FontFamily="{TemplateBinding FontFamily}"
+                FontSize="{TemplateBinding FontSize}"
+                FontWeight="{TemplateBinding FontWeight}"
+                HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"
+                AutomationProperties.AccessibilityView="Raw" />
+
+            <VisualStateManager.VisualStateGroups>
+                <VisualStateGroup x:Name="CommonStates">
+                    <VisualState x:Name="Normal" />
+
+                    <VisualState x:Name="PointerOver">
+                        <Storyboard>
+                            <DoubleAnimation Storyboard.TargetName="Racine"
+                                             Storyboard.TargetProperty="Opacity"
+                                             To="0.88" Duration="0:0:0.16" />
+                        </Storyboard>
+                    </VisualState>
+
+                    <VisualState x:Name="Pressed">
+                        <Storyboard>
+                            <DoubleAnimation Storyboard.TargetName="Echelle"
+                                             Storyboard.TargetProperty="ScaleX"
+                                             To="0.96" Duration="0:0:0.12" />
+                            <DoubleAnimation Storyboard.TargetName="Echelle"
+                                             Storyboard.TargetProperty="ScaleY"
+                                             To="0.96" Duration="0:0:0.12" />
+                        </Storyboard>
+                    </VisualState>
+
+                    <VisualState x:Name="Disabled">
+                        <Storyboard>
+                            <DoubleAnimation Storyboard.TargetName="Racine"
+                                             Storyboard.TargetProperty="Opacity"
+                                             To="0.4" Duration="0" />
+                        </Storyboard>
+                    </VisualState>
+                </VisualStateGroup>
+            </VisualStateManager.VisualStateGroups>
+        </Grid>
+    </ControlTemplate>
     <!-- Une carte : surface blanche, trait fin, rayon 12 — le conteneur de base de la maquette. -->
     <Style x:Key="Carte" TargetType="Border">
         <Setter Property="Background" Value="{StaticResource Surface}" />
@@ -114,6 +180,7 @@
         de la maquette : sans lui le bouton paraît plat et imprimé, pas posé sur la surface.
     -->
     <Style x:Key="BoutonPrimaire" TargetType="Button">
+        <Setter Property="Template" Value="{StaticResource GabaritBouton}" />
         <Setter Property="Foreground" Value="White" />
         <Setter Property="BorderThickness" Value="0" />
         <Setter Property="CornerRadius" Value="{StaticResource RayonBouton}" />
@@ -138,6 +205,7 @@
         du XAML, donc à l'exécution, pas à la compilation.
     -->
     <Style x:Key="BoutonNav" TargetType="Button">
+        <Setter Property="Template" Value="{StaticResource GabaritBouton}" />
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="BorderThickness" Value="0" />
         <Setter Property="Padding" Value="11,7" />
@@ -147,6 +215,7 @@
     </Style>
 
     <Style x:Key="BoutonDiscret" TargetType="Button">
+        <Setter Property="Template" Value="{StaticResource GabaritBouton}" />
         <Setter Property="Background" Value="{StaticResource Surface}" />
         <Setter Property="Foreground" Value="{StaticResource Encre}" />
         <Setter Property="BorderBrush" Value="{StaticResource Trait}" />
