@@ -1,6 +1,10 @@
-# CI — cœur métier + contrat d'API (Étapes 1 et 3)
+# CI — cœur métier, contrat d'API, présentation (Étapes 1, 3 et 4)
 # Les tests exhaustifs, les golden files (§12) et les tests de contrat §8 sont vérifiés à
 # chaque poussée : la spec fait foi, la CI le prouve. Le déploiement vit dans deploy-infra.yml.
+#
+# Deux jobs, parce que la coquille WinUI ne compile que sous Windows (D-014) et vit donc hors de
+# la solution (D-020) : « coeur » couvre tout le reste sur Linux, « coquille » la compile sur
+# Windows. Sans ce second job, la coquille pouvait partir cassée sans que rien ne le signale.
 name: ci
 
 on:
@@ -25,3 +29,23 @@ jobs:
 
       - name: Tests exhaustifs + golden files (§12)
         run: dotnet test DeuxiemeCerveau.sln -c Release --no-build --logger "console;verbosity=normal"
+
+  coquille:
+    name: Compilation de la coquille WinUI
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Installer .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      # Par chemin de .csproj : le projet est hors solution (D-020), et sa référence tire
+      # DeuxiemeCerveau.Presentation puis .App puis /core.
+      #
+      # Ce job compile, il ne teste pas — et c'est voulu : la coquille n'a le droit de contenir
+      # QUE de l'affichage et de la saisie (règle 2). Toute logique testable appartient à
+      # DeuxiemeCerveau.Presentation, couvert par le job « coeur » ci-dessus (D-022).
+      - name: Compiler la coquille
+        run: dotnet build apps/windows/DeuxiemeCerveau.Windows/DeuxiemeCerveau.Windows.csproj -c Release

@@ -152,6 +152,7 @@ Migration V2 possible sans rupture de contrat : basculer vers la délégation d'
 
 ## D-014 — Structure de l'app Windows : cœur applicatif cross-plateforme + coquille WinUI
 **Statut : validée** (2026-07-24, décision déléguée par l'utilisateur) · Étape 4 · spec §4, §6
+> **Affinée par D-022** (2026-07-25) : la couche de présentation (modèles de vue, mise en forme, composition) est sortie de la coquille WinUI dans un quatrième projet `net8.0`, testé en CI Linux. Le point 2 ci-dessous se lit désormais « coquille WinUI = XAML, convertisseurs, MSAL, HWND, toasts ».
 
 L'app Windows (`/apps/windows`) est scindée en deux, pour maximiser ce qui est testable et minimiser ce qui est écrit deux fois (Swift/C#) :
 
@@ -216,7 +217,24 @@ Quatre affinements d'**expérience** validés, choisis parce qu'ils **réduisent
 ## D-019 — Coquille WinUI : `Main` écrit à la main plutôt que généré
 **Statut : à valider** · Étape 4f · **consignée après coup** (2026-07-25) — la décision avait été prise et implémentée pendant le développement local de la coquille, mais jamais écrite ici. Reconstituée depuis le code (`Programme.cs`, `DeuxiemeCerveau.Windows.csproj`).
 
-- `DISABLE_XAML_GENERATED_MAIN` est activé et `Programme.Main` est écrit à la main. Motif : la coquille doit pouvoir démarrer en **modes sans interface** — `--rappels` et `--digest` (notifications locales et digest hebdo, D-018 #4), qu'une tâche planifiée déclenchera sans ouvrir de fenêtre — et porter l'**instance unique** ainsi que l'activation par toast.
+**Justification resserrée (2026-07-25), après vérification de la documentation Microsoft.** Des trois motifs invoqués dans le code, **un seul** exige réellement un `Main` maison :
+
+| Motif | Exige `DISABLE_XAML_GENERATED_MAIN` ? |
+|---|---|
+| **Instance unique / redirection d'activation** | **Oui.** Documenté : « it must do so as early as possible, and before initializing any windows […] the app must define DISABLE_XAML_GENERATED_MAIN, and write a custom Main ». |
+| Modes sans interface `--rappels` / `--digest` | Non — `OnLaunched` peut faire le travail et sortir sans jamais créer de fenêtre. |
+| Activation par toast | Non — `GetActivatedEventArgs` est lisible depuis `OnLaunched`. |
+
+**Pourquoi l'instance unique n'est pas un confort ici.** `BaseLocale` détient **une** `SqliteConnection` sur `%LOCALAPPDATA%\DeuxiemeCerveau\local.db`. Deux processus lancés en parallèle (un toast, une tâche planifiée, un double-clic) écriraient dans la même base et la même outbox : c'est un risque pour les filets 1 et 2, pas une gêne d'ergonomie.
+
+**Deux pièges à traiter au moment de l'implémenter**, signalés par la documentation et non gérés aujourd'hui :
+- `RedirectActivationToAsync` est **asynchrone et ne doit pas être attendu sur un thread STA**. Le `Main` actuel est `[STAThread] static void` ; en C#/WinUI la parade documentée est de le déclarer `async`.
+- `UnregisterKey` avant l'arrêt, sinon une instance en cours de fermeture peut recevoir une redirection.
+- La documentation précise que le mécanisme ne fonctionne qu'en **x64** : déjà satisfait (`PlatformTarget=x64`, `RuntimeIdentifier=win-x64`).
+
+**Dette assumée.** Aucune des trois fonctions n'est implémentée à ce jour : le `Main` maison ne rapporte donc rien pour l'instant, il ne fait que préparer l'instance unique. C'est un choix, pas un oubli — le réécrire plus tard coûterait plus cher que de le garder.
+
+- `DISABLE_XAML_GENERATED_MAIN` est activé et `Programme.Main` est écrit à la main.
 - Conséquence obligatoire : `WinRT.ComWrappersSupport.InitializeComWrappers()` doit être appelé en premier ; sans lui, toute activation COM WinRT échoue en `E_NOINTERFACE` dès `new App()`.
 - L'application est **non empaquetée** (`WindowsPackageType=None`), dépendante du framework (`WindowsAppSDKSelfContained=false`, valeur explicite car le paquet Base a `true` par défaut), avec `RuntimeIdentifier=win-x64` — sans RID, les DLL natives du bootstrapper et de WinUI ne sont pas copiées et le lancement échoue en `DllNotFoundException`.
 - **Reste à faire** : les modes `--rappels` / `--digest` ne sont pas encore implémentés ; seul le mode outil `--capture` / `--vue` / `--capture-delai` (comparaison du rendu à la maquette) l'est.
@@ -226,7 +244,11 @@ Quatre affinements d'**expérience** validés, choisis parce qu'ils **réduisent
 
 `DeuxiemeCerveau.Windows` est **exclu de la solution**. La CI applicative tourne sur `ubuntu-latest` et WinUI ne compile que sous Windows (D-014) : l'inclure casserait `dotnet build` et `dotnet test` à la racine pour tout le monde. La coquille se compile par **chemin de `.csproj`**, dans un job `windows-latest` dédié — même motif que les projets de `tools/`.
 
-Conséquence acceptée : `dotnet test` à la racine ne couvre **pas** la coquille. C'est cohérent avec D-014 (toute la logique vit dans `DeuxiemeCerveau.App`, testé en CI Linux) et avec la règle 2 (la coquille affiche et saisit, rien d'autre) — mais cela veut dire que toute logique qui se glisserait dans la coquille échapperait aux tests. À surveiller en revue.
+**Correction (2026-07-25) : le job n'existait pas.** Cette décision décrivait un garde-fou qui n'avait jamais été écrit — `ci.yml` ne contenait qu'un job `ubuntu-latest` sur la solution, d'où la coquille est justement exclue. Elle n'était donc couverte par **rien, pas même une compilation**, et pouvait partir cassée sans aucun signal. Le job `coquille` a été ajouté.
+
+**Alternative examinée et écartée : les filtres de solution (`.slnf`).** C'est le mécanisme documenté, et il garderait la coquille visible dans l'IDE et dans `dotnet sln list`. Écarté parce qu'il ajoute un fichier à tenir à jour à chaque nouveau projet, et que le support de `.slnf` par `dotnet test` reste flou (`dotnet sln` ne l'accepte que depuis le SDK 9.0.3xx). L'exclusion simple + un job dédié couvre le même besoin sans cette fragilité.
+
+**Le risque résiduel est traité par D-022.** L'exclusion voulait dire que toute logique glissée dans la coquille échappait aux tests. Ce risque est désormais structurel, pas seulement surveillé en revue : la logique de présentation vit dans `DeuxiemeCerveau.Presentation`, qui est **dans** la solution et donc testé sur la CI Linux. Il ne reste dans la coquille que ce qui exige Windows — et le job `coquille` se contente délibérément de le compiler.
 
 ## D-021 — Contraste : l'encre secondaire s'écarte de la maquette
 **Statut : validée** (2026-07-25, décision de l'utilisateur : **lisibilité**) · Étape 4f · spec §5.4
@@ -238,3 +260,23 @@ Conséquence acceptée : `dotnet test` à la racine ne couvre **pas** la coquill
 Un **quatrième niveau**, `Encre4` (l'ancien `#9A938C`), est conservé pour l'estompage réellement voulu : les jours hors du mois affiché dans la grille du calendrier. Ce sont du **contexte adjacent**, pas du texte à lire — la seule place où l'encre la plus pâle se justifie.
 
 **Portée.** La maquette reste la référence de ton, de disposition et de palette ; c'est un écart **ponctuel et documenté**, pas une réécriture. **L'app Apple doit reprendre les mêmes valeurs** — une divergence de contraste entre les deux apps serait exactement le risque n° 1. `docs/maquette.html` n'est volontairement pas modifiée : elle garde la trace de la proposition d'origine.
+
+## D-022 — Couche de présentation extraite dans un projet testable
+**Statut : validée** (2026-07-25, décision de l'utilisateur : « le meilleur code possible ») · Étape 4f · **affine D-014** · spec §4, §12
+
+**Constat.** Les modèles de vue de la coquille n'importaient **aucun** `Microsoft.UI` : ils ne dépendaient de WinUI que par leur emplacement. Or ils portent de la vraie logique — calcul de la grille du calendrier (décalage du lundi, six semaines, regroupement par jour **local**, débordement), lecture d'un montant saisi (la porte d'entrée de la règle 5), mémoire des filtres masqués, mise en forme française. Rien de tout cela n'était testé, puisque la coquille vit hors solution (D-020) et que la CI tourne sur Linux. Un bug de saisie d'argent y dormait : `« 12,34,56 »` était lu **123 456 €**.
+
+**Décision.** D-014 passe de trois projets à quatre :
+
+1. **`DeuxiemeCerveau.App`** (`net8.0`) — cœur applicatif : base locale, outbox, synchro §6, lecture, export/import. Inchangé.
+2. **`DeuxiemeCerveau.Presentation`** (`net8.0`, **nouveau**) — modèles de vue, `Format`, `AccesDonnees`, `IFournisseurJeton`, `OptionsApp`, `Composition`. **Dans la solution**, donc compilé et testé sur la CI Linux avec le cœur.
+3. **`DeuxiemeCerveau.Windows`** (`net8.0-windows`) — uniquement ce qui **exige** Windows : XAML, convertisseurs `IValueConverter`, MSAL, HWND, toasts, sélecteurs de fichiers.
+4. Les projets de tests correspondants.
+
+**Ce qui rend la présentation testable.** `Composition` ne construit plus ce qu'elle utilise : elle **reçoit** sa configuration (`OptionsApp`), son fournisseur de jetons (`IFournisseurJeton`) et sa pile HTTP. Lire `appsettings.json` et parler à MSAL sont des affaires d'hôte. Un test monte donc le **vrai** graphe — vraie base SQLite, vraies migrations, vrais services — sur un dossier temporaire, avec `FournisseurJetonAbsent` : c'est-à-dire l'état **hors ligne**, qui est le mode nominal de l'app (filet 1), pas un cas de repli.
+
+**Règle de placement, vérifiable.** Si un `using Microsoft.UI` apparaît dans `DeuxiemeCerveau.Presentation`, le code est au mauvais endroit. Inversement, toute logique qui apparaît dans `DeuxiemeCerveau.Windows` doit descendre d'un cran — le job CI `coquille` ne fait que **compiler**, il ne teste rien, et c'est délibéré (règle 2 : la coquille affiche et saisit, rien d'autre).
+
+**Conséquence pour l'app Apple.** La couche de présentation est écrite deux fois (C#, Swift) — c'est le risque n° 1. Des tests sur le comportement attendu (grille du calendrier, arrondis, filtres) documentent désormais ce que la version Swift doit reproduire, au lieu de laisser le code C# faire foi.
+
+**Écarté :** un projet de tests `net8.0-windows` exécuté sur le seul job Windows. Il aurait laissé la logique de présentation hors de la CI principale, donc invisible pour l'app Apple et hors des 441 tests de référence.
