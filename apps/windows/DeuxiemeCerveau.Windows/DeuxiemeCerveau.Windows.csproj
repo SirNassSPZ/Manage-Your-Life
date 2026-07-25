@@ -53,6 +53,23 @@
     <!-- Métapaquet UNIQUEMENT : le paquet .Runtime vérifie que tous les composants partagent la
          même version — ne jamais épingler Foundation/.WinUI/.Base à la main. -->
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.3.1" />
+
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
+
+    <!-- Configuration sans secret : identifiants publics en JSON, surcharge locale gitignorée. -->
+    <PackageReference Include="Microsoft.Extensions.Configuration" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="8.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="8.0.2" />
+
+    <!-- Entra ID (§8) + cache de jetons chiffré DPAPI (sinon reconnexion à chaque lancement). -->
+    <PackageReference Include="Microsoft.Identity.Client" Version="4.66.1" />
+    <PackageReference Include="Microsoft.Identity.Client.Extensions.Msal" Version="4.66.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="appsettings.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="appsettings.local.json" CopyToOutputDirectory="PreserveNewest"
+             Condition="Exists('appsettings.local.json')" />
   </ItemGroup>
 
   <ItemGroup>
