@@ -128,7 +128,15 @@ public sealed partial class VueModeleCoquille : ObservableObject
     [ObservableProperty]
     private bool _aSousVues;
 
+    /// <summary>
+    /// Les filtres de calendrier ne s'affichent que là où ils filtrent réellement quelque chose.
+    /// Le §5.4 les rattache au calendrier ; les montrer sur Notes ou Corbeille donnait des cases à
+    /// cocher sans effet — une commande qui ne commande rien est pire qu'une commande absente.
+    /// </summary>
+    public bool AFiltresCalendrier => Zone == Zone.Calendrier;
+
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(AFiltresCalendrier))]
     private Zone _zone = Zone.Aujourdhui;
 
     [ObservableProperty]

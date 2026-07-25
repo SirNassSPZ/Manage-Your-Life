@@ -78,6 +78,25 @@ public class CoquilleTests
         Assert.Equal(attendu, coquille.SousVues.Count > 0);
     }
 
+    [Theory]
+    [InlineData(Zone.Calendrier, true)]
+    [InlineData(Zone.Notes, false)]
+    [InlineData(Zone.Corbeille, false)]
+    [InlineData(Zone.BudgetProjete, false)]
+    [InlineData(Zone.Aujourdhui, false)]
+    public void Les_filtres_de_calendrier_ne_s_affichent_que_la_ou_ils_agissent(Zone zone, bool attendu)
+    {
+        // Régression : ils s'affichaient partout, y compris sur Notes et Corbeille où ils ne
+        // filtrent rien. Une commande qui ne commande rien est pire qu'une commande absente.
+        using var f = new FabriquePresentation();
+        f.AjouterCategorie("Santé");
+        var coquille = new VueModeleCoquille(f.Composition);
+
+        coquille.Aller(zone);
+
+        Assert.Equal(attendu, coquille.AFiltresCalendrier);
+    }
+
     [Fact]
     public void Une_zone_V2_reste_inerte()
     {

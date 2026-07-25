@@ -111,8 +111,12 @@ La spec (§5.1) fixe l'algorithme ; précisions nécessaires à une implémentat
 
 La purge définitive (§5.6) est la seule destruction réelle, mais le contrat §8 v3.1 n'exposait **aucune route de purge**. Une purge locale seule ferait « ressusciter » l'entité au pull suivant. → Résolue par la décision D-010 ci-dessous, intégrée à la spec **v3.2** (modifiée d'abord, conformément à la consigne).
 
-## Q-002 — Question ouverte : une envie d'achat peut-elle porter un montant ?
-**Statut : ouverte** (2026-07-25) · découverte en écrivant les tests de la vue Finances · spec §3.1, §5.1
+## Q-002 — Une envie d'achat peut-elle porter un montant ? — **NON**
+**Statut : tranchée** (2026-07-25, décision de l'utilisateur : **tenir le §3.1**) · découverte en écrivant les tests de la vue Finances · spec §3.1, §5.1
+
+**Retenu : option (a).** L'envie reste un souhait **nommé, sans montant**. Aucun changement de modèle, aucune migration, aucune règle nouvelle à écrire deux fois. Un prix se matérialise le jour où l'utilisateur décide d'acheter, sous forme de **sortie datée** — qui entre alors naturellement dans le budget projeté (§5.1).
+
+**Corrections appliquées** : `docs/maquette.html` n'affiche plus de prix sur les envies, et le paragraphe fautif d'`idees.md` I-003 porte un correctif. Le comportement du cœur, lui, était déjà juste — un test le fige (`Une_envie_ne_peut_pas_porter_de_montant_en_V1`).
 
 **Contradiction.** Trois documents disent trois choses :
 - **`specification.md` §3.1** — « **Argent** (uniquement `facture`, `paiement`, `revenu`) ». Le montant est donc **interdit** sur une envie.

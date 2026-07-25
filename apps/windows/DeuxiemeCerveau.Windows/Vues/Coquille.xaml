@@ -164,8 +164,9 @@
                         </ItemsControl>
                     </StackPanel>
 
-                    <!-- Catégorie = label = calendrier : une seule notion (§3.3). -->
-                    <StackPanel>
+                    <!-- Catégorie = label = calendrier : une seule notion (§3.3). Visible seulement
+                         là où ces filtres agissent : ailleurs, ce seraient des cases sans effet. -->
+                    <StackPanel Visibility="{x:Bind Modele.AFiltresCalendrier, Mode=OneWay, Converter={StaticResource SiVrai}}">
                         <TextBlock Text="MES CALENDRIERS" Style="{StaticResource EtiquetteMajuscule}" Margin="10,0,0,8" />
                         <ItemsControl ItemsSource="{x:Bind Modele.Calendriers}">
                             <ItemsControl.ItemTemplate>

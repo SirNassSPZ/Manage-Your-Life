@@ -37,7 +37,9 @@ Demande : pour chaque **envie d'achat**, pouvoir soit **l'intégrer au budget pr
 
 **Ce qui EST déjà en V1 (le modèle le permet sans rien ajouter) :**
 - L'`envie` est un type d'Élément de plein droit (§3.1), avec ses statuts `idee` (≈ *en suspens*), `planifiee`, `faite`, `abandonnee`. « Laisser en suspens » vs « planifier » se joue donc **déjà** sur le statut, en V1.
-- Une envie peut porter un **montant** et des **catégories** → une simple **liste de souhaits classée** est montrable en V1 (c'est ce que fait la maquette).
+- Une envie peut porter des **catégories** → une simple **liste de souhaits classée** est montrable en V1.
+
+> **Correction (2026-07-25, Q-002).** Ce paragraphe affirmait aussi qu'une envie pouvait porter un **montant**. C'est **faux** : le §3.1 réserve l'argent aux types `facture`, `paiement` et `revenu`, et le cœur le fait respecter (`montant_interdit`). La maquette, qui affichait des prix sur les envies, a été corrigée. Un prix se matérialise le jour où l'on décide d'acheter, sous forme de **sortie datée** — laquelle entre naturellement dans le budget projeté.
 - Si l'utilisateur **décide d'acheter**, il crée une **sortie datée** (paiement) au mois voulu : elle entre alors **naturellement** dans le budget projeté (§5.1) — sans mécanisme spécifique « envie ».
 
 **Ce qui reste V2 :** le geste dédié « projeter *hypothétiquement* cette envie sur le mois M sans créer de vraie dépense, et afficher si ça passe » (la confrontation), et le rappel intelligent des envies (§5.2). À NE PAS coder en V1. La maquette le montre donc **étiqueté V2**.
@@ -60,3 +62,25 @@ Demande, en quatre points : (1) catégoriser les éléments des onglets en colon
 **Coût réel d'un élargissement.** Tout ce qui entre en V1 est écrit **deux fois** (C# et Swift) et doit passer les scénarios de parité du §12 avant livraison. Ajouter tâches + listes + planifications, c'est un module entier de plus des deux côtés — c'est précisément ce que le découpage en versions cherche à éviter (« livrer un socle qui a de la valeur seul, puis empiler »).
 
 **Décision requise (périmètre — appartient à l'utilisateur) :** livrer d'abord la V1 telle que définie, en y incluant les trois points ci-dessus qui en font déjà partie ; **ou** élargir formellement la V1 au module tâches/listes — ce qui exige de **modifier la spécification d'abord** (CLAUDE.md), et d'accepter le délai et le risque supplémentaires.
+
+*Réponse (2026-07-25) : livrer la V1 d'abord. La vue 7 jours et la gestion des calendriers sont faites ; le groupement pliable reste à faire.*
+
+## I-005 — Notes à la hauteur de Notion : favoris, mise en forme riche, images — **hors périmètre V1 (§5.5)**
+**Consigné le 2026-07-26** · demandé par l'utilisateur après la livraison de la vue Notes.
+
+Demande, en trois points : (1) chaque onglet doit avoir **sa propre colonne latérale**, au lieu de subir les filtres du calendrier partout ; (2) pour Notes, une colonne à la Notion — voir toutes les notes, et les **favorites** épinglées en haut ; (3) une édition **aussi complète que Notion** — gras, italique, « clés » (titres / blocs), **images incorporées**.
+
+**Point 1 — ce n'était pas une envie, c'était un défaut.** Les filtres de calendrier s'affichaient dans **toutes** les zones, y compris Notes et Corbeille où ils ne filtrent rien. Le §5.4 les rattache au calendrier. **Corrigé** : ils n'apparaissent que là où ils agissent réellement.
+
+**Point 2 — les favoris n'existent pas dans le modèle.** Le §3.1 énumère les champs de l'Élément ; il n'y a **aucun** `favori`, et aucune notion d'épinglage. Deux voies :
+- **(a) Sans rien ajouter** — une catégorie « Favoris » fait déjà le travail : catégorie = label (§3.3), elle est créable depuis « Gérer les calendriers », et trier les notes par appartenance à cette catégorie est de la **présentation pure**. Zéro champ, zéro migration, zéro règle à écrire deux fois. **Faisable en V1.**
+- **(b) Un vrai champ `favori`** — additif (règle 18), donc sans migration destructive, mais c'est un champ de plus dans le modèle canonique, le JSON, les deux apps et les tests de parité. Exige de **modifier le §3.1 d'abord**.
+
+**Point 3 — la mise en forme riche contredit le §5.5, littéralement.** Le §5.5 dit : « espace de texte libre, **sans structure imposée** », « une note = Élément `type = note` (**texte** dans `description`) », et conclut « **En V1 : simple espace texte, aucune intelligence** ». Passer à Notion signifie :
+- **un format de contenu** (Markdown ? blocs JSON ?) là où la spec dit « texte ». C'est un changement du **modèle de données**, pas de l'interface — le `description` d'aujourd'hui est lu tel quel par l'export (§5.7), qui promet d'être « lisible sans l'application » ;
+- **un éditeur riche écrit deux fois**, en WinUI et en SwiftUI, avec un comportement identique au caractère près (risque n° 1). C'est le composant le plus coûteux de toute l'application ;
+- **les images incorporées** : le §7 gère bien des pièces jointes (25 Mo, SAS, cache local), mais **attachées à un Élément**, pas insérées dans un flux de texte. Une image dans le corps d'une note demande de lier un blob à une position dans le contenu — une notion absente de la spec.
+
+**Ce qui est faisable en V1 sans toucher à la spec :** la colonne latérale propre à chaque onglet (point 1, fait), la liste des notes dans cette colonne façon Notion, et le tri « favoris en haut » par la voie (a). Le reste du point 3 est une **V2 à part entière**.
+
+**Décision requise (périmètre) :** se contenter de la voie (a) pour les favoris et garder la note en texte simple jusqu'à la V1 livrée ; **ou** ouvrir un chantier « éditeur riche » — qui exige de réécrire le §5.5, de choisir un format de contenu, et d'accepter qu'il soit implémenté deux fois.
