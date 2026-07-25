@@ -1,3 +1,4 @@
+﻿using System.Text;
 using DeuxiemeCerveau.Presentation;
 using Microsoft.Extensions.Configuration;
 using Microsoft.UI.Xaml;
@@ -39,13 +40,26 @@ public partial class App : Application
             var jetons = await Services.FournisseurJetonMsal.Creer(options.Entra, () => _fenetrePrincipale)
                 .ConfigureAwait(true);
 
-            _composition = Composition.Creer(
-                options,
-                jetons,
-                manipulateurApi: j => new Services.ManipulateurJeton(j)
-                {
-                    InnerHandler = new Services.ManipulateurReessai { InnerHandler = new HttpClientHandler() },
-                });
+            static HttpMessageHandler Pile(IFournisseurJeton j) => new Services.ManipulateurJeton(j)
+            {
+                InnerHandler = new Services.ManipulateurReessai { InnerHandler = new HttpClientHandler() },
+            };
+
+            // Mode outil : --parite déroule les scénarios §12 sur l'application réelle, contre le
+            // serveur déployé, dans des dossiers de données jetables — les données de l'utilisateur
+            // ne sont ni lues ni écrites. Aucune fenêtre : c'est un rapport, pas un écran.
+            if (Environment.GetCommandLineArgs().Contains(ScenariosParite.Option))
+            {
+                var rapport = ScenariosParite.Rapport(
+                    await ScenariosParite.Executer(options, jetons, Pile));
+                Console.WriteLine(rapport);
+                // UTF-8 explicite : l'encodage par défaut de la console Windows massacre les accents.
+                File.WriteAllText(
+                    Path.Combine(Composition.DossierParDefaut, "parite.txt"), rapport, Encoding.UTF8);
+                Environment.Exit(rapport.Contains("Les trois scénarios passent.") ? 0 : 1);
+            }
+
+            _composition = Composition.Creer(options, jetons, manipulateurApi: Pile);
 
             var principale = new FenetrePrincipale(_composition);
             _fenetre = principale;
