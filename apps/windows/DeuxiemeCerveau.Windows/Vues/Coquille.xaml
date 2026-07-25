@@ -7,33 +7,38 @@
     xmlns:vues="using:DeuxiemeCerveau.Windows.Vues">
 
     <!--
-        Deux contraintes WinUI qui expliquent la forme de ce fichier :
+        Trois contraintes WinUI qui expliquent la forme de ce fichier :
         1. x:Bind exige une racine FrameworkElement ; Window n'en est pas un. Toute la coquille vit
            donc ici, et FenetrePrincipale ne fait plus que l'héberger.
         2. ItemsControl ne prend PAS en charge x:Bind dans son ItemTemplate (contrairement à
            ListView / ItemsRepeater) : les liaisons compilées y restent nulles, en silence.
            Les gabarits d'items utilisent donc {Binding}, tardif mais fiable.
+        3. Les convertisseurs d'un x:Bind sont cherchés dans les ressources du UserControl, PAS
+           dans celles d'un élément intérieur. Déclarés sur le Grid, la recherche lève
+           « Cannot find a resource with the given key », ce qui interrompt Bindings.Initialize()
+           et laisse TOUTE la vue non liée — barre de navigation comprise.
     -->
-    <Grid x:Name="Racine" Background="{StaticResource Fond}">
-        <Grid.Resources>
-            <pres:FondActif x:Key="FondActif" />
-            <pres:EncreActif x:Key="EncreActif" />
-            <pres:TraceGeometrie x:Key="Trace" />
-            <pres:HexPinceau x:Key="Hex" />
-            <pres:TexteVersVisibilite x:Key="SiTexte" />
-            <pres:BoolVersVisibilite x:Key="SiVrai" />
-            <pres:BoolInverse x:Key="SiFaux" />
+    <UserControl.Resources>
+        <pres:FondActif x:Key="FondActif" />
+        <pres:EncreActif x:Key="EncreActif" />
+        <pres:TraceGeometrie x:Key="Trace" />
+        <pres:HexPinceau x:Key="Hex" />
+        <pres:TexteVersVisibilite x:Key="SiTexte" />
+        <pres:BoolVersVisibilite x:Key="SiVrai" />
+        <pres:BoolInverse x:Key="SiFaux" />
 
-            <!-- Bouton de navigation : plat ; l'état actif se dit par le fond bleu doux. -->
-            <Style x:Key="BoutonNav" TargetType="Button">
-                <Setter Property="Background" Value="Transparent" />
-                <Setter Property="BorderThickness" Value="0" />
-                <Setter Property="Padding" Value="11,7" />
-                <Setter Property="CornerRadius" Value="8" />
-                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-                <Setter Property="FontFamily" Value="{StaticResource PoliceUI}" />
-            </Style>
-        </Grid.Resources>
+        <!-- Bouton de navigation : plat ; l'état actif se dit par le fond bleu doux. -->
+        <Style x:Key="BoutonNav" TargetType="Button">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="11,7" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="FontFamily" Value="{StaticResource PoliceUI}" />
+        </Style>
+    </UserControl.Resources>
+
+    <Grid x:Name="Racine" Background="{StaticResource Fond}">
 
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
