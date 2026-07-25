@@ -1,0 +1,63 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Coquille WinUI 3 — AFFICHE et SAISIT, rien d'autre (garde-fou-architecture, règle 2).
+    Toute la logique vit dans DeuxiemeCerveau.App (net8.0, cross-plateforme, testé en CI Linux).
+
+    HORS de DeuxiemeCerveau.sln (D-020) : la CI applicative tourne sur ubuntu-latest et WinUI ne
+    compile que sous Windows (D-014). Un job windows-latest la compile par chemin de .csproj —
+    même motif que les projets de tools/.
+  -->
+  <PropertyGroup>
+    <!-- 19041 est le plafond connu du SDK .NET 8 (17763 / 18362 / 19041). -->
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
+    <SupportedOSPlatformVersion>10.0.17763.0</SupportedOSPlatformVersion>
+
+    <OutputType>WinExe</OutputType>
+    <RootNamespace>DeuxiemeCerveau.Windows</RootNamespace>
+    <AssemblyName>DeuxiemeCerveau.Windows</AssemblyName>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+
+    <!-- Application NON EMPAQUETÉE : déclenche l'auto-initialisation du bootstrapper via un
+         [ModuleInitializer] généré. Ne JAMAIS appeler Bootstrap.Initialize soi-même. -->
+    <WindowsPackageType>None</WindowsPackageType>
+    <!-- Dépendante du framework package (Microsoft.WindowsAppRuntime.2 2.3.1.0, déjà installé).
+         Le « false » explicite est obligatoire : le défaut du paquet Base est true. -->
+    <WindowsAppSDKSelfContained>false</WindowsAppSDKSelfContained>
+    <SelfContained>false</SelfContained>
+    <EnableMsixTooling>false</EnableMsixTooling>
+
+    <!-- Sans RID, les DLL natives (bootstrap, WinUI) ne sont pas copiées → DllNotFoundException. -->
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <PlatformTarget>x64</PlatformTarget>
+
+    <!-- Notre propre Main : instance unique, activation par toast, modes sans interface (D-019). -->
+    <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
+
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <!-- ICU requis pour les fuseaux IANA, comme le cœur applicatif : jamais d'InvariantGlobalization. -->
+    <InvariantGlobalization>false</InvariantGlobalization>
+
+    <!-- Divergence assumée avec /core et App (qui sont à true) : le code XAML généré (*.g.cs)
+         produit des avertissements de nullabilité qu'on ne contrôle pas. -->
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+
+    <PublishTrimmed>false</PublishTrimmed>
+    <PublishAot>false</PublishAot>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Métapaquet UNIQUEMENT : le paquet .Runtime vérifie que tous les composants partagent la
+         même version — ne jamais épingler Foundation/.WinUI/.Base à la main. -->
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.3.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- TOUTE la logique : base locale, outbox, synchro §6, lecture, saisie, export/import. -->
+    <ProjectReference Include="..\DeuxiemeCerveau.App\DeuxiemeCerveau.App.csproj" />
+  </ItemGroup>
+
+</Project>
