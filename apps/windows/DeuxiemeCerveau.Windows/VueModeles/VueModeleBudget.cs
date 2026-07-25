@@ -1,5 +1,4 @@
 using System.Collections.ObjectModel;
-using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using DeuxiemeCerveau.App.Synchro;
@@ -111,7 +110,7 @@ public sealed partial class VueModeleBudget : ObservableObject
         {
             var cloture = mois.ClotureCentimes;
             Mois.Add(new LigneMois(
-                Mois: Abreger(mois.Mois),
+                Mois: Format.MoisAbregeTitre(mois.Mois),
                 Cloture: cloture is null ? "—" : Format.EurosRelatif(cloture.Value),
                 Decouvert: mois.Decouvert || cloture < 0,
                 AvantReference: mois.AvantReference,
@@ -127,12 +126,4 @@ public sealed partial class VueModeleBudget : ObservableObject
         };
     }
 
-    /// <summary>« 2026-07 » → « Juil. 26 ».</summary>
-    private static string Abreger(string mois)
-    {
-        var fr = CultureInfo.GetCultureInfo("fr-FR");
-        return DateOnly.TryParseExact(mois + "-01", "yyyy-MM-dd", fr, DateTimeStyles.None, out var jour)
-            ? fr.TextInfo.ToTitleCase(jour.ToString("MMM yy", fr))
-            : mois;
-    }
 }

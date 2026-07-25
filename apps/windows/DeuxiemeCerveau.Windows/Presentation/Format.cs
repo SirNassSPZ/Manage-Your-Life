@@ -55,6 +55,21 @@ public static class Format
     public static string MoisAnnee(DateOnly jour) =>
         Fr.TextInfo.ToTitleCase(jour.ToString("MMMM yyyy", Fr));
 
+    /// <summary>
+    /// Capitales françaises, accents compris (« AOÛT », pas « AOUT »). WinUI 3 n'a aucun équivalent
+    /// de <c>text-transform: uppercase</c> : la maquette l'obtient en CSS, nous ici.
+    /// </summary>
+    public static string Capitales(string texte) => Fr.TextInfo.ToUpper(texte);
+
+    /// <summary>« 2026-08 » → « août 26 ». Clé de mois du contrat §8 vers un libellé lisible.</summary>
+    public static string MoisAbrege(string cleMois) =>
+        DateOnly.TryParseExact(cleMois + "-01", "yyyy-MM-dd", Fr, DateTimeStyles.None, out var jour)
+            ? jour.ToString("MMM yy", Fr)
+            : cleMois;
+
+    /// <summary>« 2026-08 » → « Août 26 », pour une colonne de tableau.</summary>
+    public static string MoisAbregeTitre(string cleMois) => Fr.TextInfo.ToTitleCase(MoisAbrege(cleMois));
+
     /// <summary>« 18:00 » pour un horaire, « Prévu » pour une échéance sans heure.</summary>
     public static string Heure(DateTimeOffset instant, bool journeeEntiere) =>
         journeeEntiere ? "Prévu" : instant.ToLocalTime().ToString("HH:mm", Fr);

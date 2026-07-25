@@ -17,5 +17,9 @@ public sealed partial class VueAujourdhui : UserControl
     {
         Modele = modele;
         Bindings.Update();
+
+        // La projection est serveur (règle 9) : on la demande APRÈS avoir affiché l'accueil complet,
+        // et sans l'attendre — l'interface n'attend jamais le réseau (filet 1).
+        Loaded += async (_, _) => await modele.ChargerAlerteDecouvert();
     }
 }

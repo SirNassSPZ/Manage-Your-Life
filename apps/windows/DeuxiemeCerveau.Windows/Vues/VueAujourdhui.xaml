@@ -61,6 +61,17 @@
                         <TextBlock Text="sous 7 jours" FontSize="12.5" Foreground="{StaticResource Encre3}"
                                    VerticalAlignment="Center" />
                     </StackPanel>
+
+                    <!-- Le premier mois à découvert (§5.1 point 5). Arrive du serveur en tâche de
+                         fond : absent tant qu'il ne répond pas, et absent s'il n'y a rien de rouge. -->
+                    <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Right"
+                                Visibility="{x:Bind Modele.AlerteMontant, Mode=OneWay, Converter={StaticResource SiTexte}}">
+                        <TextBlock Text="{x:Bind Modele.AlerteMontant, Mode=OneWay}" FontSize="15"
+                                   FontWeight="SemiBold" CharacterSpacing="-10"
+                                   Foreground="{StaticResource Negatif}" />
+                        <TextBlock Text="{x:Bind Modele.AlerteLibelle, Mode=OneWay}" FontSize="12.5"
+                                   Foreground="{StaticResource Encre3}" VerticalAlignment="Center" />
+                    </StackPanel>
                 </StackPanel>
             </Grid>
 

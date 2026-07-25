@@ -60,7 +60,48 @@ public sealed partial class VueModeleAujourdhui : ObservableObject
     [ObservableProperty]
     private bool _agendaVide;
 
+    /// <summary>« −180,00 € » — la clôture du premier mois à découvert, ou null s'il n'y en a pas.</summary>
+    [ObservableProperty]
+    private string? _alerteMontant;
+
+    /// <summary>« en août 26 ».</summary>
+    [ObservableProperty]
+    private string? _alerteLibelle;
+
     public ObservableCollection<GroupeAgenda> Agenda { get; } = [];
+
+    /// <summary>
+    /// Le premier mois à découvert (§5.1 point 5 : « l'app met en évidence tout mois dont la clôture
+    /// est négative »). La projection est SERVEUR (règle 9), donc cet appel part en tâche de fond :
+    /// l'accueil s'affiche complet sans lui et ne l'attend jamais (filet 1).
+    /// <para>
+    /// Un échec est volontairement muet. L'accueil doit rester calme ; c'est la vue Budget projeté
+    /// qui explique pourquoi la projection manque.
+    /// </para>
+    /// </summary>
+    public async Task ChargerAlerteDecouvert()
+    {
+        AlerteMontant = null;
+        AlerteLibelle = null;
+
+        if (!_composition.Options.Api.EstConfiguree) return;
+
+        try
+        {
+            var projection = await _composition.Api.Projeter(12);
+            var decouvert = projection.Mois.FirstOrDefault(m =>
+                !m.AvantReference && m.ClotureCentimes is < 0);
+
+            if (decouvert is null) return;
+
+            AlerteMontant = Format.EurosRelatif(decouvert.ClotureCentimes!.Value);
+            AlerteLibelle = "en " + Format.MoisAbrege(decouvert.Mois);
+        }
+        catch
+        {
+            // Muet par choix : voir la remarque ci-dessus.
+        }
+    }
 
     public void Charger()
     {
@@ -114,7 +155,8 @@ public sealed partial class VueModeleAujourdhui : ObservableObject
         var n = jour.Occurrences.Count;
         return new GroupeAgenda
         {
-            Titre = intitule,
+            // Capitales posées ici : WinUI n'a pas de « text-transform » (cf. Format.Capitales).
+            Titre = Format.Capitales(intitule),
             Resume = n == 1 ? "1 mouvement" : $"{n} mouvements",
             Lignes = [.. jour.Occurrences.Select(Ligne)],
         };
