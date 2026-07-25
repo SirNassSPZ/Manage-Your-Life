@@ -1,0 +1,1003 @@
+<title>Deuxième Cerveau — proposition d'interface</title>
+<style>
+  /* ============================ TOKENS ============================ */
+  :root {
+    /* Canvas around the app frames (dual-theme, Figma-style presentation) */
+    --page: #edece8;
+    --page-ink: #24262e;
+    --page-ink-2: #6d707c;
+    --page-line: #dedcd6;
+    --page-chip: #ffffff;
+    --shadow: 0 0 0 1px rgba(15,15,15,.03), 0 1px 2px rgba(15,15,15,.03), 0 4px 10px -2px rgba(15,15,15,.05), 0 14px 34px -10px rgba(15,15,15,.11);
+
+    /* The application itself is committed to a LIGHT world by design.
+       These tokens stay fixed in both viewer themes — the frames are screenshots of a light app. */
+    --bg: #f6f5f4;          /* Notion — canvas papier chaud */
+    --surface: #ffffff;
+    --surface-2: #efedea;
+    --ink: #1a1917;         /* Notion — quasi-noir chaud */
+    --ink-2: #605c58;
+    --ink-3: #9a938c;
+    --line: #e7e5e1;
+    --line-2: #efedea;
+    --brand: #0075de;       /* Notion — LE bleu, réservé aux actions et à « aujourd'hui » */
+    --brand-ink: #005bab;
+    --brand-soft: #e6f1fb;
+    --brand-ring: #b3d6f4;
+
+    /* Palette curatée, dustée (dé-slop) : des tons « terreux » harmonisés plutôt que des primaires saturés.
+       Fonctionnels pour les catégories/calendriers ; le bleu de marque reste réservé aux ACTIONS. */
+    --blue: #4b7f8a;   --blue-s: #e7eef0;   /* ardoise-teal — travail */
+    --green: #4a8c63;  --green-s: #e8f0ea;  /* sauge — revenus */
+    --coral: #bb5a44;  --coral-s: #f3e7e2;  /* terre cuite — sorties */
+    --amber: #a97e3c;  --amber-s: #efe8d9;  /* ocre — santé */
+    --violet: #7a6aa6; --violet-s: #e9e7f1; /* mauve poussiéreux — perso */
+    --pos: #4a8c63;
+    --neg: #bb5340;    --neg-s: #f3e5e1;
+
+    --r-win: 16px; --r-card: 12px; --r-pill: 7px;
+    --sans: "Segoe UI Variable Display", "Segoe UI Variable", "Segoe UI", -apple-system,
+            system-ui, "Helvetica Neue", Arial, sans-serif;
+    --tab: "tnum" 1, "cv01" 1;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --page: #141519; --page-ink: #e8e8eb; --page-ink-2: #9a9ca6;
+      --page-line: #2a2c33; --page-chip: #1e2027;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 20px 44px -10px rgba(0,0,0,.6), 0 2px 10px -2px rgba(0,0,0,.4);
+    }
+  }
+  :root[data-theme="light"] {
+    --page: #edece8; --page-ink: #24262e; --page-ink-2: #6d707c; --page-line: #dedcd6; --page-chip:#ffffff;
+    --shadow: 0 0 0 1px rgba(15,15,15,.03), 0 1px 2px rgba(15,15,15,.03), 0 4px 10px -2px rgba(15,15,15,.05), 0 14px 34px -10px rgba(15,15,15,.11);
+  }
+  :root[data-theme="dark"] {
+    --page: #141519; --page-ink: #e8e8eb; --page-ink-2: #9a9ca6; --page-line: #2a2c33; --page-chip:#1e2027;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 20px 44px -10px rgba(0,0,0,.6), 0 2px 10px -2px rgba(0,0,0,.4);
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; background: var(--page); color: var(--page-ink);
+    font-family: var(--sans); font-size: 15px; line-height: 1.5;
+    -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
+    padding: clamp(20px, 4vw, 56px) clamp(14px, 4vw, 56px) 72px;
+  }
+  .wrap { max-width: 1120px; margin: 0 auto; }
+
+  /* ============================ INTRO ============================ */
+  .intro { max-width: 720px; margin: 0 auto clamp(28px, 5vw, 52px); }
+  .eyebrow {
+    font-size: 12px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--brand); margin: 0 0 14px;
+  }
+  .intro h1 {
+    font-size: clamp(28px, 5vw, 42px); line-height: 1.08; letter-spacing: -.025em;
+    font-weight: 680; margin: 0 0 16px; text-wrap: balance; color: var(--page-ink);
+  }
+  .intro p { font-size: clamp(15px, 2.2vw, 17px); color: var(--page-ink-2); margin: 0; max-width: 60ch; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 22px; }
+  .chip {
+    font-size: 12.5px; font-weight: 550; color: var(--page-ink); background: var(--page-chip);
+    border: 1px solid var(--page-line); border-radius: 999px; padding: 6px 13px;
+    display: inline-flex; align-items: center; gap: 7px;
+  }
+  .chip i { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
+
+  /* ============================ WINDOW SHELL ============================ */
+  .win {
+    background: var(--surface); border-radius: var(--r-win); overflow: hidden;
+    box-shadow: var(--shadow); border: 1px solid rgba(0,0,0,.04);
+    color: var(--ink); /* lock light-world ink inside frames */
+  }
+  .titlebar {
+    height: 42px; display: flex; align-items: center; gap: 10px; padding: 0 14px;
+    background: var(--surface-2); border-bottom: 1px solid var(--line);
+  }
+  .traffic { display: flex; gap: 7px; }
+  .traffic b { width: 11px; height: 11px; border-radius: 50%; display: block; opacity: .9; }
+  .titlebar .name { font-size: 12.5px; font-weight: 600; color: var(--ink-2); letter-spacing: .01em; }
+  .wctrl { margin-left: auto; display: flex; gap: 16px; color: var(--ink-3); }
+  .wctrl span { width: 12px; height: 12px; }
+
+  /* ============================ APP GRID ============================ */
+  .app { display: grid; grid-template-columns: 210px 1fr; min-height: 560px; }
+  @media (max-width: 720px) { .app { grid-template-columns: 1fr; } .side { display: none; } }
+
+  .side {
+    background: var(--surface-2); border-right: 1px solid var(--line);
+    padding: 16px 12px; display: flex; flex-direction: column; gap: 20px;
+  }
+  .brandrow { display: flex; align-items: center; gap: 10px; padding: 4px 8px 2px; }
+  .logo {
+    width: 28px; height: 28px; border-radius: 8px; flex: none;
+    background: var(--ink); color: var(--surface);
+    display: grid; place-items: center; font-size: 11px; font-weight: 680; letter-spacing: .02em;
+  }
+  .brandrow .t { font-size: 14.5px; font-weight: 640; letter-spacing: -.01em; line-height: 1.15; }
+  .brandrow .t small { display: block; font-size: 11px; font-weight: 500; color: var(--ink-3); letter-spacing: 0; }
+
+  .nav { display: flex; flex-direction: column; gap: 2px; }
+  .nav a {
+    display: flex; align-items: center; gap: 11px; padding: 8px 10px; border-radius: 8px;
+    font-size: 13.5px; font-weight: 500; color: var(--ink-2); text-decoration: none; cursor: default;
+  }
+  .nav a .ic { width: 17px; height: 17px; flex: none; color: var(--ink-3); }
+  .nav a.active { background: var(--brand-soft); color: var(--brand-ink); font-weight: 600; }
+  .nav a.active .ic { color: var(--brand); }
+  .nav a .count { margin-left: auto; font-size: 11.5px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+
+  .sect-label {
+    font-size: 11px; font-weight: 600; letter-spacing: .09em; text-transform: uppercase;
+    color: var(--ink-3); padding: 0 10px; margin-bottom: 8px;
+  }
+  .cals { display: flex; flex-direction: column; gap: 1px; }
+  .cal {
+    display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 8px;
+    font-size: 13px; font-weight: 500; color: var(--ink); cursor: default;
+  }
+  .cal .dot { width: 11px; height: 11px; border-radius: 4px; flex: none; }
+  .cal.off { color: var(--ink-3); }
+  .cal.off .dot { background: transparent !important; border: 1.5px solid var(--ink-3); }
+  .side .foot { margin-top: auto; }
+  .mini {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 11px 12px;
+  }
+  .mini .k { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); }
+  .mini .v { font-size: 21px; font-weight: 660; letter-spacing: -.02em; margin-top: 3px; font-variant-numeric: tabular-nums; }
+  .mini .v.pos { color: var(--pos); }
+
+  /* ============================ TOP BAR — navigation principale ============================ */
+  /* Les grandes catégories vivent en haut (comme les espaces de Notion) ; la barre de gauche
+     ne garde plus que les sous-vues contextuelles de la section active. */
+  .topbar {
+    display: flex; align-items: center; gap: 14px;
+    padding: 9px 14px 10px; background: var(--surface); border-bottom: 1px solid var(--line);
+  }
+  .topbar .brand { display: flex; align-items: center; gap: 10px; flex: none; padding-right: 4px; }
+  .topbar .brand .logo { width: 27px; height: 27px; font-size: 10.5px; border-radius: 8px; }
+  .topbar .brand .t { font-size: 13px; font-weight: 640; letter-spacing: -.01em; line-height: 1.12; white-space: nowrap; }
+  .topbar .brand .t small { display: block; font-size: 10.5px; font-weight: 500; color: var(--ink-3); letter-spacing: 0; }
+  .topnav { display: flex; align-items: center; gap: 2px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+  .topnav::-webkit-scrollbar { display: none; }
+  .topnav a {
+    display: inline-flex; align-items: center; gap: 7px; padding: 7px 11px; border-radius: 8px;
+    font-size: 13.5px; font-weight: 520; color: var(--ink-2); text-decoration: none; cursor: default; white-space: nowrap;
+  }
+  .topnav a .ic { width: 16px; height: 16px; flex: none; color: var(--ink-3); }
+  .topnav a.active { background: var(--brand-soft); color: var(--brand-ink); font-weight: 620; }
+  .topnav a.active .ic { color: var(--brand); }
+  .topnav a .count { font-size: 11px; font-weight: 600; color: var(--ink-3); background: var(--surface-2); border: 1px solid var(--line); border-radius: 999px; padding: 0 6px; }
+  .topnav a.soon { color: var(--ink-3); }
+  .topnav a.soon .ic { opacity: .7; }
+  .topbar .solde { margin-left: auto; flex: none; padding-left: 14px; border-left: 1px solid var(--line); text-align: right; }
+  .topbar .solde .k { font-size: 9.5px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--ink-3); }
+  .topbar .solde .v { font-size: 15.5px; font-weight: 660; font-variant-numeric: tabular-nums; letter-spacing: -.02em; line-height: 1.15; }
+  .topbar .solde .v.pos { color: var(--pos); }
+  @media (max-width: 720px) { .topbar .brand .t, .topbar .solde { display: none; } }
+
+  /* sous-nav latérale : réutilise .nav ; état « à venir » (V2) grisé + étiquette */
+  .nav a.soon { color: var(--ink-3); }
+  .nav a.soon .ic { color: var(--ink-3); opacity: .75; }
+  .nav a .tagv { margin-left: auto; font-size: 9.5px; font-weight: 700; letter-spacing: .04em; color: var(--ink-3); background: var(--surface); border: 1px solid var(--line); border-radius: 5px; padding: 1px 5px; }
+
+  /* ============================ MAIN / CALENDAR ============================ */
+  .main { padding: 20px 22px 22px; display: flex; flex-direction: column; min-width: 0; }
+  .main-head { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
+  .h-title { font-size: 26px; font-weight: 660; letter-spacing: -.025em; }
+  .h-title b { font-weight: 660; }
+  .h-title span { color: var(--ink-3); font-weight: 500; margin-left: 6px; }
+  .seg { display: flex; background: var(--surface-2); border: 1px solid var(--line); border-radius: 9px; padding: 2px; }
+  .seg b { font-size: 12.5px; font-weight: 550; color: var(--ink-2); padding: 4px 11px; border-radius: 7px; }
+  .seg b.on { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.06); }
+  .spacer { flex: 1; }
+  .btn {
+    font-size: 13px; font-weight: 600; color: #fff; background: var(--brand);
+    border: none; border-radius: 9px; padding: 8px 14px; display: inline-flex; align-items: center; gap: 7px;
+    box-shadow: 0 1px 2px rgba(0,117,222,.4), inset 0 1px 0 rgba(255,255,255,.18); cursor: default;
+  }
+  .arrows { display: flex; gap: 4px; }
+  .arrows i {
+    width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface);
+    display: grid; place-items: center; color: var(--ink-2);
+  }
+
+  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; flex: 1; }
+  .cal-grid .wd {
+    font-size: 11px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; color: var(--ink-3);
+    padding: 9px 10px; background: var(--surface-2); border-bottom: 1px solid var(--line); text-align: left;
+  }
+  .cell {
+    border-right: 1px solid var(--line-2); border-bottom: 1px solid var(--line-2);
+    padding: 7px 7px 8px; min-height: 92px; display: flex; flex-direction: column; gap: 4px; background: var(--surface);
+  }
+  .cell:nth-child(7n) { border-right: none; }
+  .dnum { font-size: 12.5px; font-weight: 550; color: var(--ink-2); font-variant-numeric: tabular-nums; padding: 1px 2px; }
+  .cell.dim .dnum { color: var(--ink-3); opacity: .55; }
+  .cell.today .dnum {
+    background: var(--brand); color: #fff; width: 23px; height: 23px; border-radius: 50%;
+    display: grid; place-items: center; box-shadow: 0 2px 5px -1px rgba(0,117,222,.55);
+  }
+  .cell.today { background: linear-gradient(180deg, rgba(0,117,222,.05), rgba(0,117,222,0)); }
+
+  .ev {
+    display: flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 520;
+    padding: 3px 6px; border-radius: var(--r-pill); line-height: 1.25; color: var(--ink);
+  }
+  .ev .d { width: 6px; height: 6px; border-radius: 50%; flex: none; }
+  .ev .lb { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ev .amt { margin-left: auto; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+  .ev.blue { background: var(--blue-s); }    .ev.blue .d { background: var(--blue); }
+  .ev.green { background: var(--green-s); }   .ev.green .d { background: var(--green); } .ev.green .amt { color: var(--green); }
+  .ev.coral { background: var(--coral-s); }   .ev.coral .d { background: var(--coral); } .ev.coral .amt { color: var(--coral); }
+  .ev.amber { background: var(--amber-s); }   .ev.amber .d { background: var(--amber); }
+  .ev.violet { background: var(--violet-s); } .ev.violet .d { background: var(--violet); }
+  .more { font-size: 11px; color: var(--ink-3); font-weight: 550; padding: 1px 6px; }
+
+  /* ============================ FINANCES ============================ */
+  .framecap { font-size: 12px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--page-ink-2); margin: clamp(24px,4vw,44px) 2px 13px; }
+  .btn.ghost { background: var(--surface); color: var(--ink); border: 1px solid var(--line); box-shadow: none; font-weight: 550; }
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 18px; }
+  @media (max-width: 720px) { .kpis { grid-template-columns: repeat(2, 1fr); } }
+  .kpi { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-card); padding: 13px 15px; }
+  .kpi.hl { background: var(--brand-soft); border-color: var(--brand-ring); }
+  .kpi .k { font-size: 10.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); }
+  .kpi .v { font-size: 23px; font-weight: 680; letter-spacing: -.025em; margin-top: 5px; font-variant-numeric: tabular-nums; }
+  .kpi .v.pos { color: var(--pos); }
+  .kpi.hl .v { color: var(--brand-ink); }
+  .kpi .d { font-size: 11.5px; color: var(--ink-3); margin-top: 3px; }
+
+  /* Hero éditorial (dé-slop) : UN chiffre dominant + stats secondaires, au lieu de 4 cartes identiques. */
+  .hero { display: flex; align-items: flex-end; justify-content: space-between; gap: 30px; margin: 2px 0 30px; flex-wrap: wrap; }
+  .hero-main { min-width: 0; }
+  .hero-k { font-size: 11.5px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--ink-3); }
+  .hero-v { font-size: clamp(40px, 6vw, 56px); font-weight: 690; letter-spacing: -.035em; line-height: .96; margin-top: 9px; font-variant-numeric: tabular-nums; }
+  .hero-sub { font-size: 13px; color: var(--ink-2); margin-top: 13px; max-width: 46ch; text-wrap: pretty; line-height: 1.5; }
+  .hero-side { display: flex; flex-direction: column; gap: 11px; text-align: right; padding-bottom: 5px; }
+  .hero-side .stat { font-size: 12.5px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+  .hero-side .stat .n { font-size: 15px; font-weight: 640; color: var(--ink); margin-right: 6px; letter-spacing: -.01em; }
+  .hero-side .stat.alert .n { color: var(--neg); }
+  @media (max-width: 620px) { .hero-side { text-align: left; align-items: flex-start; } }
+
+  .fin-body { display: grid; grid-template-columns: 1fr 270px; gap: 22px; flex: 1; min-width: 0; }
+  @media (max-width: 900px) { .fin-body { grid-template-columns: 1fr; } }
+  .fin-list { display: flex; flex-direction: column; min-width: 0; }
+  .lgrp { font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); padding: 14px 4px 6px; display: flex; justify-content: space-between; }
+  .lgrp span { color: var(--ink-2); font-variant-numeric: tabular-nums; letter-spacing: 0; }
+  .lrow { display: grid; grid-template-columns: 22px 44px 1fr auto; align-items: center; gap: 11px; padding: 10px 8px; border-radius: 9px; border-bottom: 1px solid var(--line-2); }
+  .lrow.sel { background: var(--brand-soft); }
+  .lrow:hover { background: var(--surface-2); }
+  .lrow .day { font-size: 13px; font-weight: 640; color: var(--ink); font-variant-numeric: tabular-nums; line-height: 1.1; }
+  .lrow .day small { display: block; font-size: 10px; font-weight: 600; color: var(--ink-3); text-transform: uppercase; letter-spacing: .05em; }
+  .lrow .desc { display: flex; align-items: center; gap: 9px; min-width: 0; }
+  .lrow .desc .dot { width: 9px; height: 9px; border-radius: 3px; flex: none; }
+  .lrow .desc .tt { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .badge { font-size: 10px; font-weight: 600; color: var(--ink-3); background: var(--surface-2); border: 1px solid var(--line); border-radius: 5px; padding: 1px 6px; letter-spacing: .02em; flex: none; }
+  .lrow .amt { font-size: 14.5px; font-weight: 660; font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+  .lrow .amt.pos { color: var(--pos); }
+
+  .wish { background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--r-card); padding: 15px; align-self: start; }
+  .wish-h { font-size: 13.5px; font-weight: 640; letter-spacing: -.01em; }
+  .wish-sub { font-size: 11.5px; color: var(--ink-3); margin: 2px 0 13px; line-height: 1.45; }
+  .wrow { background: var(--surface); border: 1px solid var(--line); border-radius: 9px; padding: 10px 11px; margin-bottom: 8px; }
+  .wrow .top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+  .wrow .nm { font-size: 13px; font-weight: 550; }
+  .wrow .pr { font-size: 13px; font-weight: 660; font-variant-numeric: tabular-nums; }
+  .wrow .fit { font-size: 11px; font-weight: 560; margin-top: 6px; display: flex; align-items: center; gap: 5px; }
+  .wrow .fit.ok { color: var(--pos); }
+  .wrow .fit.no { color: var(--neg); }
+  .wrow .fit svg { width: 12px; height: 12px; }
+
+  /* --- FINANCES : segments (sous-vues) + répartition par catégorie --- */
+  .finseg { display: flex; gap: 2px; border-bottom: 1px solid var(--line); margin: -2px 0 18px; overflow-x: auto; }
+  .finseg b { font-size: 13px; font-weight: 550; color: var(--ink-2); padding: 8px 13px 11px; border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; }
+  .finseg b.on { color: var(--brand-ink); border-bottom-color: var(--brand); font-weight: 640; }
+
+  .cat-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 4px; }
+  .cat-head .lab { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); }
+  .cat-total { font-size: 30px; font-weight: 680; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+  .catlist { display: flex; flex-direction: column; gap: 2px; margin-top: 14px; }
+  .catrow { display: grid; grid-template-columns: 148px 1fr 108px; align-items: center; gap: 16px; padding: 10px 6px; border-radius: 9px; }
+  .catrow:hover { background: var(--surface-2); }
+  .catrow .cn { display: flex; align-items: center; gap: 9px; font-size: 13.5px; font-weight: 520; min-width: 0; }
+  .catrow .cn .dot { width: 10px; height: 10px; border-radius: 3px; flex: none; }
+  .catrow .cn span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .catrow .track { height: 9px; background: var(--line-2); border-radius: 5px; overflow: hidden; }
+  .catrow .track b { display: block; height: 100%; border-radius: 5px; }
+  .catrow .ct { text-align: right; font-variant-numeric: tabular-nums; }
+  .catrow .ct .a { font-size: 14px; font-weight: 660; letter-spacing: -.01em; }
+  .catrow .ct .p { font-size: 11.5px; color: var(--ink-3); font-weight: 550; }
+  .cat-hint { display: flex; gap: 10px; margin-top: 18px; padding: 12px 14px; background: var(--brand-soft); border: 1px solid var(--brand-ring); border-radius: 10px; font-size: 12.5px; color: var(--brand-ink); line-height: 1.5; }
+  .cat-hint .ic { flex: none; font-size: 15px; }
+  /* Note discrète (dé-slop) : remplace les encadrés colorés « qui expliquent l'UI ». */
+  .finfoot { margin-top: 18px; padding-top: 12px; border-top: 1px solid var(--line-2); font-size: 12px; color: var(--ink-3); line-height: 1.55; text-wrap: pretty; max-width: 62ch; }
+  .finfoot b { color: var(--ink-2); font-weight: 600; }
+
+  /* --- FINANCES : confirmation « payé/reçu » + sélection multiple (V1 : statut de l'Élément) --- */
+  .fin-tools { display: flex; align-items: center; gap: 10px; margin: 4px 2px 4px; }
+  .fin-tools .selinfo { font-size: 12.5px; font-weight: 560; color: var(--brand-ink); }
+  .fin-tools .muted { font-size: 12px; color: var(--ink-3); }
+  .chk { width: 18px; height: 18px; border-radius: 5px; border: 1.7px solid var(--ink-3); background: var(--surface); display: grid; place-items: center; flex: none; }
+  .chk svg { width: 11px; height: 11px; color: #fff; opacity: 0; }
+  .chk.on { background: var(--brand); border-color: var(--brand); }
+  .chk.on svg { opacity: 1; }
+  .btn.sm { padding: 7px 12px; font-size: 12.5px; border-radius: 8px; }
+  .badge.paid { color: #14803f; background: var(--green-s); border-color: transparent; }
+  .badge.due  { color: #9a6410; background: var(--amber-s); border-color: transparent; }
+  .badge.recu { color: #14803f; background: var(--green-s); border-color: transparent; }
+  .badge.plan { color: var(--brand-ink); background: var(--brand-soft); border-color: transparent; }
+  .v2tag { font-size: 10px; font-weight: 700; letter-spacing: .04em; color: var(--ink-3); background: var(--surface-2); border: 1px solid var(--line); border-radius: 5px; padding: 1px 6px; }
+
+  /* --- CALENDRIER : occurrence confirmée (payée/reçue) --- */
+  .ev.done { opacity: .6; }
+  .ev.done .lb { text-decoration: line-through; }
+  .ev .tick { width: 12px; height: 12px; flex: none; color: var(--green); margin-left: auto; }
+  .ev.done .amt { margin-left: 6px; }
+
+  /* ============================ ROW OF TWO FRAMES ============================ */
+  .row { display: grid; grid-template-columns: 1.15fr 1fr; gap: clamp(16px, 2.4vw, 26px); margin-top: clamp(16px, 2.4vw, 26px); }
+  @media (max-width: 820px) { .row { grid-template-columns: 1fr; } }
+  .pane { background: var(--surface); border-radius: var(--r-win); box-shadow: var(--shadow); border: 1px solid rgba(0,0,0,.04); overflow: hidden; color: var(--ink); }
+  .pane-head { padding: 16px 18px 0; }
+  .pane-head .lab { font-size: 11px; font-weight: 600; letter-spacing: .09em; text-transform: uppercase; color: var(--ink-3); }
+  .pane-head h3 { font-size: 18px; font-weight: 640; letter-spacing: -.02em; margin: 5px 0 0; }
+  .pane-head h3 + .sub { font-size: 12.5px; color: var(--ink-2); margin-top: 2px; }
+  .pane-body { padding: 14px 18px 18px; }
+
+  /* --- projection --- */
+  .proj-figure { font-size: 34px; font-weight: 680; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+  .proj-figure small { font-size: 13px; font-weight: 550; color: var(--ink-2); letter-spacing: 0; margin-left: 8px; }
+  .chart { margin: 12px 0 4px; }
+  .months { display: flex; flex-direction: column; gap: 2px; margin-top: 8px; }
+  .mrow { display: grid; grid-template-columns: 46px 1fr auto; align-items: center; gap: 12px; padding: 8px 8px; border-radius: 8px; }
+  .mrow:hover { background: var(--surface-2); }
+  .mrow .mo { font-size: 12.5px; font-weight: 600; color: var(--ink-2); }
+  .mrow .bar { height: 6px; border-radius: 3px; background: var(--line); position: relative; overflow: hidden; }
+  .mrow .bar b { position: absolute; inset: 0 auto 0 0; border-radius: 3px; display: block; }
+  .mrow .clo { font-size: 13.5px; font-weight: 640; font-variant-numeric: tabular-nums; letter-spacing: -.01em; text-align: right; }
+  .mrow .clo.neg { color: var(--neg); }
+  .mrow.alert { background: var(--neg-s); }
+  .mrow.alert:hover { background: var(--neg-s); }
+
+  /* --- note (Notion) --- */
+  .note h4 { font-size: 20px; font-weight: 660; letter-spacing: -.02em; margin: 2px 0 4px; }
+  .note .meta { font-size: 12px; color: var(--ink-3); margin-bottom: 14px; }
+  .note p { font-size: 13.5px; color: var(--ink); margin: 0 0 12px; line-height: 1.6; }
+  .note p.muted { color: var(--ink-2); }
+  .todo { display: flex; align-items: flex-start; gap: 10px; font-size: 13.5px; padding: 3px 0; }
+  .todo .box { width: 17px; height: 17px; border-radius: 5px; border: 1.6px solid var(--ink-3); flex: none; margin-top: 1px; }
+  .todo.done .box { background: var(--brand); border-color: var(--brand); display: grid; place-items: center; }
+  .todo.done .box svg { color: #fff; width: 11px; height: 11px; }
+  .todo.done span { color: var(--ink-3); text-decoration: line-through; }
+  .callout {
+    display: flex; gap: 11px; background: var(--amber-s); border: 1px solid #f0e2c2; border-radius: 10px;
+    padding: 12px 14px; margin-top: 14px; font-size: 13px; color: #7a5a1e; line-height: 1.55;
+  }
+  .callout .ic { font-size: 16px; flex: none; }
+
+  /* ============================ LEGEND ============================ */
+  .legend { margin-top: clamp(30px, 5vw, 54px); display: grid; grid-template-columns: 1fr 1fr; gap: 26px; max-width: 860px; }
+  @media (max-width: 620px) { .legend { grid-template-columns: 1fr; } }
+  .legend h5 { font-size: 11px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--page-ink-2); margin: 0 0 14px; }
+  .sw { display: flex; align-items: center; gap: 11px; padding: 6px 0; font-size: 13px; color: var(--page-ink); }
+  .sw i { width: 22px; height: 22px; border-radius: 7px; flex: none; box-shadow: inset 0 0 0 1px rgba(0,0,0,.06); }
+  .sw code { margin-left: auto; font-size: 11.5px; color: var(--page-ink-2); font-family: ui-monospace, "Cascadia Code", "Consolas", monospace; }
+  .typ { padding: 7px 0; border-bottom: 1px solid var(--page-line); }
+  .typ:last-child { border-bottom: none; }
+  .typ .big { letter-spacing: -.025em; color: var(--page-ink); }
+  .typ .cap { font-size: 11.5px; color: var(--page-ink-2); margin-top: 2px; }
+
+  .foot-note { max-width: 720px; margin: 40px auto 0; font-size: 13px; color: var(--page-ink-2); text-align: center; }
+
+  /* ============================ ACCUEIL — agenda du jour / semaine ============================ */
+  .agenda { display: flex; flex-direction: column; }
+  .arow { display: grid; grid-template-columns: 62px 1fr auto; align-items: center; gap: 12px; padding: 9px 8px; border-radius: 9px; border-bottom: 1px solid var(--line-2); }
+  .arow:last-child { border-bottom: none; }
+  .arow .tm { font-size: 12.5px; font-weight: 600; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+  .arow .tm small { display: block; font-size: 10px; font-weight: 600; color: var(--ink-3); text-transform: uppercase; letter-spacing: .04em; }
+  .arow .lab { display: flex; align-items: center; gap: 9px; min-width: 0; }
+  .arow .lab .dot { width: 9px; height: 9px; border-radius: 3px; flex: none; }
+  .arow .lab .t { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .arow .amt { font-size: 14px; font-weight: 640; font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+  .arow .amt.pos { color: var(--pos); }
+  .arow .amt.done { color: var(--ink-3); font-weight: 550; }
+  .arow:hover { background: var(--surface-2); transition: background-color .16s cubic-bezier(0.2,0,0,1); }
+  .arow .tick { width: 13px; height: 13px; color: var(--green); flex: none; margin-left: 6px; }
+
+  /* ============================ POLISH (skill make-interfaces-feel-better) ============================ */
+  /* Éviter les orphelins dans le texte courant (#10). */
+  .intro p, .note p, .cat-hint span, .wish-sub, .callout span, .pane-head .sub { text-wrap: pretty; }
+
+  /* Transitions INTERRUPTIBLES sur les changements d'état interactifs — propriétés explicites, jamais
+     « all » (#4, #14), même courbe d'accélération partout. */
+  .topnav a, .nav a, .cal, .seg b, .finseg b, .lrow, .catrow, .mrow, .wrow, .kpi, .chip, .lrow .chk {
+    transition-property: background-color, color, box-shadow, border-color;
+    transition-duration: .16s;
+    transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+  }
+  /* Retour tactile au clic : scale(0.96), jamais < 0.95 (#12). Boutons et flèches uniquement (pas les
+     lignes : le survol y est déjà signalé par le fond — restreinte du mouvement, #19). */
+  .btn, .arrows i, .traffic b {
+    transition: transform .12s cubic-bezier(0.2, 0, 0, 1), box-shadow .16s ease, background-color .16s ease;
+  }
+  .btn:active, .arrows i:active { transform: scale(0.96); }
+
+  @media (prefers-reduced-motion: no-preference) {
+    /* Révélation au défilement, gracieuse : uniquement là où le navigateur sait la faire proprement
+       (sinon contenu statique, jamais masqué). Enter/exit doux, ease-out (#5, #6). */
+    @supports (animation-timeline: view()) {
+      .win, .row, .legend {
+        animation: revele linear both;
+        animation-timeline: view();
+        animation-range: entry 2% cover 18%;
+      }
+      @keyframes revele {
+        from { opacity: 0; transform: translateY(14px); }
+        to   { opacity: 1; transform: translateY(0); }
+      }
+    }
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="intro">
+    <p class="eyebrow">Deuxième Cerveau · Maquette</p>
+    <h1>Ta vie et ton argent, au même endroit.</h1>
+    <p>Le calme de Notion, la lisibilité du calendrier d'Apple. Une maquette pour valider le ton — rien n'est codé dans l'app tant que tu ne l'as pas approuvé.</p>
+  </header>
+
+  <!-- ============ ACCUEIL AUJOURD'HUI ============ -->
+  <p class="framecap">Accueil « Aujourd'hui » — ouvrir sur le jour, pas sur la dette</p>
+  <div class="win">
+
+    <div class="topbar">
+      <div class="brand"><div class="logo">DC</div><div class="t">Deuxième Cerveau<small>Espace personnel</small></div></div>
+      <nav class="topnav">
+        <a class="active"><span class="ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 8l7-5 7 5v8a1 1 0 0 1-1 1h-4v-5H8v5H4a1 1 0 0 1-1-1z"/></svg></span>Aujourd'hui</a>
+        <a><span class="ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4.5" width="14" height="12.5" rx="2.5"/><path d="M3 8h14M7 3v3M13 3v3"/></svg></span>Calendrier</a>
+        <a><span class="ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 10h14M10 3v14" stroke-linecap="round"/><circle cx="10" cy="10" r="7.5"/></svg></span>Finances</a>
+        <a><span class="ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 16V9M8 16V5M13 16v-4M18 16H2"/></svg></span>Budget projeté</a>
+        <a class="soon"><span class="ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5.5 17V4M5.5 4.5h8l-2 2.6 2 2.6h-8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Projets<span class="tagv">V2</span></a>
+        <a><span class="ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 3h7l3 3v11a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/><path d="M7 9h6M7 12h6"/></svg></span>Notes<span class="count">4</span></a>
+        <a><span class="ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 6h12M8 6V4h4v2M6 6l1 10h6l1-10"/></svg></span>Corbeille</a>
+      </nav>
+      <div class="solde"><div class="k">Solde</div><div class="v pos">2&nbsp;480 €</div></div>
+    </div>
+
+    <div class="app">
+      <aside class="side">
+        <div>
+          <div class="sect-label">Vue</div>
+          <nav class="nav">
+            <a class="active"><span class="ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="10" cy="10" r="7"/><circle cx="10" cy="10" r="2.2" fill="currentColor" stroke="none"/></svg></span>Aujourd'hui</a>
+            <a><span class="ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4.5" width="14" height="12.5" rx="2.5"/><path d="M3 8h14M7 3v3M13 3v3M7 11h2M11 11h2M7 14h2"/></svg></span>7 prochains jours</a>
+          </nav>
+        </div>
+        <div>
+          <div class="sect-label">Mes calendriers</div>
+          <div class="cals">
+            <div class="cal"><span class="dot" style="background:var(--coral)"></span>Factures &amp; sorties</div>
+            <div class="cal"><span class="dot" style="background:var(--green)"></span>Revenus</div>
+            <div class="cal"><span class="dot" style="background:var(--blue)"></span>Travail</div>
+            <div class="cal"><span class="dot" style="background:var(--amber)"></span>Santé</div>
+            <div class="cal off"><span class="dot"></span>Perso</div>
+          </div>
+        </div>
+      </aside>
+
+      <main class="main">
+        <div class="main-head">
+          <div class="h-title"><b>Bonjour</b><span>jeudi 24 juillet</span></div>
+          <span class="spacer"></span>
+          <button class="btn ghost">Recaler le solde</button>
+          <button class="btn"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 3v8M3 7h8" stroke-linecap="round"/></svg>Ajouter</button>
+        </div>
+
+        <div class="hero">
+          <div class="hero-main">
+            <div class="hero-k">Solde de référence</div>
+            <div class="hero-v">2&nbsp;483,60&nbsp;€</div>
+            <div class="hero-sub">Recalé aujourd'hui. Factures, revenus et envies se projettent à partir de ce point.</div>
+          </div>
+          <div class="hero-side">
+            <div class="stat"><span class="n">2</span>aujourd'hui</div>
+            <div class="stat"><span class="n">4</span>sous 7 jours</div>
+            <div class="stat alert"><span class="n">−180&nbsp;€</span>en août</div>
+          </div>
+        </div>
+
+        <div class="agenda">
+          <div class="lgrp">Aujourd'hui · jeu. 24 <span>2 mouvements</span></div>
+          <div class="arow">
+            <div class="tm">18:00</div>
+            <div class="lab"><span class="dot" style="background:var(--amber)"></span><span class="t">Sport · salle</span></div>
+            <div class="amt"></div>
+          </div>
+          <div class="arow">
+            <div class="tm">Prévu<small>jour</small></div>
+            <div class="lab"><span class="dot" style="background:var(--coral)"></span><span class="t">Courses</span></div>
+            <div class="amt">−90 €</div>
+          </div>
+
+          <div class="lgrp">Demain · ven. 25 <span>1 mouvement</span></div>
+          <div class="arow">
+            <div class="tm">Prévu<small>jour</small></div>
+            <div class="lab"><span class="dot" style="background:var(--coral)"></span><span class="t">Abonnement</span></div>
+            <div class="amt">−12 €</div>
+          </div>
+
+          <div class="lgrp">Lundi · 28 juil. <span>2 mouvements</span></div>
+          <div class="arow">
+            <div class="tm">10:00</div>
+            <div class="lab"><span class="dot" style="background:var(--blue)"></span><span class="t">Réunion projet</span></div>
+            <div class="amt"></div>
+          </div>
+          <div class="arow">
+            <div class="tm">Prévu<small>jour</small></div>
+            <div class="lab"><span class="dot" style="background:var(--coral)"></span><span class="t">Remboursement prêt</span></div>
+            <div class="amt">−260 €</div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- ============ HERO : CALENDRIER UNIFIÉ ============ -->
+  <p class="framecap">Vue Calendrier — la vie et l'argent, mois par mois</p>
+  <div class="win">
+
+    <!-- TOP BAR : catégories principales -->
+    <div class="topbar">
+      <div class="brand"><div class="logo">DC</div><div class="t">Deuxième Cerveau<small>Espace personnel</small></div></div>
+      <nav class="topnav">
+        <a><span class="ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 8l7-5 7 5v8a1 1 0 0 1-1 1h-4v-5H8v5H4a1 1 0 0 1-1-1z"/></svg></span>Aujourd'hui</a>
+        <a class="active"><span class="ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4.5" width="14" height="12.5" rx="2.5"/><path d="M3 8h14M7 3v3M13 3v3"/></svg></span>Calendrier</a>
+        <a><span class="ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 10h14M10 3v14" stroke-linecap="round"/><circle cx="10" cy="10" r="7.5"/></svg></span>Finances</a>
+        <a><span class="ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 16V9M8 16V5M13 16v-4M18 16H2"/></svg></span>Budget projeté</a>
+        <a class="soon"><span class="ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5.5 17V4M5.5 4.5h8l-2 2.6 2 2.6h-8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Projets<span class="tagv">V2</span></a>
+        <a><span class="ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 3h7l3 3v11a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/><path d="M7 9h6M7 12h6"/></svg></span>Notes<span class="count">4</span></a>
+        <a><span class="ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 6h12M8 6V4h4v2M6 6l1 10h6l1-10"/></svg></span>Corbeille</a>
+      </nav>
+      <div class="solde"><div class="k">Solde</div><div class="v pos">2&nbsp;480 €</div></div>
+    </div>
+
+    <div class="app">
+      <!-- SIDEBAR : sous-vues du Calendrier (les calendriers, façon Apple) -->
+      <aside class="side">
+        <div>
+          <div class="sect-label">Mes calendriers</div>
+          <div class="cals">
+            <div class="cal"><span class="dot" style="background:var(--coral)"></span>Factures &amp; sorties</div>
+            <div class="cal"><span class="dot" style="background:var(--green)"></span>Revenus</div>
+            <div class="cal"><span class="dot" style="background:var(--blue)"></span>Travail</div>
+            <div class="cal"><span class="dot" style="background:var(--amber)"></span>Santé</div>
+            <div class="cal off"><span class="dot"></span>Perso</div>
+          </div>
+        </div>
+        <div>
+          <div class="sect-label">Affichage</div>
+          <div class="cals">
+            <div class="cal"><span class="dot" style="background:var(--brand)"></span>Montrer les montants</div>
+            <div class="cal off"><span class="dot"></span>Masquer les week-ends</div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- MAIN : CALENDAR -->
+      <main class="main">
+        <div class="main-head">
+          <div class="h-title"><b>Juillet</b><span>2026</span></div>
+          <div class="arrows">
+            <i><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M8.5 3L4.5 7l4 4"/></svg></i>
+            <i><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5.5 3l4 4-4 4"/></svg></i>
+          </div>
+          <div class="seg"><b>Mois</b><b>Semaine</b><b>Jour</b></div>
+          <span class="spacer"></span>
+          <button class="btn"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 3v8M3 7h8" stroke-linecap="round"/></svg>Nouvel élément</button>
+        </div>
+
+        <div class="cal-grid">
+          <div class="wd">Lun</div><div class="wd">Mar</div><div class="wd">Mer</div><div class="wd">Jeu</div><div class="wd">Ven</div><div class="wd">Sam</div><div class="wd">Dim</div>
+
+          <!-- week 1 -->
+          <div class="cell dim"><span class="dnum">29</span></div>
+          <div class="cell dim"><span class="dnum">30</span></div>
+          <div class="cell"><span class="dnum">1</span>
+            <div class="ev green"><span class="d"></span><span class="lb">Salaire</span><span class="amt">+2 400</span></div>
+          </div>
+          <div class="cell"><span class="dnum">2</span></div>
+          <div class="cell"><span class="dnum">3</span>
+            <div class="ev blue"><span class="d"></span><span class="lb">Point équipe · 9h</span></div>
+          </div>
+          <div class="cell"><span class="dnum">4</span></div>
+          <div class="cell"><span class="dnum">5</span>
+            <div class="ev coral done"><span class="d"></span><span class="lb">Loyer</span><svg class="tick" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2.5 6.5l2.5 2.5 4.5-5.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="amt">−800</span></div>
+          </div>
+
+          <!-- week 2 -->
+          <div class="cell"><span class="dnum">6</span></div>
+          <div class="cell"><span class="dnum">7</span></div>
+          <div class="cell"><span class="dnum">8</span>
+            <div class="ev amber"><span class="d"></span><span class="lb">Dentiste · 14h30</span></div>
+          </div>
+          <div class="cell"><span class="dnum">9</span></div>
+          <div class="cell"><span class="dnum">10</span>
+            <div class="ev coral"><span class="d"></span><span class="lb">Internet</span><span class="amt">−32</span></div>
+          </div>
+          <div class="cell"><span class="dnum">11</span></div>
+          <div class="cell"><span class="dnum">12</span>
+            <div class="ev coral"><span class="d"></span><span class="lb">Électricité</span><span class="amt">−64</span></div>
+          </div>
+
+          <!-- week 3 -->
+          <div class="cell"><span class="dnum">13</span></div>
+          <div class="cell"><span class="dnum">14</span></div>
+          <div class="cell"><span class="dnum">15</span>
+            <div class="ev blue"><span class="d"></span><span class="lb">Réunion projet · 10h</span></div>
+          </div>
+          <div class="cell"><span class="dnum">16</span></div>
+          <div class="cell"><span class="dnum">17</span></div>
+          <div class="cell"><span class="dnum">18</span>
+            <div class="ev violet"><span class="d"></span><span class="lb">Anniv. Léa</span></div>
+          </div>
+          <div class="cell"><span class="dnum">19</span></div>
+
+          <!-- week 4 -->
+          <div class="cell"><span class="dnum">20</span>
+            <div class="ev coral"><span class="d"></span><span class="lb">Assurance</span><span class="amt">−45</span></div>
+          </div>
+          <div class="cell"><span class="dnum">21</span></div>
+          <div class="cell"><span class="dnum">22</span>
+            <div class="ev blue"><span class="d"></span><span class="lb">Café Thomas · 16h</span></div>
+          </div>
+          <div class="cell"><span class="dnum">23</span></div>
+          <div class="cell today"><span class="dnum">24</span>
+            <div class="ev coral"><span class="d"></span><span class="lb">Courses</span><span class="amt">−90</span></div>
+            <div class="ev amber"><span class="d"></span><span class="lb">Sport · 18h</span></div>
+          </div>
+          <div class="cell"><span class="dnum">25</span></div>
+          <div class="cell"><span class="dnum">26</span></div>
+
+          <!-- week 5 -->
+          <div class="cell"><span class="dnum">27</span></div>
+          <div class="cell"><span class="dnum">28</span>
+            <div class="ev coral"><span class="d"></span><span class="lb">Abonnement</span><span class="amt">−12</span></div>
+          </div>
+          <div class="cell"><span class="dnum">29</span></div>
+          <div class="cell"><span class="dnum">30</span></div>
+          <div class="cell"><span class="dnum">31</span>
+            <div class="ev coral"><span class="d"></span><span class="lb">Remb. prêt</span><span class="amt">−260</span></div>
+          </div>
+          <div class="cell dim"><span class="dnum">1</span></div>
+          <div class="cell dim"><span class="dnum">2</span></div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- ============ VUE FINANCES ============ -->
+  <p class="framecap">Vue Finances — revenus, sorties &amp; envies d'achat (§5.1)</p>
+  <div class="win">
+
+    <!-- TOP BAR : catégories principales -->
+    <div class="topbar">
+      <div class="brand"><div class="logo">DC</div><div class="t">Deuxième Cerveau<small>Espace personnel</small></div></div>
+      <nav class="topnav">
+        <a><span class="ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 8l7-5 7 5v8a1 1 0 0 1-1 1h-4v-5H8v5H4a1 1 0 0 1-1-1z"/></svg></span>Aujourd'hui</a>
+        <a><span class="ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4.5" width="14" height="12.5" rx="2.5"/><path d="M3 8h14M7 3v3M13 3v3"/></svg></span>Calendrier</a>
+        <a class="active"><span class="ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 10h14M10 3v14" stroke-linecap="round"/><circle cx="10" cy="10" r="7.5"/></svg></span>Finances</a>
+        <a><span class="ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 16V9M8 16V5M13 16v-4M18 16H2"/></svg></span>Budget projeté</a>
+        <a class="soon"><span class="ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5.5 17V4M5.5 4.5h8l-2 2.6 2 2.6h-8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Projets<span class="tagv">V2</span></a>
+        <a><span class="ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 3h7l3 3v11a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/><path d="M7 9h6M7 12h6"/></svg></span>Notes<span class="count">4</span></a>
+        <a><span class="ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 6h12M8 6V4h4v2M6 6l1 10h6l1-10"/></svg></span>Corbeille</a>
+      </nav>
+      <div class="solde"><div class="k">Solde</div><div class="v pos">2&nbsp;480 €</div></div>
+    </div>
+
+    <div class="app">
+      <!-- SIDEBAR : sous-vues de la zone Finances -->
+      <aside class="side">
+        <div>
+          <div class="sect-label">Finances</div>
+          <nav class="nav">
+            <a class="active"><span class="ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="6" height="6" rx="1.5"/><rect x="11" y="3" width="6" height="6" rx="1.5"/><rect x="3" y="11" width="6" height="6" rx="1.5"/><rect x="11" y="11" width="6" height="6" rx="1.5"/></svg></span>Vue d'ensemble</a>
+            <a><span class="ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M10 3v9M6 8l4 4 4-4M4 16h12" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Entrées</a>
+            <a><span class="ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M10 13V4M6 8l4-4 4 4M4 16h12" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Sorties</a>
+            <a><span class="ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="10" cy="10" r="7"/><path d="M10 10V3M10 10l6 3.5" stroke-linecap="round"/></svg></span>Par catégorie</a>
+            <a><span class="ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M10 16S3.5 12 3.5 7.5A3.3 3.3 0 0 1 10 5a3.3 3.3 0 0 1 6.5 2.5C16.5 12 10 16 10 16z" stroke-linejoin="round"/></svg></span>Envies d'achat</a>
+            <a class="soon"><span class="ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="5" width="14" height="10" rx="2"/><path d="M3.5 6l6.5 5 6.5-5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Enveloppes<span class="tagv">V2</span></a>
+          </nav>
+        </div>
+      </aside>
+
+      <main class="main">
+        <div class="main-head">
+          <div class="h-title"><b>Vue d'ensemble</b><span>Juillet 2026</span></div>
+          <div class="arrows">
+            <i><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M8.5 3L4.5 7l4 4"/></svg></i>
+            <i><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5.5 3l4 4-4 4"/></svg></i>
+          </div>
+          <span class="spacer"></span>
+          <button class="btn ghost">Recaler le solde</button>
+          <button class="btn"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 3v8M3 7h8" stroke-linecap="round"/></svg>Ajouter</button>
+        </div>
+
+        <div class="hero">
+          <div class="hero-main">
+            <div class="hero-k">Fin juillet, il te restera</div>
+            <div class="hero-v">2&nbsp;147,22&nbsp;€</div>
+            <div class="hero-sub">Après les deux échéances encore à venir ce mois-ci.</div>
+          </div>
+          <div class="hero-side">
+            <div class="stat"><span class="n" style="color:var(--pos)">+2&nbsp;380&nbsp;€</span>entrées</div>
+            <div class="stat"><span class="n">−1&nbsp;384,67&nbsp;€</span>sorties</div>
+            <div class="stat">1 payée · 5 à valider</div>
+          </div>
+        </div>
+
+        <div class="fin-body">
+          <div class="fin-list">
+            <div class="fin-tools">
+              <span class="chk on"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M2.5 6.5l2.5 2.5 4.5-5.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+              <span class="selinfo">2 sélectionnés</span>
+              <span class="spacer"></span>
+              <button class="btn sm"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2.5 6.5l2.5 2.5 4.5-5.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Confirmer comme payé</button>
+            </div>
+            <div class="lgrp" style="padding-top:6px">Entrées <span>+2 380,00 €</span></div>
+            <div class="lrow">
+              <span class="chk"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M2.5 6.5l2.5 2.5 4.5-5.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+              <div class="day">1<small>juil</small></div>
+              <div class="desc"><span class="dot" style="background:var(--green)"></span><span class="tt">Salaire</span><span class="badge">Mensuel</span><span class="badge recu">Reçu</span></div>
+              <div class="amt pos">+2 380,00 €</div>
+            </div>
+
+            <div class="lgrp">Sorties <span>−1 384,67 €</span></div>
+            <div class="lrow">
+              <span class="chk"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M2.5 6.5l2.5 2.5 4.5-5.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+              <div class="day">5<small>juil</small></div>
+              <div class="desc"><span class="dot" style="background:var(--coral)"></span><span class="tt">Loyer</span><span class="badge">Mensuel</span><span class="badge paid">Payé</span></div>
+              <div class="amt">−840,00 €</div>
+            </div>
+            <div class="lrow sel">
+              <span class="chk on"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M2.5 6.5l2.5 2.5 4.5-5.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+              <div class="day">10<small>juil</small></div>
+              <div class="desc"><span class="dot" style="background:var(--coral)"></span><span class="tt">Internet</span><span class="badge">Mensuel</span><span class="badge due">À valider</span></div>
+              <div class="amt">−29,99 €</div>
+            </div>
+            <div class="lrow sel">
+              <span class="chk on"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M2.5 6.5l2.5 2.5 4.5-5.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+              <div class="day">12<small>juil</small></div>
+              <div class="desc"><span class="dot" style="background:var(--coral)"></span><span class="tt">Électricité</span><span class="badge due">À valider</span></div>
+              <div class="amt">−58,10 €</div>
+            </div>
+            <div class="lrow">
+              <span class="chk"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M2.5 6.5l2.5 2.5 4.5-5.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+              <div class="day">20<small>juil</small></div>
+              <div class="desc"><span class="dot" style="background:var(--coral)"></span><span class="tt">Assurance auto</span><span class="badge">Mensuel</span><span class="badge due">À valider</span></div>
+              <div class="amt">−47,80 €</div>
+            </div>
+            <div class="lrow">
+              <span class="chk"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M2.5 6.5l2.5 2.5 4.5-5.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+              <div class="day">24<small>juil</small></div>
+              <div class="desc"><span class="dot" style="background:var(--coral)"></span><span class="tt">Courses</span><span class="badge due">À valider</span></div>
+              <div class="amt">−72,40 €</div>
+            </div>
+            <div class="lrow">
+              <span class="chk"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M2.5 6.5l2.5 2.5 4.5-5.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+              <div class="day">28<small>juil</small></div>
+              <div class="desc"><span class="dot" style="background:var(--coral)"></span><span class="tt">Abonnements</span><span class="badge">Mensuel</span></div>
+              <div class="amt">−23,98 €</div>
+            </div>
+            <div class="lrow">
+              <span class="chk"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M2.5 6.5l2.5 2.5 4.5-5.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+              <div class="day">31<small>juil</small></div>
+              <div class="desc"><span class="dot" style="background:var(--coral)"></span><span class="tt">Remboursement prêt</span><span class="badge">Mensuel</span></div>
+              <div class="amt">−312,40 €</div>
+            </div>
+          </div>
+
+          <aside class="wish">
+            <div class="wish-h">Envies d'achat</div>
+            <div class="wish-sub">Ta liste de souhaits, classée par catégorie. Chacune reste <b>en suspens</b> tant que tu ne la planifies pas.</div>
+            <div class="wrow">
+              <div class="top"><span class="nm">Casque audio</span><span class="pr">180 €</span></div>
+              <div style="margin-top:8px"><span class="badge plan">Planifiée · sept.</span></div>
+            </div>
+            <div class="wrow">
+              <div class="top"><span class="nm">Écran 27″</span><span class="pr">320 €</span></div>
+              <div style="margin-top:8px"><span class="badge">En suspens</span></div>
+            </div>
+            <div class="wrow">
+              <div class="top"><span class="nm">Vélo</span><span class="pr">620 €</span></div>
+              <div style="margin-top:8px"><span class="badge">En suspens</span></div>
+            </div>
+            <div class="finfoot">Confronter une envie au budget projeté (« est-ce que ça rentre&nbsp;? ») arrive en <b>V2</b>. En V1, si tu décides d'acheter, tu ajoutes une sortie au mois voulu.</div>
+          </aside>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- ============ VUE FINANCES · PAR CATÉGORIE ============ -->
+  <p class="framecap">Finances · Par catégorie — où part l'argent, d'un coup d'œil</p>
+  <div class="win">
+    <!-- TOP BAR : catégories principales -->
+    <div class="topbar">
+      <div class="brand"><div class="logo">DC</div><div class="t">Deuxième Cerveau<small>Espace personnel</small></div></div>
+      <nav class="topnav">
+        <a><span class="ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 8l7-5 7 5v8a1 1 0 0 1-1 1h-4v-5H8v5H4a1 1 0 0 1-1-1z"/></svg></span>Aujourd'hui</a>
+        <a><span class="ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4.5" width="14" height="12.5" rx="2.5"/><path d="M3 8h14M7 3v3M13 3v3"/></svg></span>Calendrier</a>
+        <a class="active"><span class="ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 10h14M10 3v14" stroke-linecap="round"/><circle cx="10" cy="10" r="7.5"/></svg></span>Finances</a>
+        <a><span class="ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 16V9M8 16V5M13 16v-4M18 16H2"/></svg></span>Budget projeté</a>
+        <a class="soon"><span class="ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5.5 17V4M5.5 4.5h8l-2 2.6 2 2.6h-8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Projets<span class="tagv">V2</span></a>
+        <a><span class="ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 3h7l3 3v11a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/><path d="M7 9h6M7 12h6"/></svg></span>Notes<span class="count">4</span></a>
+        <a><span class="ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 6h12M8 6V4h4v2M6 6l1 10h6l1-10"/></svg></span>Corbeille</a>
+      </nav>
+      <div class="solde"><div class="k">Solde</div><div class="v pos">2&nbsp;480 €</div></div>
+    </div>
+
+    <div class="app">
+      <!-- SIDEBAR : sous-vues Finances + filtres de catégories -->
+      <aside class="side">
+        <div>
+          <div class="sect-label">Finances</div>
+          <nav class="nav">
+            <a><span class="ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="6" height="6" rx="1.5"/><rect x="11" y="3" width="6" height="6" rx="1.5"/><rect x="3" y="11" width="6" height="6" rx="1.5"/><rect x="11" y="11" width="6" height="6" rx="1.5"/></svg></span>Vue d'ensemble</a>
+            <a><span class="ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M10 3v9M6 8l4 4 4-4M4 16h12" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Entrées</a>
+            <a><span class="ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M10 13V4M6 8l4-4 4 4M4 16h12" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Sorties</a>
+            <a class="active"><span class="ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="10" cy="10" r="7"/><path d="M10 10V3M10 10l6 3.5" stroke-linecap="round"/></svg></span>Par catégorie</a>
+            <a><span class="ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M10 16S3.5 12 3.5 7.5A3.3 3.3 0 0 1 10 5a3.3 3.3 0 0 1 6.5 2.5C16.5 12 10 16 10 16z" stroke-linejoin="round"/></svg></span>Envies d'achat</a>
+            <a class="soon"><span class="ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="5" width="14" height="10" rx="2"/><path d="M3.5 6l6.5 5 6.5-5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Enveloppes<span class="tagv">V2</span></a>
+          </nav>
+        </div>
+        <div>
+          <div class="sect-label">Catégories</div>
+          <div class="cals">
+            <div class="cal"><span class="dot" style="background:var(--violet)"></span>Logement</div>
+            <div class="cal"><span class="dot" style="background:var(--coral)"></span>Remboursement</div>
+            <div class="cal"><span class="dot" style="background:var(--amber)"></span>Charges</div>
+            <div class="cal"><span class="dot" style="background:var(--green)"></span>Alimentation</div>
+            <div class="cal"><span class="dot" style="background:var(--blue)"></span>Transport</div>
+          </div>
+        </div>
+      </aside>
+
+      <main class="main">
+        <div class="main-head">
+          <div class="h-title"><b>Par catégorie</b><span>Juillet 2026</span></div>
+          <div class="arrows">
+            <i><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M8.5 3L4.5 7l4 4"/></svg></i>
+            <i><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5.5 3l4 4-4 4"/></svg></i>
+          </div>
+          <span class="spacer"></span>
+          <button class="btn ghost">Gérer les catégories</button>
+        </div>
+
+        <div class="cat-head">
+          <span class="lab">Sorties · Juillet 2026</span>
+          <span class="cat-total">1&nbsp;384,67 €</span>
+        </div>
+
+        <div class="catlist">
+          <div class="catrow">
+            <div class="cn"><span class="dot" style="background:var(--violet)"></span><span>Logement</span></div>
+            <div class="track"><b style="width:61%;background:var(--violet)"></b></div>
+            <div class="ct"><span class="a">840,00 €</span> <span class="p">61 %</span></div>
+          </div>
+          <div class="catrow">
+            <div class="cn"><span class="dot" style="background:var(--coral)"></span><span>Remboursement</span></div>
+            <div class="track"><b style="width:23%;background:var(--coral)"></b></div>
+            <div class="ct"><span class="a">312,40 €</span> <span class="p">23 %</span></div>
+          </div>
+          <div class="catrow">
+            <div class="cn"><span class="dot" style="background:var(--amber)"></span><span>Charges</span></div>
+            <div class="track"><b style="width:8%;background:var(--amber)"></b></div>
+            <div class="ct"><span class="a">112,07 €</span> <span class="p">8 %</span></div>
+          </div>
+          <div class="catrow">
+            <div class="cn"><span class="dot" style="background:var(--green)"></span><span>Alimentation</span></div>
+            <div class="track"><b style="width:5%;background:var(--green)"></b></div>
+            <div class="ct"><span class="a">72,40 €</span> <span class="p">5 %</span></div>
+          </div>
+          <div class="catrow">
+            <div class="cn"><span class="dot" style="background:var(--blue)"></span><span>Transport</span></div>
+            <div class="track"><b style="width:3%;background:var(--blue)"></b></div>
+            <div class="ct"><span class="a">47,80 €</span> <span class="p">3 %</span></div>
+          </div>
+        </div>
+
+        <div class="finfoot">Tu crées tes catégories et affectes chaque dépense ; la répartition se calcule seule. Les enveloppes — un plafond par catégorie — arrivent en <b>V2</b>.</div>
+      </main>
+    </div>
+  </div>
+
+  <!-- ============ TWO SUPPORTING FRAMES ============ -->
+  <p class="framecap">Budget projeté &amp; Note libre</p>
+  <div class="row">
+
+    <!-- BUDGET PROJETÉ -->
+    <section class="pane">
+      <div class="pane-head">
+        <div class="lab">Budget projeté · 6 mois</div>
+        <h3>À la fin de chaque mois, il te restera…</h3>
+        <div class="sub">Calculé à la lecture, jamais stocké — les mois dans le rouge ressortent d'un coup d'œil.</div>
+      </div>
+      <div class="pane-body">
+        <div class="proj-figure">2&nbsp;480 €<small>aujourd'hui</small></div>
+
+        <svg class="chart" viewBox="0 0 320 96" width="100%" height="96" preserveAspectRatio="none" aria-hidden="true">
+          <defs>
+            <linearGradient id="fillPos" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="#0075de" stop-opacity=".22"/>
+              <stop offset="1" stop-color="#0075de" stop-opacity="0"/>
+            </linearGradient>
+          </defs>
+          <!-- zero baseline -->
+          <line x1="0" y1="64" x2="320" y2="64" stroke="var(--line)" stroke-width="1" stroke-dasharray="3 4"/>
+          <!-- area (positive) -->
+          <path d="M0,30 L53,26 L107,70 L160,44 L213,34 L267,20 L320,14 L320,64 L0,64 Z" fill="url(#fillPos)"/>
+          <!-- red dip area for August below zero -->
+          <path d="M80,64 L107,70 L134,64 Z" fill="#d84a34" fill-opacity=".18"/>
+          <!-- line -->
+          <path d="M0,30 L53,26 L107,70 L160,44 L213,34 L267,20 L320,14" fill="none" stroke="#0075de" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <!-- August point (below zero) -->
+          <circle cx="107" cy="70" r="3.4" fill="#d84a34"/>
+          <!-- endpoint -->
+          <circle cx="320" cy="14" r="3.4" fill="#0075de"/>
+        </svg>
+
+        <div class="months">
+          <div class="mrow"><span class="mo">Juil</span><span class="bar"><b style="width:62%;background:var(--brand)"></b></span><span class="clo">2 480 €</span></div>
+          <div class="mrow alert"><span class="mo">Août</span><span class="bar"><b style="width:0;background:var(--neg)"></b></span><span class="clo neg">−180 €</span></div>
+          <div class="mrow"><span class="mo">Sep</span><span class="bar"><b style="width:34%;background:var(--brand)"></b></span><span class="clo">1 020 €</span></div>
+          <div class="mrow"><span class="mo">Oct</span><span class="bar"><b style="width:52%;background:var(--brand)"></b></span><span class="clo">1 760 €</span></div>
+          <div class="mrow"><span class="mo">Nov</span><span class="bar"><b style="width:70%;background:var(--brand)"></b></span><span class="clo">2 540 €</span></div>
+          <div class="mrow"><span class="mo">Déc</span><span class="bar"><b style="width:88%;background:var(--brand)"></b></span><span class="clo">3 210 €</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- NOTE LIBRE (Notion) -->
+    <section class="pane note">
+      <div class="pane-head">
+        <div class="lab">Note libre</div>
+        <h3>Un brouillon qui ne se perd jamais</h3>
+      </div>
+      <div class="pane-body">
+        <h4>Idées &amp; à faire</h4>
+        <div class="meta">Modifié aujourd'hui · synchronisé</div>
+        <p>Passer l'assurance auto en mensuel — comparer avant le 20. Le loyer augmente en septembre, penser à ajuster le budget « Maison ».</p>
+        <div class="todo done"><span class="box"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2.5 6.5l2.5 2.5 4.5-5.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span>Recaler le solde de référence</span></div>
+        <div class="todo"><span class="box"></span><span>Exporter une sauvegarde ce week-end</span></div>
+        <div class="todo"><span class="box"></span><span>Ajouter les revenus freelance de juin</span></div>
+        <div class="finfoot">Une note est un Élément comme un autre : même synchronisation, même corbeille.</div>
+      </div>
+    </section>
+  </div>
+
+  <!-- ============ DESIGN LEGEND ============ -->
+  <div class="legend">
+    <div>
+      <h5>Palette</h5>
+      <div class="sw"><i style="background:#0075de"></i>Bleu Notion — action, aujourd'hui<code>#0075DE</code></div>
+      <div class="sw"><i style="background:#1f9d54"></i>Vert — revenus<code>#1F9D54</code></div>
+      <div class="sw"><i style="background:#e0553f"></i>Corail — sorties<code>#E0553F</code></div>
+      <div class="sw"><i style="background:#2a9d99"></i>Teal — travail<code>#2A9D99</code></div>
+      <div class="sw"><i style="background:#c67f18"></i>Ambre — santé<code>#C67F18</code></div>
+      <div class="sw"><i style="background:#8b5fc9"></i>Violet — perso<code>#8B5FC9</code></div>
+      <div class="sw"><i style="background:#f6f5f4;box-shadow:inset 0 0 0 1px #e7e5e1"></i>Canvas — papier chaud (Notion)<code>#F6F5F4</code></div>
+    </div>
+    <div>
+      <h5>Typographie</h5>
+      <div class="typ"><div class="big" style="font-size:28px;font-weight:680">Juillet 2026</div><div class="cap">Titres — Segoe UI Variable · −2,5% d'approche</div></div>
+      <div class="typ"><div class="big" style="font-size:18px;font-weight:640">Budget projeté</div><div class="cap">Sous-titres · 640</div></div>
+      <div class="typ"><div class="big" style="font-size:15px;font-weight:450">Le calme de Notion, la clarté d'Apple Calendar.</div><div class="cap">Texte courant · 450</div></div>
+      <div class="typ"><div class="big" style="font-size:15px;font-weight:640;font-variant-numeric:tabular-nums">2 480 € · −180 € · +2 400 €</div><div class="cap">Chiffres alignés (tabular-nums)</div></div>
+    </div>
+  </div>
+
+  <p class="foot-note">Dis-moi ce que tu ressens : le ton, les couleurs, la densité. On ajuste la maquette jusqu'à ce qu'elle te plaise — <b>ensuite</b> je code l'interface WinUI à l'identique.</p>
+
+</div>
