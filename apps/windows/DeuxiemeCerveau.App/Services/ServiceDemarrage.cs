@@ -1,4 +1,5 @@
 using DeuxiemeCerveau.App.Local;
+using DeuxiemeCerveau.Core.Json;
 using DeuxiemeCerveau.Core.Modele;
 using DeuxiemeCerveau.Core.Synchro;
 
@@ -65,14 +66,19 @@ public sealed class ServiceDemarrage(DepotLocal depot, ServiceSaisie saisie)
     /// (dernier recalage gagne, §3.4) ; l'identifiant déterministe garantit qu'il n'y en a qu'un.
     /// </summary>
     public ResultatSaisie DefinirSoldeReference(long centimes, DateOnly date)
-        => saisie.Enregistrer(
-            new ReglageSolde
-            {
-                Id = ReglageSolde.IdSoldeReference,
-                SoldeReferenceCentimes = centimes,
-                SoldeReferenceDate = date,
-            },
-            EntiteSynchro.Reglage);
+    {
+        // Recalage = mise à jour du réglage existant : on REPREND sa date de création (champ d'audit qui
+        // ne doit jamais changer, §3.1) au lieu de repartir d'un objet vierge.
+        var existant = depot.Obtenir(EntiteSynchro.Reglage, ReglageSolde.IdSoldeReference);
+        var reglage = existant is null
+            ? new ReglageSolde { Id = ReglageSolde.IdSoldeReference }
+            : SerialisationCanonique.Deserialiser<ReglageSolde>(existant.PayloadCanonique);
+
+        reglage.SoldeReferenceCentimes = centimes;
+        reglage.SoldeReferenceDate = date;
+        reglage.Supprime = false; // un recalage réactive le réglage s'il avait été mis à la corbeille
+        return saisie.Enregistrer(reglage, EntiteSynchro.Reglage);
+    }
 
     /// <summary>Les modèles de départ proposés (D-018 #1), pour la 3ᵉ étape de l'onboarding.</summary>
     public IReadOnlyList<ModeleDepart> Modeles => CatalogueDepart.Modeles;
