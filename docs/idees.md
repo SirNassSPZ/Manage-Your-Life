@@ -41,3 +41,22 @@ Demande : pour chaque **envie d'achat**, pouvoir soit **l'intégrer au budget pr
 - Si l'utilisateur **décide d'acheter**, il crée une **sortie datée** (paiement) au mois voulu : elle entre alors **naturellement** dans le budget projeté (§5.1) — sans mécanisme spécifique « envie ».
 
 **Ce qui reste V2 :** le geste dédié « projeter *hypothétiquement* cette envie sur le mois M sans créer de vraie dépense, et afficher si ça passe » (la confrontation), et le rappel intelligent des envies (§5.2). À NE PAS coder en V1. La maquette le montre donc **étiqueté V2**.
+
+## I-004 — Onglet « to-do list », listes personnalisables, planifications — **V2 par la spec (§5.2, §5.3, §13)**
+**Consigné le 2026-07-25** · demandé par l'utilisateur pendant l'Étape 4f (vue Finances).
+
+Demande, en quatre points : (1) catégoriser les éléments des onglets en colonnes pliables ou navigables ; (2) une vue calendrier mensuelle **et** une vue 7 jours ; (3) pouvoir personnaliser catégories, listes et planifications ; (4) un onglet **to-do list** permettant de créer des listes et de les catégoriser.
+
+**Ce qui est DÉJÀ dans le périmètre V1 — donc codable tout de suite :**
+- **La vue 7 jours du calendrier.** Le §5.4 fait du calendrier unifié un module V1 « inspiré d'Apple Calendar », et la maquette montre le segment « Mois · Semaine · Jour ». C'est un **mode d'affichage** des mêmes occurrences : aucun champ, aucune entité, aucune règle de synchro en plus. `ServiceAujourdhui.ProchainsJours(maintenant, 7)` existe déjà et est testé.
+- **La personnalisation des catégories.** Le §3.3 définit la catégorie (nom, couleur, origine) et en fait le filtre du calendrier ; I-001 note déjà que « créer des catégories et les activer/désactiver comme filtres » **est** en V1. Il n'existe pourtant aujourd'hui **aucun écran** pour en créer, renommer ou recolorier une, ni pour en affecter une à un Élément. C'est un manque V1 réel, pas une extension.
+- **Le groupement pliable par catégorie** dans les listes existantes (Finances, Calendrier) : de la mise en forme sur des données déjà là.
+
+**Ce qui est HORS périmètre V1 :**
+- **Les tâches / la to-do list.** Le §13 énumère la saisie V1 : « facture, paiement, revenu, rendez-vous, note » — **la tâche n'y est pas**. Le §5.2 place « Tâches : priorité + ordre manuel » en **V2**, et le score en V2. Le type `tache` existe bien dans le modèle (§3.1) et le schéma dès la V1 — c'est voulu (stabilité du schéma), mais le **module** est V2.
+- **Les « listes » à créer et catégoriser.** La notion la plus proche dans la spec est le **Projet** (§5.3 : tâches propres, label, calendrier dédié devenant filtre automatique), explicitement **V2** — c'est déjà I-001. Une notion de « liste » distincte du projet n'existe nulle part dans la spec : l'introduire demanderait une entité de plus, à écrire **à l'identique dans les deux apps** (risque n° 1).
+- **Les planifications / templates de planning.** §5.2 : **V2**.
+
+**Coût réel d'un élargissement.** Tout ce qui entre en V1 est écrit **deux fois** (C# et Swift) et doit passer les scénarios de parité du §12 avant livraison. Ajouter tâches + listes + planifications, c'est un module entier de plus des deux côtés — c'est précisément ce que le découpage en versions cherche à éviter (« livrer un socle qui a de la valeur seul, puis empiler »).
+
+**Décision requise (périmètre — appartient à l'utilisateur) :** livrer d'abord la V1 telle que définie, en y incluant les trois points ci-dessus qui en font déjà partie ; **ou** élargir formellement la V1 au module tâches/listes — ce qui exige de **modifier la spécification d'abord** (CLAUDE.md), et d'accepter le délai et le risque supplémentaires.

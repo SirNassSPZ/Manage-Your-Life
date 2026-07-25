@@ -111,6 +111,22 @@ La spec (§5.1) fixe l'algorithme ; précisions nécessaires à une implémentat
 
 La purge définitive (§5.6) est la seule destruction réelle, mais le contrat §8 v3.1 n'exposait **aucune route de purge**. Une purge locale seule ferait « ressusciter » l'entité au pull suivant. → Résolue par la décision D-010 ci-dessous, intégrée à la spec **v3.2** (modifiée d'abord, conformément à la consigne).
 
+## Q-002 — Question ouverte : une envie d'achat peut-elle porter un montant ?
+**Statut : ouverte** (2026-07-25) · découverte en écrivant les tests de la vue Finances · spec §3.1, §5.1
+
+**Contradiction.** Trois documents disent trois choses :
+- **`specification.md` §3.1** — « **Argent** (uniquement `facture`, `paiement`, `revenu`) ». Le montant est donc **interdit** sur une envie.
+- **Le cœur** applique le §3.1 à la lettre : enregistrer une `envie` avec un montant est **rejeté** (`montant_interdit`). C'est le comportement réel, couvert par un test.
+- **`docs/maquette.html`** affiche pourtant des prix sur les envies (« Casque audio — 180 € »), et **`idees.md` I-003** l'affirme aussi : « une envie peut porter un **montant** et des catégories ».
+
+**Conséquence aujourd'hui.** Le panneau « Envies d'achat » de la vue Finances liste les envies **sans prix**. C'est conforme au code et au §3.1, mais en écart avec la maquette.
+
+**Options.**
+- **(a) Tenir le §3.1.** L'envie reste un simple souhait nommé ; un prix se matérialise le jour où l'on décide d'acheter, sous forme de sortie datée (ce que dit déjà I-003 pour la V1). Corriger la maquette et I-003. **Aucun changement de modèle, aucune migration.**
+- **(b) Autoriser le montant sur `envie`.** Modifier le §3.1 **d'abord** (spec-first), assouplir le validateur, et l'implémenter à l'identique côté Swift. Additif (le champ existe déjà en base), donc sans migration destructive — mais cela ouvre la question du `sens` et du `budget_id` sur une envie, et rapproche le sujet de la confrontation au budget, qui est **V2** (I-003).
+
+**À trancher par l'utilisateur.** Tant que la question est ouverte, le code suit le §3.1 — la spec fait foi sur le code.
+
 ## D-010 — Purge arbitrée par le serveur, propagée par le pull, protégée par pierre tombale
 **Statut : validée** (2026-07-23, décision déléguée par l'utilisateur) · spec v3.2 (§5.6, §6.2, §8, §9)
 
