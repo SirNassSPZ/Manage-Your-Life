@@ -46,6 +46,7 @@ public sealed partial class VueModeleCoquille : ObservableObject
         // Le calendrier lit les filtres ICI plutôt que d'en tenir une copie : deux listes de
         // catégories qui divergent, c'est un filtre qui ment.
         Calendrier = new VueModeleCalendrier(composition, CategoriesVisibles);
+        Finances = new VueModeleFinances(composition);
 
         Aller(Zone.Aujourdhui);
     }
@@ -62,6 +63,26 @@ public sealed partial class VueModeleCoquille : ObservableObject
     public VueModeleOnboarding Onboarding { get; }
     public VueModeleBudget Budget { get; }
     public VueModeleCalendrier Calendrier { get; }
+    public VueModeleFinances Finances { get; }
+
+    /// <summary>
+    /// Choisit une sous-vue de la zone active. Pour Finances, les sous-vues sont des FILTRES sur le
+    /// même mois (§5.1) — pas d'autres écrans, donc pas d'autre chargement.
+    /// </summary>
+    [RelayCommand]
+    private void ChoisirSousVue(SousVue cible)
+    {
+        if (cible.EstV2) return;   // périmètre V1 verrouillé
+        foreach (var sousVue in SousVues) sousVue.Actif = ReferenceEquals(sousVue, cible);
+
+        if (Zone != Zone.Finances) return;
+        Finances.FiltrerCommand.Execute(cible.Titre switch
+        {
+            "Entrées" => FiltreFinances.Entrees,
+            "Sorties" => FiltreFinances.Sorties,
+            _ => FiltreFinances.Tout,
+        });
+    }
 
     /// <summary>
     /// Les catégories cochées, ou null si elles le sont toutes — le service traite null comme
@@ -209,6 +230,7 @@ public sealed partial class VueModeleCoquille : ObservableObject
 
         if (Zone == Zone.Aujourdhui) Accueil.Charger();
         if (Zone == Zone.Calendrier) Calendrier.Charger();
+        if (Zone == Zone.Finances) Finances.Charger();
 
         var solde = _composition.Acces.Lire(() => _composition.Aujourdhui.SoldeDeReference());
         EntetePossedeSolde = solde is not null;

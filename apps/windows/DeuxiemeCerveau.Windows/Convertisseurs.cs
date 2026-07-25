@@ -75,11 +75,36 @@ public sealed class CouleurType : IValueConverter
     public object ConvertBack(object value, Type t, object p, string l) => throw new NotSupportedException();
 }
 
-/// <summary>Un montant d'entrée s'affiche en sauge ; une sortie garde l'encre normale.</summary>
+/// <summary>
+/// Un montant d'entrée s'affiche en sauge ; une sortie garde l'encre normale. Accepte le
+/// <see cref="Sens"/> comme un booléen « est une entrée » : les deux formes existent selon que la
+/// vue tient l'Élément ou une ligne déjà mise en forme.
+/// </summary>
 public sealed class CouleurMontant : IValueConverter
 {
     public object Convert(object value, Type t, object p, string l) =>
-        value is Sens.Entree ? Pinceaux.Par("Positif") : Pinceaux.Par("Encre");
+        value is Sens.Entree or true ? Pinceaux.Par("Positif") : Pinceaux.Par("Encre");
+
+    public object ConvertBack(object value, Type t, object p, string l) => throw new NotSupportedException();
+}
+
+/// <summary>
+/// Pastille de statut : sauge une fois réglé, ocre tant que ça reste dû. Le libellé change en
+/// même temps (« Payé » / « À valider ») — la couleur n'est jamais le seul indice.
+/// </summary>
+public sealed class FondStatut : IValueConverter
+{
+    public object Convert(object value, Type t, object p, string l) =>
+        value is true ? Pinceaux.Par("SaugeDouce") : Pinceaux.Par("OcreDouce");
+
+    public object ConvertBack(object value, Type t, object p, string l) => throw new NotSupportedException();
+}
+
+/// <summary>Encre de la pastille de statut, assortie à son fond.</summary>
+public sealed class EncreStatut : IValueConverter
+{
+    public object Convert(object value, Type t, object p, string l) =>
+        value is true ? Pinceaux.Par("Sauge") : Pinceaux.Par("Ocre");
 
     public object ConvertBack(object value, Type t, object p, string l) => throw new NotSupportedException();
 }

@@ -144,6 +144,9 @@
                                 <DataTemplate x:DataType="vm:SousVue">
                                     <Button Style="{StaticResource BoutonNav}" Margin="0,0,0,2"
                                             HorizontalAlignment="Stretch" Padding="10,8"
+                                            Command="{Binding DataContext.ChoisirSousVueCommand, ElementName=Racine}"
+                                            CommandParameter="{Binding}"
+                                            AutomationProperties.Name="{Binding Titre}"
                                             Background="{Binding Actif, Converter={StaticResource FondActif}}"
                                             Foreground="{Binding Actif, Converter={StaticResource EncreActif}}">
                                         <StackPanel Orientation="Horizontal" Spacing="11">

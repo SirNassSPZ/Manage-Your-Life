@@ -55,6 +55,48 @@ public sealed class FabriquePresentation : IDisposable
         return element.Id;
     }
 
+    /// <summary>Enregistre un revenu daté, éventuellement récurrent.</summary>
+    public Guid AjouterEntree(string titre, DateTimeOffset date, long centimes = 238_000, string? recurrence = null)
+    {
+        var element = new Element
+        {
+            Type = TypeElement.Revenu,
+            Titre = titre,
+            DateDebut = date,
+            Fuseau = "Europe/Paris",
+            Recurrence = recurrence,
+            MontantCentimes = centimes,
+            Devise = "EUR",
+            Sens = Sens.Entree,
+            Statut = StatutElement.Attendu,
+        };
+        Composition.Saisie.Enregistrer(element, EntiteSynchro.Element);
+        return element.Id;
+    }
+
+    /// <summary>
+    /// Enregistre une envie d'achat (§3.1) — sans date ni montant, comme une liste de souhaits.
+    /// <para>
+    /// <b>Pas de montant, et ce n'est pas un oubli :</b> le §3.1 réserve l'argent aux types
+    /// facture / paiement / revenu, et le cœur le fait respecter (« montant_interdit »). La
+    /// maquette montre pourtant des prix sur les envies, et `idees.md` I-003 l'affirme aussi :
+    /// c'est une contradiction de la documentation, pas du code. À trancher dans la spec avant
+    /// de coder quoi que ce soit qui en dépende.
+    /// </para>
+    /// </summary>
+    public Guid AjouterEnvie(string titre, StatutElement statut = StatutElement.Idee)
+    {
+        var element = new Element { Type = TypeElement.Envie, Titre = titre, Statut = statut };
+        var resultat = Composition.Saisie.Enregistrer(element, EntiteSynchro.Element);
+
+        // Une fabrique de test qui avale un rejet fabrique des tests qui mentent.
+        if (!resultat.Reussi)
+            throw new InvalidOperationException(
+                "Envie refusée : " + string.Join(" / ", resultat.Erreurs.Select(e => e.Message)));
+
+        return element.Id;
+    }
+
     public void Dispose()
     {
         Composition.Dispose();
