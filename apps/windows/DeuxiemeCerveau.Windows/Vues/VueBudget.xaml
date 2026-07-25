@@ -1,0 +1,97 @@
+<UserControl
+    x:Class="DeuxiemeCerveau.Windows.Vues.VueBudget"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:pres="using:DeuxiemeCerveau.Windows.Presentation"
+    xmlns:vm="using:DeuxiemeCerveau.Windows.VueModeles">
+
+    <UserControl.Resources>
+        <pres:TexteVersVisibilite x:Key="SiTexte" />
+        <pres:BoolVersVisibilite x:Key="SiVrai" />
+        <pres:FondDecouvert x:Key="FondDecouvert" />
+        <pres:EncreDecouvert x:Key="EncreDecouvert" />
+
+        <Style x:Key="BoutonDiscret" TargetType="Button">
+            <Setter Property="Background" Value="{StaticResource Surface}" />
+            <Setter Property="Foreground" Value="{StaticResource Encre}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Trait}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="9" />
+            <Setter Property="Padding" Value="14,8" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontFamily" Value="{StaticResource PoliceUI}" />
+        </Style>
+    </UserControl.Resources>
+
+    <ScrollViewer Background="{StaticResource Surface}" Padding="22,20,22,22">
+        <StackPanel MaxWidth="760" HorizontalAlignment="Left">
+
+            <Grid Margin="0,0,0,18">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                    <TextBlock Text="Budget projeté" Style="{StaticResource TitreVue}" />
+                    <TextBlock Text="12 mois" Style="{StaticResource TitreVueAccessoire}" VerticalAlignment="Bottom" />
+                </StackPanel>
+                <Button Grid.Column="1" Style="{StaticResource BoutonDiscret}" Content="Actualiser"
+                        Command="{x:Bind Modele.ChargerCommand}" VerticalAlignment="Center" />
+            </Grid>
+
+            <StackPanel Spacing="9" Margin="0,0,0,22">
+                <TextBlock Text="À LA FIN DE CE MOIS, IL TE RESTERA" Style="{StaticResource EtiquetteMajuscule}" />
+                <TextBlock Text="{x:Bind Modele.Entete, Mode=OneWay}" Style="{StaticResource HeroChiffre}" />
+                <TextBlock Style="{StaticResource TexteCourant}" FontSize="13" MaxWidth="520"
+                           HorizontalAlignment="Left"
+                           Text="Calculé par le serveur à la lecture, jamais stocké. Les mois dans le rouge ressortent d'un coup d'œil." />
+            </StackPanel>
+
+            <ProgressBar IsIndeterminate="True" Margin="0,0,0,14"
+                         Visibility="{x:Bind Modele.Chargement, Mode=OneWay, Converter={StaticResource SiVrai}}" />
+
+            <Border Visibility="{x:Bind Modele.Message, Mode=OneWay, Converter={StaticResource SiTexte}}"
+                    Background="{StaticResource Surface2}" CornerRadius="10" Padding="14,11" Margin="0,0,0,14">
+                <TextBlock Text="{x:Bind Modele.Message, Mode=OneWay}" FontSize="13"
+                           Foreground="{StaticResource Encre2}" TextWrapping="Wrap" />
+            </Border>
+
+            <ItemsControl ItemsSource="{x:Bind Modele.Mois}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:LigneMois">
+                        <Border CornerRadius="8" Padding="8,8" Margin="0,0,0,2"
+                                Background="{Binding Decouvert, Converter={StaticResource FondDecouvert}}">
+                            <Grid ColumnSpacing="12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="64" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="120" />
+                                </Grid.ColumnDefinitions>
+
+                                <TextBlock Text="{Binding Mois}" FontSize="12.5" FontWeight="SemiBold"
+                                           Foreground="{StaticResource Encre2}" VerticalAlignment="Center" />
+
+                                <!-- Barre proportionnelle au solde de clôture ; vide si le mois est à
+                                     découvert. Le modèle fournit déjà la largeur en pixels sur une
+                                     piste fixe : pas de convertisseur, pas d'arithmétique en XAML. -->
+                                <Border Grid.Column="1" Width="320" Height="6" CornerRadius="3"
+                                        HorizontalAlignment="Left" VerticalAlignment="Center"
+                                        Background="{StaticResource Trait}">
+                                    <Border Height="6" CornerRadius="3" HorizontalAlignment="Left"
+                                            Background="{StaticResource Marque}"
+                                            Width="{Binding Largeur}" />
+                                </Border>
+
+                                <TextBlock Grid.Column="2" Text="{Binding Cloture}" FontSize="13.5"
+                                           FontWeight="SemiBold" CharacterSpacing="-10"
+                                           HorizontalTextAlignment="Right" VerticalAlignment="Center"
+                                           Foreground="{Binding Decouvert, Converter={StaticResource EncreDecouvert}}" />
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

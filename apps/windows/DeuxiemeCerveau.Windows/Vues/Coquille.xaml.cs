@@ -28,6 +28,9 @@ public sealed partial class Coquille : UserControl
         };
 
         Basculer();
+
+        // Relire le compte hors du constructeur : l'appel MSAL est asynchrone.
+        Loaded += async (_, _) => await modele.RelireCompte();
     }
 
     public VueModeleCoquille Modele { get; }
@@ -58,6 +61,7 @@ public sealed partial class Coquille : UserControl
     private UserControl Fabriquer(Zone zone) => zone switch
     {
         Zone.Aujourdhui => Brancher(new VueAujourdhui(), Modele.Accueil),
+        Zone.BudgetProjete => new VueBudget(Modele.Budget),
         _ => new VueAChantier(zone),
     };
 

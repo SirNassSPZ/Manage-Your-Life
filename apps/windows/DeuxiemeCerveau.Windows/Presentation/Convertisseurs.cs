@@ -41,6 +41,14 @@ public sealed class BoolVersVisibilite : IValueConverter
     public object ConvertBack(object value, Type t, object p, string l) => throw new NotSupportedException();
 }
 
+/// <summary>Inverse un booléen — pour désactiver un contrôle pendant une opération en cours.</summary>
+public sealed class BoolInverse : IValueConverter
+{
+    public object Convert(object value, Type t, object p, string l) => value is not true;
+
+    public object ConvertBack(object value, Type t, object p, string l) => value is not true;
+}
+
 public sealed class TexteVersVisibilite : IValueConverter
 {
     public object Convert(object value, Type t, object p, string l) =>
@@ -105,6 +113,24 @@ public sealed class HexPinceau : IValueConverter
             System.Convert.ToByte(hex.Substring(3, 2), 16),
             System.Convert.ToByte(hex.Substring(5, 2), 16)));
     }
+
+    public object ConvertBack(object value, Type t, object p, string l) => throw new NotSupportedException();
+}
+
+/// <summary>Fond d'un mois à découvert : la seule alarme visuelle de l'app (§5.1, mise en évidence).</summary>
+public sealed class FondDecouvert : IValueConverter
+{
+    public object Convert(object value, Type t, object p, string l) =>
+        value is true ? Pinceaux.Par("NegatifDouce") : new SolidColorBrush(Microsoft.UI.Colors.Transparent);
+
+    public object ConvertBack(object value, Type t, object p, string l) => throw new NotSupportedException();
+}
+
+/// <summary>Encre d'un solde de clôture : terre cuite s'il est négatif.</summary>
+public sealed class EncreDecouvert : IValueConverter
+{
+    public object Convert(object value, Type t, object p, string l) =>
+        value is true ? Pinceaux.Par("Negatif") : Pinceaux.Par("Encre");
 
     public object ConvertBack(object value, Type t, object p, string l) => throw new NotSupportedException();
 }

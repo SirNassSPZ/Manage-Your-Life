@@ -42,6 +42,7 @@ public sealed partial class VueModeleCoquille : ObservableObject
         Principales = [.. ElementNav.Principales()];
         Accueil = new VueModeleAujourdhui(composition);
         Onboarding = new VueModeleOnboarding(composition);
+        Budget = new VueModeleBudget(composition);
         Aller(Zone.Aujourdhui);
     }
 
@@ -55,6 +56,7 @@ public sealed partial class VueModeleCoquille : ObservableObject
 
     public VueModeleAujourdhui Accueil { get; }
     public VueModeleOnboarding Onboarding { get; }
+    public VueModeleBudget Budget { get; }
 
     [ObservableProperty]
     private Zone _zone = Zone.Aujourdhui;
@@ -71,6 +73,59 @@ public sealed partial class VueModeleCoquille : ObservableObject
     /// <summary>Étiquette d'état de synchro, dérivée de l'outbox (aucun service ne la fournit).</summary>
     [ObservableProperty]
     private string _etatSynchro = "";
+
+    /// <summary>Adresse du compte Entra connecté, ou null.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(PeutSeConnecter))]
+    private string? _compte;
+
+    /// <summary>Faux quand aucune inscription Entra n'est configurée : le bouton n'a alors aucun sens.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(PeutSeConnecter))]
+    private bool _connexionOfferte;
+
+    /// <summary>Le bouton « Se connecter » ne s'affiche que s'il y a de quoi se connecter, et pas déjà.</summary>
+    public bool PeutSeConnecter => ConnexionOfferte && Compte is null;
+
+    [ObservableProperty]
+    private bool _occupe;
+
+    /// <summary>
+    /// Connexion Entra — un geste EXPLICITE de l'utilisateur. C'est le seul endroit qui a le droit
+    /// d'ouvrir un navigateur : la synchro de fond, elle, n'utilise que l'acquisition silencieuse.
+    /// </summary>
+    [RelayCommand]
+    private async Task Connecter()
+    {
+        if (Occupe) return;
+        Occupe = true;
+        try
+        {
+            await _composition.Jetons.Connecter();
+            await RelireCompte();
+        }
+        finally { Occupe = false; }
+    }
+
+    [RelayCommand]
+    private async Task Deconnecter()
+    {
+        if (Occupe) return;
+        Occupe = true;
+        try
+        {
+            await _composition.Jetons.Deconnecter();
+            await RelireCompte();
+        }
+        finally { Occupe = false; }
+    }
+
+    public async Task RelireCompte()
+    {
+        ConnexionOfferte = _composition.Options.Api.EstConfiguree && _composition.Jetons.Configure;
+        Compte = ConnexionOfferte ? await _composition.Jetons.CompteConnecte() : null;
+        Rafraichir();
+    }
 
     [RelayCommand]
     private void Naviguer(ElementNav cible)
@@ -130,11 +185,14 @@ public sealed partial class VueModeleCoquille : ObservableObject
         ChargerCalendriers();
 
         var enAttente = _composition.Acces.Lire(() => _composition.Depot.Outbox().Count);
-        EtatSynchro = enAttente switch
+        EtatSynchro = (enAttente, Compte) switch
         {
-            0 when !_composition.SynchroPossible => "Hors ligne",
-            0 => "À jour",
-            1 => "1 changement en attente",
+            (_, null) when !_composition.SynchroPossible => "Hors ligne",
+            (0, null) => "Non connecté",
+            (1, null) => "1 changement, non connecté",
+            (_, null) => $"{enAttente} changements, non connecté",
+            (0, _) => "À jour",
+            (1, _) => "1 changement en attente",
             _ => $"{enAttente} changements en attente",
         };
     }

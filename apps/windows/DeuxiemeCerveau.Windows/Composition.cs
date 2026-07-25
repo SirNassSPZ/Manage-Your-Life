@@ -108,9 +108,12 @@ public sealed class Composition : IDisposable
         //  - l'API porte le Bearer Entra ;
         //  - le blob est adressé par URL SAS, qui porte DÉJÀ son autorisation. Y ajouter le Bearer
         //    serait une fuite de jeton vers le stockage.
+        // 180 s et non 100 : le démarrage à froid mesuré sur l'API déployée est de ~61 s
+        // (Functions Consommation + reprise du SQL serverless, §10.1), et les tentatives de
+        // ManipulateurReessai s'ajoutent par-dessus. L'interface n'attend jamais le serveur.
         var httpApi = new HttpClient(new ManipulateurJeton(jetons) { InnerHandler = new ManipulateurReessai { InnerHandler = new HttpClientHandler() } })
         {
-            Timeout = TimeSpan.FromSeconds(100),
+            Timeout = TimeSpan.FromSeconds(180),
         };
         if (options.Api.EstConfiguree) httpApi.BaseAddress = options.Api.BaseUri();
 

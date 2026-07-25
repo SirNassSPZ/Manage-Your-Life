@@ -22,6 +22,7 @@
             <pres:HexPinceau x:Key="Hex" />
             <pres:TexteVersVisibilite x:Key="SiTexte" />
             <pres:BoolVersVisibilite x:Key="SiVrai" />
+            <pres:BoolInverse x:Key="SiFaux" />
 
             <!-- Bouton de navigation : plat ; l'état actif se dit par le fond bleu doux. -->
             <Style x:Key="BoutonNav" TargetType="Button">
@@ -178,8 +179,26 @@
                         </ItemsControl>
                     </StackPanel>
 
-                    <TextBlock Text="{x:Bind Modele.EtatSynchro, Mode=OneWay}" FontSize="11.5"
-                               Foreground="{StaticResource Encre3}" Margin="10,0,0,0" />
+                    <!-- Compte Entra. La connexion est un geste explicite : sans elle, l'app reste
+                         pleinement utilisable hors ligne (filet 1). -->
+                    <StackPanel Spacing="6" Margin="10,0,0,0">
+                        <TextBlock Text="{x:Bind Modele.EtatSynchro, Mode=OneWay}" FontSize="11.5"
+                                   Foreground="{StaticResource Encre3}" TextWrapping="Wrap" />
+
+                        <TextBlock Text="{x:Bind Modele.Compte, Mode=OneWay}" FontSize="11.5"
+                                   Foreground="{StaticResource Encre2}" TextWrapping="Wrap"
+                                   Visibility="{x:Bind Modele.Compte, Mode=OneWay, Converter={StaticResource SiTexte}}" />
+
+                        <HyperlinkButton Content="Se connecter" Padding="0" FontSize="12"
+                                         Command="{x:Bind Modele.ConnecterCommand}"
+                                         IsEnabled="{x:Bind Modele.Occupe, Mode=OneWay, Converter={StaticResource SiFaux}}"
+                                         Visibility="{x:Bind Modele.PeutSeConnecter, Mode=OneWay, Converter={StaticResource SiVrai}}" />
+
+                        <HyperlinkButton Content="Se déconnecter" Padding="0" FontSize="12"
+                                         Command="{x:Bind Modele.DeconnecterCommand}"
+                                         IsEnabled="{x:Bind Modele.Occupe, Mode=OneWay, Converter={StaticResource SiFaux}}"
+                                         Visibility="{x:Bind Modele.Compte, Mode=OneWay, Converter={StaticResource SiTexte}}" />
+                    </StackPanel>
                 </StackPanel>
             </Border>
 
