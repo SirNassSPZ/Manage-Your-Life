@@ -41,14 +41,20 @@ public sealed partial class VueModeleCoquille : ObservableObject
         _composition = composition;
         Principales = [.. ElementNav.Principales()];
         Accueil = new VueModeleAujourdhui(composition);
+        Onboarding = new VueModeleOnboarding(composition);
         Aller(Zone.Aujourdhui);
     }
+
+    /// <summary>Vrai tant que le solde de référence n'est pas posé (§3.4).</summary>
+    public bool OnboardingRequis() =>
+        _composition.Acces.Lire(() => _composition.Demarrage.OnboardingRequis());
 
     public ObservableCollection<ElementNav> Principales { get; }
     public ObservableCollection<SousVue> SousVues { get; } = [];
     public ObservableCollection<FiltreCalendrier> Calendriers { get; } = [];
 
     public VueModeleAujourdhui Accueil { get; }
+    public VueModeleOnboarding Onboarding { get; }
 
     [ObservableProperty]
     private Zone _zone = Zone.Aujourdhui;

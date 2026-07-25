@@ -183,7 +183,9 @@
                 </StackPanel>
             </Border>
 
-            <vues:VueAujourdhui Grid.Column="1" x:Name="Accueil" />
+            <!-- La vue active est posée par le code-behind, d'après Modele.Zone. -->
+            <ContentControl Grid.Column="1" x:Name="Hote"
+                            HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch" />
         </Grid>
     </Grid>
 </UserControl>

@@ -26,6 +26,25 @@ public static class Format
     public static string EurosRelatif(long centimes) =>
         centimes < 0 ? "−" + Euros(Math.Abs(centimes)) : Euros(centimes);
 
+    /// <summary>
+    /// Lit un montant saisi (« 800 », « 800,50 », « 1 200,50 ») en centimes entiers.
+    /// La conversion depuis le texte n'existe qu'ici : partout ailleurs c'est un entier (règle 5).
+    /// </summary>
+    public static bool TryCentimes(string? saisie, out long centimes)
+    {
+        centimes = 0;
+        if (string.IsNullOrWhiteSpace(saisie)) return false;
+
+        var nettoye = saisie.Replace("€", "").Replace(" ", "").Replace(" ", "").Replace(" ", "").Trim();
+        if (!decimal.TryParse(nettoye, NumberStyles.Number, Fr, out var euros)
+            && !decimal.TryParse(nettoye, NumberStyles.Number, CultureInfo.InvariantCulture, out euros))
+            return false;
+
+        // Arrondi au centime : jamais de flottant conservé.
+        centimes = (long)Math.Round(euros * 100m, MidpointRounding.AwayFromZero);
+        return true;
+    }
+
     /// <summary>« jeudi 24 juillet ».</summary>
     public static string JourLong(DateOnly jour) => jour.ToString("dddd d MMMM", Fr);
 
