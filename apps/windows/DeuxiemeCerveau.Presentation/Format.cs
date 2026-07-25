@@ -46,8 +46,13 @@ public static class Format
         if (string.IsNullOrWhiteSpace(saisie)) return false;
 
         var nettoye = saisie.Replace("€", "").Replace(" ", "").Replace(" ", "").Replace(" ", "").Trim();
+        // Deux lectures, dans cet ordre : le français d'abord (virgule décimale, espace pour les
+        // milliers), puis un repli qui n'accepte QUE le point décimal — surtout pas les milliers.
+        // NumberStyles.Number en culture invariante lit « 12,34,56 » comme 123 456 : une faute de
+        // frappe deviendrait un montant à six chiffres, sans le moindre signal.
+        const NumberStyles PointSeul = NumberStyles.AllowDecimalPoint | NumberStyles.AllowLeadingSign;
         if (!decimal.TryParse(nettoye, NumberStyles.Number, Fr, out var euros)
-            && !decimal.TryParse(nettoye, NumberStyles.Number, CultureInfo.InvariantCulture, out euros))
+            && !decimal.TryParse(nettoye, PointSeul, CultureInfo.InvariantCulture, out euros))
             return false;
 
         // Arrondi au centime : jamais de flottant conservé.

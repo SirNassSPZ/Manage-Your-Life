@@ -25,6 +25,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DeuxiemeCerveau.App.Tests",
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DeuxiemeCerveau.Presentation", "apps\windows\DeuxiemeCerveau.Presentation\DeuxiemeCerveau.Presentation.csproj", "{E230EED0-50BB-49DE-AC2C-7ABC25ABB425}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DeuxiemeCerveau.Presentation.Tests", "apps\windows\DeuxiemeCerveau.Presentation.Tests\DeuxiemeCerveau.Presentation.Tests.csproj", "{7AD9D9C0-108E-4CD5-841B-135ABC347EA5}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -62,6 +64,10 @@ Global
 		{E230EED0-50BB-49DE-AC2C-7ABC25ABB425}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{E230EED0-50BB-49DE-AC2C-7ABC25ABB425}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{E230EED0-50BB-49DE-AC2C-7ABC25ABB425}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7AD9D9C0-108E-4CD5-841B-135ABC347EA5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7AD9D9C0-108E-4CD5-841B-135ABC347EA5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7AD9D9C0-108E-4CD5-841B-135ABC347EA5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7AD9D9C0-108E-4CD5-841B-135ABC347EA5}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{AEE8A3B9-5651-459E-BE38-12C47218A75E} = {28B32A62-EDD8-4303-8D81-36016598779D}
@@ -71,5 +77,6 @@ Global
 		{97D6E91F-195F-498E-A444-A0122671A5C6} = {C3C80E29-DC31-4B15-9FA7-7E4EAEE949A3}
 		{5FE9E823-46D7-40C1-B14C-A25E7F85BA97} = {C3C80E29-DC31-4B15-9FA7-7E4EAEE949A3}
 		{E230EED0-50BB-49DE-AC2C-7ABC25ABB425} = {C3C80E29-DC31-4B15-9FA7-7E4EAEE949A3}
+		{7AD9D9C0-108E-4CD5-841B-135ABC347EA5} = {C3C80E29-DC31-4B15-9FA7-7E4EAEE949A3}
 	EndGlobalSection
 EndGlobal
