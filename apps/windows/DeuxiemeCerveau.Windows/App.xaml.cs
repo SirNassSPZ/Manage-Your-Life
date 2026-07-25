@@ -38,7 +38,18 @@ public partial class App : Application
             principale.Closed += (_, _) => _composition?.Dispose();
             principale.Activate();
 
-            if (Outils.CaptureVisuel.CheminDemande(Environment.GetCommandLineArgs()) is { } cible)
+            var arguments = Environment.GetCommandLineArgs();
+
+            // Mode outil : --vue <zone> pose la zone avant la capture, sinon on ne photographierait
+            // jamais que l'écran d'ouverture.
+            var iVue = Array.IndexOf(arguments, "--vue");
+            if (iVue >= 0 && iVue + 1 < arguments.Length)
+            {
+                if (Enum.TryParse<VueModeles.Zone>(arguments[iVue + 1], ignoreCase: true, out var zone))
+                    principale.Modele.Aller(zone);
+            }
+
+            if (Outils.CaptureVisuel.CheminDemande(arguments) is { } cible)
                 await CapturerPuisQuitter(principale, cible);
         }
         catch (Exception ex)
