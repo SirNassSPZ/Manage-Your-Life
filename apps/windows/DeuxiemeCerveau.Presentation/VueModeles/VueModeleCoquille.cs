@@ -48,10 +48,13 @@ public sealed partial class VueModeleCoquille : ObservableObject
         Calendrier = new VueModeleCalendrier(composition, CategoriesVisibles);
         Finances = new VueModeleFinances(composition);
         Categories = new VueModeleCategories(composition);
+        Notes = new VueModeleNotes(composition);
+        Corbeille = new VueModeleCorbeille(composition);
 
         // Un calendrier créé, renommé ou mis à la corbeille doit se voir immédiatement dans la
         // barre latérale et dans la grille : elles listent les mêmes catégories.
         Categories.ApresChangement = Rafraichir;
+        Corbeille.ApresChangement = Rafraichir;
 
         Aller(Zone.Aujourdhui);
     }
@@ -70,6 +73,8 @@ public sealed partial class VueModeleCoquille : ObservableObject
     public VueModeleCalendrier Calendrier { get; }
     public VueModeleFinances Finances { get; }
     public VueModeleCategories Categories { get; }
+    public VueModeleNotes Notes { get; }
+    public VueModeleCorbeille Corbeille { get; }
 
     /// <summary>
     /// Choisit une sous-vue de la zone active. Pour Finances, les sous-vues sont des FILTRES sur le
@@ -258,6 +263,8 @@ public sealed partial class VueModeleCoquille : ObservableObject
         if (Zone == Zone.Aujourdhui) Accueil.Charger();
         if (Zone == Zone.Calendrier) Calendrier.Charger();
         if (Zone == Zone.Finances) Finances.Charger();
+        if (Zone == Zone.Notes) Notes.Charger();
+        if (Zone == Zone.Corbeille) Corbeille.Charger();
 
         var solde = _composition.Acces.Lire(() => _composition.Aujourdhui.SoldeDeReference());
         EntetePossedeSolde = solde is not null;

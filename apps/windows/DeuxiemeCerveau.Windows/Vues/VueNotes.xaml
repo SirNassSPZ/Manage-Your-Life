@@ -1,0 +1,115 @@
+<UserControl
+    x:Class="DeuxiemeCerveau.Windows.Vues.VueNotes"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:conv="using:DeuxiemeCerveau.Windows.Convertisseurs"
+    xmlns:vm="using:DeuxiemeCerveau.Presentation.VueModeles">
+
+    <UserControl.Resources>
+        <conv:BoolVersVisibilite x:Key="SiVrai" />
+        <conv:BoolVersVisibiliteInverse x:Key="SiFaux" />
+        <conv:TexteVersVisibilite x:Key="SiTexte" />
+    </UserControl.Resources>
+
+    <Grid x:Name="RacineNotes" Background="{StaticResource Surface}" Padding="22,20,22,22"
+          ColumnSpacing="22">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="260" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <!-- Liste des notes -->
+        <Grid RowSpacing="12">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <Grid>
+                <TextBlock Text="Notes" Style="{StaticResource TitreVue}" VerticalAlignment="Center" />
+                <Button Style="{StaticResource BoutonPrimaire}" Content="Nouvelle" Padding="12,7" FontSize="12.5"
+                        HorizontalAlignment="Right" VerticalAlignment="Center"
+                        Command="{x:Bind Modele.NouvelleCommand}" />
+            </Grid>
+
+            <ScrollViewer Grid.Row="1">
+                <StackPanel>
+                    <ItemsRepeater ItemsSource="{x:Bind Modele.Notes}">
+                        <ItemsRepeater.ItemTemplate>
+                            <DataTemplate x:DataType="vm:LigneNote">
+                                <Button Style="{StaticResource BoutonNav}" HorizontalAlignment="Stretch"
+                                        Padding="11,10" Margin="0,0,0,2"
+                                        Command="{Binding DataContext.Modele.OuvrirNoteCommand, ElementName=RacineNotes}"
+                                        CommandParameter="{Binding Id}"
+                                        AutomationProperties.Name="{Binding Titre}">
+                                    <StackPanel Spacing="3" HorizontalAlignment="Stretch">
+                                        <TextBlock Text="{Binding Titre}" FontSize="13.5" FontWeight="SemiBold"
+                                                   Foreground="{StaticResource Encre}"
+                                                   TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Text="{Binding Apercu}" FontSize="12"
+                                                   Foreground="{StaticResource Encre3}"
+                                                   TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Text="{Binding Modifiee}" FontSize="11"
+                                                   Foreground="{StaticResource Encre3}" />
+                                    </StackPanel>
+                                </Button>
+                            </DataTemplate>
+                        </ItemsRepeater.ItemTemplate>
+                    </ItemsRepeater>
+
+                    <StackPanel Spacing="6" Margin="4,20,0,0"
+                                Visibility="{x:Bind Modele.AucuneNote, Mode=OneWay, Converter={StaticResource SiVrai}}">
+                        <TextBlock Text="Aucune note." FontSize="14" Foreground="{StaticResource Encre2}" />
+                        <TextBlock Style="{StaticResource TexteCourant}" FontSize="13"
+                                   Text="Un espace de texte libre, sans structure imposée. Ce qui s'y écrit se synchronise comme le reste." />
+                    </StackPanel>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+
+        <!-- Éditeur -->
+        <Grid Grid.Column="1" RowSpacing="12"
+              Visibility="{x:Bind Modele.AUneNoteOuverte, Mode=OneWay, Converter={StaticResource SiVrai}}">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <Grid ColumnSpacing="10">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBox Text="{x:Bind Modele.Titre, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                         FontSize="20" FontWeight="SemiBold" PlaceholderText="Titre de la note"
+                         AutomationProperties.Name="Titre de la note" />
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                    <Button Style="{StaticResource BoutonDiscret}" Content="Enregistrer" Padding="12,7" FontSize="12.5"
+                            Command="{x:Bind Modele.EnregistrerCommand}" />
+                    <Button Style="{StaticResource BoutonDiscret}" Content="Corbeille" Padding="12,7" FontSize="12.5"
+                            Command="{x:Bind Modele.SupprimerCommand}" />
+                </StackPanel>
+            </Grid>
+
+            <TextBlock Grid.Row="1" Text="{x:Bind Modele.Etat, Mode=OneWay}" FontSize="11.5"
+                       Foreground="{StaticResource Encre3}"
+                       Visibility="{x:Bind Modele.Etat, Mode=OneWay, Converter={StaticResource SiTexte}}" />
+
+            <!-- Le brouillon : AcceptsReturn, pas de mise en forme. Aucune intelligence en V1. -->
+            <TextBox Grid.Row="2" Text="{x:Bind Modele.Texte, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                     AcceptsReturn="True" TextWrapping="Wrap" FontSize="14"
+                     ScrollViewer.VerticalScrollBarVisibility="Auto"
+                     PlaceholderText="Écris ce qui te passe par la tête. Rien n'est imposé, rien ne se perd."
+                     AutomationProperties.Name="Texte de la note" />
+        </Grid>
+
+        <StackPanel Grid.Column="1" Spacing="6" VerticalAlignment="Center" MaxWidth="420"
+                    Visibility="{x:Bind Modele.AUneNoteOuverte, Mode=OneWay, Converter={StaticResource SiFaux}}">
+            <TextBlock Text="Choisis une note, ou crées-en une." FontSize="15"
+                       Foreground="{StaticResource Encre2}" />
+            <TextBlock Style="{StaticResource TexteCourant}" FontSize="13"
+                       Text="Une note est un Élément comme un autre : même synchronisation, même corbeille." />
+        </StackPanel>
+    </Grid>
+</UserControl>

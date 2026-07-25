@@ -1,4 +1,4 @@
-using DeuxiemeCerveau.Presentation.VueModeles;
+﻿using DeuxiemeCerveau.Presentation.VueModeles;
 using Microsoft.UI.Xaml.Controls;
 
 namespace DeuxiemeCerveau.Windows.Vues;
@@ -64,6 +64,8 @@ public sealed partial class Coquille : UserControl
         Zone.BudgetProjete => new VueBudget(Modele.Budget),
         Zone.Calendrier => new VueCalendrier(Modele.Calendrier, Modele.Categories),
         Zone.Finances => new VueFinances(Modele.Finances),
+        Zone.Notes => new VueNotes(Modele.Notes),
+        Zone.Corbeille => new VueCorbeille(Modele.Corbeille),
         _ => new VueAChantier(zone),
     };
 

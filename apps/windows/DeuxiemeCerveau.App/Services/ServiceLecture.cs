@@ -42,9 +42,21 @@ public sealed class ServiceLecture(DepotLocal depot)
 
     /// <summary>Catégories actives — les filtres affichables/masquables du calendrier (§5.4).</summary>
     public IReadOnlyList<Categorie> Categories()
-        => depot.Enumerer(EntiteSynchro.Categorie)
-            .Select(e => SerialisationCanonique.Deserialiser<Categorie>(e.PayloadCanonique))
-            .Where(c => !c.Supprime)
+        => ToutesCategories().Where(c => !c.Supprime)
             .OrderBy(c => c.Nom, StringComparer.CurrentCulture)
             .ToList();
+
+    /// <summary>
+    /// Catégories à la corbeille (§5.6). Le filet 2 vaut pour <b>toute</b> entité synchronisée
+    /// (D-006), pas seulement pour l'Élément : une catégorie supprimée doit rester restaurable,
+    /// sans quoi son marquage serait une destruction déguisée.
+    /// </summary>
+    public IReadOnlyList<Categorie> CorbeilleCategories()
+        => ToutesCategories().Where(c => c.Supprime)
+            .OrderByDescending(c => c.DateSuppression ?? c.DateModification)
+            .ToList();
+
+    private IEnumerable<Categorie> ToutesCategories()
+        => depot.Enumerer(EntiteSynchro.Categorie)
+            .Select(e => SerialisationCanonique.Deserialiser<Categorie>(e.PayloadCanonique));
 }
