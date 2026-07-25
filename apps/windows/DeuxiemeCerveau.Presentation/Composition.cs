@@ -4,18 +4,21 @@ using DeuxiemeCerveau.App.Local;
 using DeuxiemeCerveau.App.Services;
 using DeuxiemeCerveau.App.Synchro;
 using DeuxiemeCerveau.Core.Temps;
-using DeuxiemeCerveau.Windows.Configuration;
-using DeuxiemeCerveau.Windows.Services;
-using Microsoft.Extensions.Configuration;
 
-namespace DeuxiemeCerveau.Windows;
+namespace DeuxiemeCerveau.Presentation;
 
 /// <summary>
 /// Assemble le graphe applicatif au démarrage. Tout est SINGLETON : <c>BaseLocale</c> détient une
 /// <c>SqliteConnection</c> unique partagée par tous les services, et <see cref="AccesDonnees"/>
 /// sérialise les accès (l'interface et la synchro de fond ne doivent jamais s'entrelacer).
 /// <para>
-/// La coquille ne fait qu'assembler : aucune logique métier ici (garde-fou-architecture, règle 2).
+/// Assemble seulement : aucune logique métier ici (garde-fou-architecture, règle 2).
+/// </para>
+/// <para>
+/// La configuration et le fournisseur de jetons sont <b>fournis</b>, jamais construits ici (D-022) :
+/// lire un fichier sur le disque et parler à MSAL sont des affaires d'hôte. C'est aussi ce qui rend
+/// le graphe montable dans un test — un <see cref="FournisseurJetonAbsent"/>, une base temporaire,
+/// et tout le reste est le vrai code de production.
 /// </para>
 /// </summary>
 public sealed class Composition : IDisposable
@@ -46,7 +49,7 @@ public sealed class Composition : IDisposable
 
     private Composition(
         OptionsApp options, BaseLocale baseLocale, IFournisseurJeton jetons,
-        HttpClient httpApi, HttpClient httpBlob)
+        HttpClient httpApi, HttpClient httpBlob, string dossierCache)
     {
         Options = options;
         _baseLocale = baseLocale;
@@ -59,7 +62,7 @@ public sealed class Composition : IDisposable
         Depot = depot;
         var identite = new IdentiteAppareil(depot);
         var horloge = new HorlogeSysteme();
-        var cache = new StockageFichiersDisque(DossierCache);
+        var cache = new StockageFichiersDisque(dossierCache);
 
         Api = new ClientApiHttp(httpApi);
         Saisie = new ServiceSaisie(depot, identite, horloge);
@@ -75,34 +78,32 @@ public sealed class Composition : IDisposable
         Synchro = new MoteurSynchro(depot, identite, Api);
     }
 
-    private static string DossierApp => Path.Combine(
+    /// <summary>Dossier de données par défaut de l'utilisateur courant.</summary>
+    public static string DossierParDefaut => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "DeuxiemeCerveau");
-
-    private static string DossierCache => Path.Combine(DossierApp, "pieces");
-
-    /// <summary>Chemin de la base locale. Jamais codé en dur ailleurs.</summary>
-    public static string CheminBase => Path.Combine(DossierApp, "local.db");
 
     /// <summary>Vrai si l'API est configurée ET l'utilisateur connecté : la synchro peut tourner.</summary>
     public bool SynchroPossible => Options.Api.EstConfiguree && Jetons.Configure;
 
-    public static async Task<Composition> Creer(Func<IntPtr> fenetreParente)
+    /// <summary>
+    /// Monte le graphe dans <paramref name="dossierDonnees"/> (défaut : <see cref="DossierParDefaut"/>).
+    /// Les migrations du cœur (dialecte Sqlite) s'appliquent dans le constructeur de
+    /// <c>BaseLocale</c> — jamais de schéma transcrit à la main (D-008, règle 18).
+    /// </summary>
+    /// <param name="manipulateurApi">
+    /// Chaîne de gestionnaires HTTP de l'API, fournie par l'hôte : injection du Bearer et réessai au
+    /// réveil serverless. Absente, un gestionnaire nu suffit — un test n'a pas besoin de cette pile.
+    /// </param>
+    public static Composition Creer(
+        OptionsApp options,
+        IFournisseurJeton jetons,
+        string? dossierDonnees = null,
+        Func<IFournisseurJeton, HttpMessageHandler>? manipulateurApi = null)
     {
-        Directory.CreateDirectory(DossierApp);
+        var dossier = dossierDonnees ?? DossierParDefaut;
+        Directory.CreateDirectory(dossier);
 
-        var configuration = new ConfigurationBuilder()
-            .SetBasePath(AppContext.BaseDirectory)
-            .AddJsonFile("appsettings.json", optional: false)
-            .AddJsonFile("appsettings.local.json", optional: true)
-            .Build();
-
-        var options = configuration.Get<OptionsApp>() ?? new OptionsApp();
-
-        // Les migrations du cœur (dialecte Sqlite) sont appliquées DANS le constructeur —
-        // jamais de schéma transcrit à la main (D-008, règle 18).
-        var baseLocale = new BaseLocale($"Data Source={CheminBase}");
-
-        var jetons = await FournisseurJetonMsal.Creer(options.Entra, fenetreParente).ConfigureAwait(false);
+        var baseLocale = new BaseLocale($"Data Source={Path.Combine(dossier, "local.db")}");
 
         // Deux clients HTTP distincts, délibérément :
         //  - l'API porte le Bearer Entra ;
@@ -110,16 +111,15 @@ public sealed class Composition : IDisposable
         //    serait une fuite de jeton vers le stockage.
         // 180 s et non 100 : le démarrage à froid mesuré sur l'API déployée est de ~61 s
         // (Functions Consommation + reprise du SQL serverless, §10.1), et les tentatives de
-        // ManipulateurReessai s'ajoutent par-dessus. L'interface n'attend jamais le serveur.
-        var httpApi = new HttpClient(new ManipulateurJeton(jetons) { InnerHandler = new ManipulateurReessai { InnerHandler = new HttpClientHandler() } })
-        {
-            Timeout = TimeSpan.FromSeconds(180),
-        };
+        // réessai s'ajoutent par-dessus. L'interface n'attend jamais le serveur.
+        var manipulateur = manipulateurApi?.Invoke(jetons) ?? new HttpClientHandler();
+        var httpApi = new HttpClient(manipulateur) { Timeout = TimeSpan.FromSeconds(180) };
         if (options.Api.EstConfiguree) httpApi.BaseAddress = options.Api.BaseUri();
 
         var httpBlob = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
 
-        return new Composition(options, baseLocale, jetons, httpApi, httpBlob);
+        return new Composition(
+            options, baseLocale, jetons, httpApi, httpBlob, Path.Combine(dossier, "pieces"));
     }
 
     public void Dispose()

@@ -2,9 +2,8 @@ using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using DeuxiemeCerveau.App.Services;
 using DeuxiemeCerveau.Core.Modele;
-using DeuxiemeCerveau.Windows.Presentation;
 
-namespace DeuxiemeCerveau.Windows.VueModeles;
+namespace DeuxiemeCerveau.Presentation.VueModeles;
 
 /// <summary>Une ligne d'agenda, déjà mise en forme pour l'affichage.</summary>
 public sealed record LigneAgenda(

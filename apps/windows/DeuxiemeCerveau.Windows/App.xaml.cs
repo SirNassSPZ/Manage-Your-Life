@@ -1,3 +1,5 @@
+using DeuxiemeCerveau.Presentation;
+using Microsoft.Extensions.Configuration;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 
@@ -29,8 +31,21 @@ public partial class App : Application
     {
         try
         {
+            // L'hôte assemble ce qui exige Windows, la présentation ignore tout des deux (D-022) :
+            // la lecture du fichier de configuration, MSAL, et la pile HTTP.
+            var options = LireConfiguration();
+
             // Le HWND n'existe pas encore : MSAL le réclamera plus tard, à la connexion.
-            _composition = await Composition.Creer(() => _fenetrePrincipale);
+            var jetons = await Services.FournisseurJetonMsal.Creer(options.Entra, () => _fenetrePrincipale)
+                .ConfigureAwait(true);
+
+            _composition = Composition.Creer(
+                options,
+                jetons,
+                manipulateurApi: j => new Services.ManipulateurJeton(j)
+                {
+                    InnerHandler = new Services.ManipulateurReessai { InnerHandler = new HttpClientHandler() },
+                });
 
             var principale = new FenetrePrincipale(_composition);
             _fenetre = principale;
@@ -45,7 +60,7 @@ public partial class App : Application
             var iVue = Array.IndexOf(arguments, "--vue");
             if (iVue >= 0 && iVue + 1 < arguments.Length)
             {
-                if (Enum.TryParse<VueModeles.Zone>(arguments[iVue + 1], ignoreCase: true, out var zone))
+                if (Enum.TryParse<DeuxiemeCerveau.Presentation.VueModeles.Zone>(arguments[iVue + 1], ignoreCase: true, out var zone))
                     principale.Modele.Aller(zone);
             }
 
@@ -60,6 +75,18 @@ public partial class App : Application
             MontrerPanne(ex);
         }
     }
+
+    /// <summary>
+    /// Identifiants PUBLICS uniquement (règle 16) : URL de l'API et inscription Entra. Le fichier
+    /// local, gitignoré, surcharge sans toucher au dépôt.
+    /// </summary>
+    private static OptionsApp LireConfiguration() =>
+        new ConfigurationBuilder()
+            .SetBasePath(AppContext.BaseDirectory)
+            .AddJsonFile("appsettings.json", optional: false)
+            .AddJsonFile("appsettings.local.json", optional: true)
+            .Build()
+            .Get<OptionsApp>() ?? new OptionsApp();
 
     /// <summary>
     /// Mode outil : rend la fenêtre dans un PNG puis quitte. Sert à comparer le rendu réel à la

@@ -1,4 +1,4 @@
-namespace DeuxiemeCerveau.Windows.Services;
+namespace DeuxiemeCerveau.Presentation;
 
 /// <summary>
 /// Fournit le jeton Bearer Entra ID pour l'API (§8).

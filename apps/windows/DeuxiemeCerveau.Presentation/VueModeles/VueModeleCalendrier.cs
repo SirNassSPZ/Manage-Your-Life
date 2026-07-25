@@ -2,9 +2,8 @@ using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using DeuxiemeCerveau.Core.Modele;
-using DeuxiemeCerveau.Windows.Presentation;
 
-namespace DeuxiemeCerveau.Windows.VueModeles;
+namespace DeuxiemeCerveau.Presentation.VueModeles;
 
 /// <summary>Une occurrence posée dans une case du calendrier.</summary>
 public sealed record PastilleAgenda(string Titre, string? Montant, TypeElement Type);

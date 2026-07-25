@@ -1,6 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 
-namespace DeuxiemeCerveau.Windows.VueModeles;
+namespace DeuxiemeCerveau.Presentation.VueModeles;
 
 /// <summary>Les zones de la barre du haut — la navigation principale (maquette).</summary>
 public enum Zone

@@ -1,4 +1,5 @@
-using DeuxiemeCerveau.Windows.VueModeles;
+using DeuxiemeCerveau.Presentation;
+using DeuxiemeCerveau.Presentation.VueModeles;
 using DeuxiemeCerveau.Windows.Vues;
 using Microsoft.UI.Xaml;
 using Windows.Graphics;

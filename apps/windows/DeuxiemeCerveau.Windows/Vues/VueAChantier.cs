@@ -1,4 +1,4 @@
-using DeuxiemeCerveau.Windows.VueModeles;
+using DeuxiemeCerveau.Presentation.VueModeles;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;

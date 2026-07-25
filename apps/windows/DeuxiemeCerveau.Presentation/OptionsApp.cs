@@ -1,4 +1,4 @@
-namespace DeuxiemeCerveau.Windows.Configuration;
+namespace DeuxiemeCerveau.Presentation;
 
 /// <summary>
 /// Réglages lus depuis appsettings.json, surchargeables par appsettings.local.json (gitignoré).

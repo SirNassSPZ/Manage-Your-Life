@@ -3,7 +3,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Data;
 using Microsoft.UI.Xaml.Media;
 
-namespace DeuxiemeCerveau.Windows.Presentation;
+namespace DeuxiemeCerveau.Windows.Convertisseurs;
 
 /// <summary>Ressource pinceau du dictionnaire de jetons, par clé.</summary>
 internal static class Pinceaux

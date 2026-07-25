@@ -1,4 +1,4 @@
-using DeuxiemeCerveau.Windows.VueModeles;
+using DeuxiemeCerveau.Presentation.VueModeles;
 using Microsoft.UI.Xaml.Controls;
 
 namespace DeuxiemeCerveau.Windows.Vues;

@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Couche de présentation — modèles de vue, mise en forme, composition du graphe de services.
+    net8.0 SANS WinUI (D-022) : elle se compile et se teste sur la CI Linux, avec le cœur.
+
+    Ce qu'elle ne contient PAS, et ne doit jamais contenir : XAML, IValueConverter, MSAL, HWND,
+    lecture de fichier de configuration. Tout cela vit dans DeuxiemeCerveau.Windows, qui l'habille.
+    Le test est simple : si un `using Microsoft.UI` apparaît ici, le code est au mauvais endroit.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <!-- ICU requis pour les fuseaux IANA, comme le cœur (D-002). -->
+    <InvariantGlobalization>false</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Générateurs de source MVVM : netstandard2.0, aucune dépendance de plateforme. -->
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
+    <!--
+      Volontairement PAS de Microsoft.Extensions.Configuration : lire appsettings.json depuis le
+      disque est une affaire d'hôte. Composition reçoit un OptionsApp déjà rempli, ce qui la rend
+      montable en test sans fichier ni dossier d'installation.
+    -->
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- TOUTE la logique applicative : base locale, outbox, synchro §6, lecture, export/import. -->
+    <ProjectReference Include="..\DeuxiemeCerveau.App\DeuxiemeCerveau.App.csproj" />
+  </ItemGroup>
+
+</Project>

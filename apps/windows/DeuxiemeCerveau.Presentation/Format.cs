@@ -1,7 +1,7 @@
 using System.Globalization;
 using DeuxiemeCerveau.Core.Modele;
 
-namespace DeuxiemeCerveau.Windows.Presentation;
+namespace DeuxiemeCerveau.Presentation;
 
 /// <summary>
 /// Mise en forme pour l'affichage seulement. L'argent reste en centimes entiers partout ailleurs

@@ -2,8 +2,8 @@
     x:Class="DeuxiemeCerveau.Windows.Vues.Coquille"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:pres="using:DeuxiemeCerveau.Windows.Presentation"
-    xmlns:vm="using:DeuxiemeCerveau.Windows.VueModeles"
+    xmlns:pres="using:DeuxiemeCerveau.Windows.Convertisseurs"
+    xmlns:vm="using:DeuxiemeCerveau.Presentation.VueModeles"
     xmlns:vues="using:DeuxiemeCerveau.Windows.Vues">
 
     <!--

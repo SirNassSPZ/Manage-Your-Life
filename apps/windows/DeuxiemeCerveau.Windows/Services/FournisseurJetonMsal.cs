@@ -1,4 +1,4 @@
-using DeuxiemeCerveau.Windows.Configuration;
+using DeuxiemeCerveau.Presentation;
 using Microsoft.Identity.Client;
 using Microsoft.Identity.Client.Extensions.Msal;
 

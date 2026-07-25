@@ -3,9 +3,8 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using DeuxiemeCerveau.App.Services;
 using DeuxiemeCerveau.Core.Modele;
 using DeuxiemeCerveau.Core.Synchro;
-using DeuxiemeCerveau.Windows.Presentation;
 
-namespace DeuxiemeCerveau.Windows.VueModeles;
+namespace DeuxiemeCerveau.Presentation.VueModeles;
 
 /// <summary>
 /// Une charge ou un revenu proposé au démarrage (D-018, ajout 1). Un preset n'est QUE du contenu

@@ -73,8 +73,13 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- TOUTE la logique : base locale, outbox, synchro §6, lecture, saisie, export/import. -->
-    <ProjectReference Include="..\DeuxiemeCerveau.App\DeuxiemeCerveau.App.csproj" />
+    <!--
+      Présentation : modèles de vue, mise en forme, composition (D-022). Elle amène
+      DeuxiemeCerveau.App par transitivité — TOUTE la logique : base locale, outbox, synchro §6,
+      lecture, saisie, export/import.
+      Ce projet-ci ne garde que ce qui EXIGE Windows : XAML, convertisseurs, MSAL, toasts, HWND.
+    -->
+    <ProjectReference Include="..\DeuxiemeCerveau.Presentation\DeuxiemeCerveau.Presentation.csproj" />
   </ItemGroup>
 
 </Project>

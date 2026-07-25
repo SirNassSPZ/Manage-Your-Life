@@ -1,9 +1,8 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using DeuxiemeCerveau.Windows.Presentation;
 
-namespace DeuxiemeCerveau.Windows.VueModeles;
+namespace DeuxiemeCerveau.Presentation.VueModeles;
 
 /// <summary>Entrée de la barre latérale contextuelle (sous-vue de la zone active).</summary>
 public sealed partial class SousVue : ObservableObject

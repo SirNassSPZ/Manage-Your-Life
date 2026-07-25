@@ -1,4 +1,4 @@
-namespace DeuxiemeCerveau.Windows.Services;
+namespace DeuxiemeCerveau.Presentation;
 
 /// <summary>
 /// Sérialise TOUS les accès au graphe de services.

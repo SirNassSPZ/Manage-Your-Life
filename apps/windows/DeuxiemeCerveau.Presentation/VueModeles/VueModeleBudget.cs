@@ -2,9 +2,8 @@ using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using DeuxiemeCerveau.App.Synchro;
-using DeuxiemeCerveau.Windows.Presentation;
 
-namespace DeuxiemeCerveau.Windows.VueModeles;
+namespace DeuxiemeCerveau.Presentation.VueModeles;
 
 /// <summary>
 /// Un mois de la projection, déjà mis en forme. <paramref name="Largeur"/> est en PIXELS sur une
