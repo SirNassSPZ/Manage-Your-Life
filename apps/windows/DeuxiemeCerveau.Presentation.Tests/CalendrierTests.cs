@@ -178,6 +178,106 @@ public class CalendrierTests
     }
 
     [Fact]
+    public void La_vue_sept_jours_couvre_toujours_sept_jours_a_partir_d_aujourdhui()
+    {
+        using var f = new FabriquePresentation();
+        var vue = Vue(f);
+        vue.ChoisirModeCommand.Execute(ModeCalendrier.SeptJours);
+
+        Assert.True(vue.EstSeptJours);
+        Assert.False(vue.EstMois);
+        Assert.Equal(7, vue.Semaine.Count);
+        Assert.True(vue.Semaine[0].EstAujourdhui);
+        Assert.DoesNotContain(vue.Semaine.Skip(1), j => j.EstAujourdhui);
+    }
+
+    [Fact]
+    public void Un_jour_sans_mouvement_le_dit_plutot_que_de_disparaitre()
+    {
+        // L'absence de mouvement est une information : « rien de prévu » vaut mieux qu'un trou.
+        using var f = new FabriquePresentation();
+        var vue = Vue(f);
+        vue.ChoisirModeCommand.Execute(ModeCalendrier.SeptJours);
+
+        Assert.All(vue.Semaine, j => Assert.Equal("Rien de prévu", j.Resume));
+        Assert.All(vue.Semaine, j => Assert.Empty(j.Pastilles));
+    }
+
+    [Fact]
+    public void La_vue_sept_jours_montre_les_mouvements_a_venir_avec_leur_montant()
+    {
+        using var f = new FabriquePresentation();
+        var demain = DateOnly.FromDateTime(DateTime.Now).AddDays(1);
+        f.AjouterSortie("Courses", new DateTimeOffset(demain.ToDateTime(new TimeOnly(12, 0)), TimeSpan.Zero), 9_000);
+
+        var vue = Vue(f);
+        vue.ChoisirModeCommand.Execute(ModeCalendrier.SeptJours);
+
+        var jourDemain = vue.Semaine[1];
+        Assert.Equal("1 mouvement", jourDemain.Resume);
+        var pastille = Assert.Single(jourDemain.Pastilles);
+        Assert.Equal("Courses", pastille.Titre);
+        Assert.Contains("90", pastille.Montant);
+    }
+
+    [Fact]
+    public void Les_intitules_de_la_semaine_sont_en_capitales_comme_la_maquette()
+    {
+        using var f = new FabriquePresentation();
+        var vue = Vue(f);
+        vue.ChoisirModeCommand.Execute(ModeCalendrier.SeptJours);
+
+        Assert.StartsWith("AUJOURD'HUI", vue.Semaine[0].Intitule);
+        Assert.StartsWith("DEMAIN", vue.Semaine[1].Intitule);
+    }
+
+    [Fact]
+    public void Passer_en_sept_jours_ramene_au_mois_courant()
+    {
+        // La semaine est glissante à partir d'aujourd'hui : rester sur un mois lointain n'aurait
+        // aucun sens, et le retour au mois trouverait une grille désorientée.
+        using var f = new FabriquePresentation();
+        var vue = Vue(f);
+        vue.MoisSuivantCommand.Execute(null);
+        vue.MoisSuivantCommand.Execute(null);
+        Assert.True(vue.HorsMoisCourant);
+
+        vue.ChoisirModeCommand.Execute(ModeCalendrier.SeptJours);
+
+        Assert.False(vue.HorsMoisCourant);
+    }
+
+    [Fact]
+    public void Un_calendrier_masque_disparait_aussi_de_la_vue_sept_jours()
+    {
+        using var f = new FabriquePresentation();
+        var sante = f.AjouterCategorie("Santé");
+        var travail = f.AjouterCategorie("Travail");
+        var demain = DateOnly.FromDateTime(DateTime.Now).AddDays(1);
+        var instant = new DateTimeOffset(demain.ToDateTime(new TimeOnly(12, 0)), TimeSpan.Zero);
+        f.AjouterSortie("Dentiste", instant, 5_000, null, sante);
+        f.AjouterSortie("Déjeuner équipe", instant, 3_000, null, travail);
+
+        var visibles = new HashSet<Guid> { travail };
+        var vue = Vue(f, () => visibles);
+        vue.ChoisirModeCommand.Execute(ModeCalendrier.SeptJours);
+
+        Assert.Equal("Déjeuner équipe", Assert.Single(vue.Semaine[1].Pastilles).Titre);
+    }
+
+    [Fact]
+    public void Le_mode_gestion_ne_montre_ni_grille_ni_semaine()
+    {
+        using var f = new FabriquePresentation();
+        var vue = Vue(f);
+        vue.ChoisirModeCommand.Execute(ModeCalendrier.Gestion);
+
+        Assert.True(vue.EstGestion);
+        Assert.False(vue.EstMois);
+        Assert.False(vue.EstSeptJours);
+    }
+
+    [Fact]
     public void Un_element_sans_categorie_reste_visible_quels_que_soient_les_filtres()
     {
         using var f = new FabriquePresentation();

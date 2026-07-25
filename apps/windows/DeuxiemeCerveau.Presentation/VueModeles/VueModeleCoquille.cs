@@ -47,6 +47,11 @@ public sealed partial class VueModeleCoquille : ObservableObject
         // catégories qui divergent, c'est un filtre qui ment.
         Calendrier = new VueModeleCalendrier(composition, CategoriesVisibles);
         Finances = new VueModeleFinances(composition);
+        Categories = new VueModeleCategories(composition);
+
+        // Un calendrier créé, renommé ou mis à la corbeille doit se voir immédiatement dans la
+        // barre latérale et dans la grille : elles listent les mêmes catégories.
+        Categories.ApresChangement = Rafraichir;
 
         Aller(Zone.Aujourdhui);
     }
@@ -64,6 +69,7 @@ public sealed partial class VueModeleCoquille : ObservableObject
     public VueModeleBudget Budget { get; }
     public VueModeleCalendrier Calendrier { get; }
     public VueModeleFinances Finances { get; }
+    public VueModeleCategories Categories { get; }
 
     /// <summary>
     /// Choisit une sous-vue de la zone active. Pour Finances, les sous-vues sont des FILTRES sur le
@@ -75,13 +81,27 @@ public sealed partial class VueModeleCoquille : ObservableObject
         if (cible.EstV2) return;   // périmètre V1 verrouillé
         foreach (var sousVue in SousVues) sousVue.Actif = ReferenceEquals(sousVue, cible);
 
-        if (Zone != Zone.Finances) return;
-        Finances.FiltrerCommand.Execute(cible.Titre switch
+        switch (Zone)
         {
-            "Entrées" => FiltreFinances.Entrees,
-            "Sorties" => FiltreFinances.Sorties,
-            _ => FiltreFinances.Tout,
-        });
+            case Zone.Finances:
+                Finances.FiltrerCommand.Execute(cible.Titre switch
+                {
+                    "Entrées" => FiltreFinances.Entrees,
+                    "Sorties" => FiltreFinances.Sorties,
+                    _ => FiltreFinances.Tout,
+                });
+                break;
+
+            case Zone.Calendrier:
+                Calendrier.ChoisirModeCommand.Execute(cible.Titre switch
+                {
+                    "7 prochains jours" => ModeCalendrier.SeptJours,
+                    "Gérer les calendriers" => ModeCalendrier.Gestion,
+                    _ => ModeCalendrier.Mois,
+                });
+                if (Calendrier.EstGestion) Categories.Charger();
+                break;
+        }
     }
 
     /// <summary>
@@ -208,6 +228,13 @@ public sealed partial class VueModeleCoquille : ObservableObject
         [
             new() { Titre = "Aujourd'hui", Trace = "M3 10a7 7 0 1 0 14 0a7 7 0 1 0-14 0" },
             new() { Titre = "7 prochains jours", Trace = "M5.5 4.5h9a2.5 2.5 0 0 1 2.5 2.5v7.5a2.5 2.5 0 0 1-2.5 2.5h-9a2.5 2.5 0 0 1-2.5-2.5V7a2.5 2.5 0 0 1 2.5-2.5z", Trace2 = "M3 8h14M7 3v3M13 3v3" },
+        ],
+        // Deux lectures des mêmes occurrences, puis la gestion des calendriers eux-mêmes (§3.3).
+        Zone.Calendrier =>
+        [
+            new() { Titre = "Grille du mois", Trace = "M3 4.5h14v12.5H3z", Trace2 = "M3 8h14M7.5 8v9M12.5 8v9M3 12.5h14" },
+            new() { Titre = "7 prochains jours", Trace = "M5.5 4.5h9a2.5 2.5 0 0 1 2.5 2.5v7.5a2.5 2.5 0 0 1-2.5 2.5h-9a2.5 2.5 0 0 1-2.5-2.5V7a2.5 2.5 0 0 1 2.5-2.5z", Trace2 = "M3 8h14M7 3v3M13 3v3" },
+            new() { Titre = "Gérer les calendriers", Trace = "M10 12.5a2.5 2.5 0 1 0 0-5a2.5 2.5 0 0 0 0 5z", Trace2 = "M16 10a6 6 0 0 1-.1 1.1l1.4 1.1-1.5 2.6-1.7-.6a6 6 0 0 1-1.9 1.1L11.9 17H8.1l-.3-1.7a6 6 0 0 1-1.9-1.1l-1.7.6L2.7 12.2l1.4-1.1A6 6 0 0 1 4 10a6 6 0 0 1 .1-1.1L2.7 7.8l1.5-2.6 1.7.6a6 6 0 0 1 1.9-1.1L8.1 3h3.8l.3 1.7a6 6 0 0 1 1.9 1.1l1.7-.6 1.5 2.6-1.4 1.1A6 6 0 0 1 16 10z" },
         ],
         Zone.Finances =>
         [

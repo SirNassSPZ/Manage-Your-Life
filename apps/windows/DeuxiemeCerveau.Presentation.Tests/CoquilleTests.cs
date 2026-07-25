@@ -65,7 +65,7 @@ public class CoquilleTests
     [Theory]
     [InlineData(Zone.Aujourdhui, true)]
     [InlineData(Zone.Finances, true)]
-    [InlineData(Zone.Calendrier, false)]   // ses sous-vues SONT les calendriers, listés à part
+    [InlineData(Zone.Calendrier, true)]    // grille du mois · 7 jours · gérer les calendriers
     [InlineData(Zone.BudgetProjete, false)]
     public void L_intitule_des_sous_vues_ne_reste_jamais_seul(Zone zone, bool attendu)
     {

@@ -9,6 +9,19 @@ namespace DeuxiemeCerveau.Presentation.VueModeles;
 public sealed record PastilleAgenda(string Titre, string? Montant, TypeElement Type);
 
 /// <summary>
+/// Ce que montre la zone Calendrier. Les deux premiers sont deux lectures des mêmes occurrences
+/// (§5.4) ; le troisième gère les calendriers eux-mêmes — catégorie = calendrier (§3.3).
+/// </summary>
+public enum ModeCalendrier { Mois, SeptJours, Gestion }
+
+/// <summary>Un jour de la vue « 7 prochains jours », avec ses mouvements en clair.</summary>
+public sealed record JourSemaine(
+    string Intitule,
+    string Resume,
+    bool EstAujourdhui,
+    IReadOnlyList<PastilleAgenda> Pastilles);
+
+/// <summary>
 /// Une case de la grille mensuelle. Six semaines pleines sont toujours rendues (42 cases) : une
 /// grille dont la hauteur saute d'un mois à l'autre donne une impression de bougé à chaque flèche.
 /// </summary>
@@ -48,6 +61,28 @@ public sealed partial class VueModeleCalendrier : ObservableObject
     }
 
     public ObservableCollection<CaseJour> Cases { get; } = [];
+
+    /// <summary>Les sept prochains jours, jours vides compris — l'absence de mouvement est une information.</summary>
+    public ObservableCollection<JourSemaine> Semaine { get; } = [];
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(EstMois))]
+    [NotifyPropertyChangedFor(nameof(EstSeptJours))]
+    [NotifyPropertyChangedFor(nameof(EstGestion))]
+    private ModeCalendrier _mode = ModeCalendrier.Mois;
+
+    public bool EstMois => Mode == ModeCalendrier.Mois;
+    public bool EstSeptJours => Mode == ModeCalendrier.SeptJours;
+    public bool EstGestion => Mode == ModeCalendrier.Gestion;
+
+    /// <summary>Bascule d'affichage. La navigation par mois n'a pas de sens sur sept jours glissants.</summary>
+    [RelayCommand]
+    private void ChoisirMode(ModeCalendrier mode)
+    {
+        Mode = mode;
+        if (mode == ModeCalendrier.SeptJours) RevenirAujourdhui();
+        Charger();
+    }
 
     /// <summary>« Juillet ».</summary>
     [ObservableProperty]
@@ -123,6 +158,48 @@ public sealed partial class VueModeleCalendrier : ObservableObject
                 EstAujourdhui: jour == aujourdhui,
                 Pastilles: pastilles,
                 Debordement: reste > 0 ? $"+{reste}" : null));
+        }
+
+        ChargerSemaine(aujourdhui, fr);
+    }
+
+    /// <summary>
+    /// Les sept prochains jours à partir d'aujourd'hui. Vue glissante, indépendante du mois
+    /// affiché : elle répond à « qu'est-ce qui arrive bientôt », pas à « que contient juillet ».
+    /// Les occurrences viennent du même service, avec les mêmes filtres.
+    /// </summary>
+    private void ChargerSemaine(DateOnly aujourdhui, System.Globalization.CultureInfo fr)
+    {
+        var debut = new DateTimeOffset(aujourdhui.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero);
+        var fin = new DateTimeOffset(aujourdhui.AddDays(6).ToDateTime(TimeOnly.MaxValue), TimeSpan.Zero);
+
+        var parJour = _composition.Acces
+            .Lire(() => _composition.Calendrier.Occurrences(debut, fin, _categoriesVisibles()))
+            .GroupBy(o => DateOnly.FromDateTime(o.InstantUtc.ToLocalTime().DateTime))
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        Semaine.Clear();
+        for (var i = 0; i < 7; i++)
+        {
+            var jour = aujourdhui.AddDays(i);
+            parJour.TryGetValue(jour, out var duJour);
+            var n = duJour?.Count ?? 0;
+
+            Semaine.Add(new JourSemaine(
+                Intitule: Format.Capitales(i switch
+                {
+                    0 => "Aujourd'hui · " + Format.JourCourt(jour),
+                    1 => "Demain · " + Format.JourCourt(jour),
+                    _ => Format.JourLong(jour),
+                }),
+                Resume: n switch { 0 => "Rien de prévu", 1 => "1 mouvement", _ => $"{n} mouvements" },
+                EstAujourdhui: i == 0,
+                Pastilles: (duJour ?? [])
+                    .Select(o => new PastilleAgenda(
+                        o.Titre,
+                        o.MontantCentimes is { } c && o.Sens is { } s ? Format.EurosSigne(c, s) : null,
+                        o.Type))
+                    .ToList()));
         }
     }
 }
