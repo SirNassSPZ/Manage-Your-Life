@@ -12,7 +12,7 @@
 3. **`docs/decisions.md`** — surtout **D-014** (structure app), **D-015/D-016** (client synchro + pièces jointes), **D-017** (confirmation payé/reçu : ponctuels en V1, récurrents = recalage), **D-018** (4 ajouts V1 : presets, suggestion de catégorie, saisie rapide, digest hebdo).
 4. **`docs/idees.md`** — hors périmètre : **I-001 projets = V2**, I-002 Gmail = hors sujet, **I-003 envie↔budget = V2**.
 5. **`docs/maquette.html`** — **cible visuelle** (ouvrir dans un navigateur). Ton, disposition, nav en haut, sous-vues à gauche.
-6. Les skills **`.claude/skills/garde-fou-architecture`** et **`garde-fou-synchro`** se chargent seuls — les respecter à la lettre.
+6. **Skills — vérifie et choisis le meilleur À CHAQUE tâche.** La liste des skills disponibles **change** (des skills d'aide s'ajoutent/disparaissent d'une session à l'autre) — ne te fie **jamais** à des noms de skills écrits en dur. Avant et pendant un travail, **regarde les skills réellement disponibles dans ta session et charge le(s) plus adapté(s)** au sujet du moment (un travail d'interface appelle un skill de design/UI s'il en existe un ; une revue, un skill de revue ; etc.). Les **garde-fous du projet se chargent automatiquement** — les respecter à la lettre.
 
 ## 1. Où on en est
 
@@ -74,6 +74,7 @@ Quand les trois passent : **s'arrêter et demander une validation humaine** (fin
 
 ## 5. Boucle de travail
 
+- **À chaque tâche : vérifie les skills disponibles et convoque le meilleur** (cf. §0.6) — la liste évolue, ne code pas « au petit bonheur » si un skill adapté existe (design/UI, revue, etc.).
 - Développer sur la branche de dev en cours (`claude/new-session-j5hrxg`) — `main` et elle sont à jour au même commit.
 - **Construire et LANCER l'app à chaque vue** (tu as Windows) — vérifier le rendu contre `docs/maquette.html`.
 - `dotnet test` à la racine doit **rester vert** (le cœur ne régresse pas).

@@ -19,9 +19,11 @@ Construire l'application personnelle « Deuxième Cerveau » : deux applications
 /apps/apple         app native SwiftUI (compilation sur Mac/Xcode)
 /infra              Bicep (infrastructure as code)
 /.github/workflows  CI + déploiement
-/.claude/skills     garde-fous chargés automatiquement (garde-fou-synchro, garde-fou-architecture)
+/.claude/skills     garde-fous du projet + skills d'aide installés (la liste évolue — voir ci-dessous)
 ```
 Les skills rappellent les règles critiques au moment où elles s'appliquent ; ils **ne remplacent pas** la spec, ils y renvoient.
+
+**Skills — vérifier et choisir le meilleur À CHAQUE tâche.** La liste des skills disponibles **change** (des skills d'aide s'ajoutent et disparaissent d'une session à l'autre). Donc : **avant et pendant chaque travail, vérifie les skills réellement disponibles dans ta session et charge le(s) plus adapté(s)** à la tâche du moment — ne te fie jamais à une liste de noms figée écrite ici. Fais correspondre la tâche au sujet du skill (p. ex. un travail d'interface appelle un skill de design/UI s'il y en a un ; une revue appelle un skill de revue), et si aucun ne colle, avance sans. Les garde-fous du projet, eux, se chargent automatiquement.
 
 ## Ordre de construction V1 — avec points d'arrêt
 **S'arrêter à la fin de chaque étape et demander une validation humaine avant de passer à la suivante.**
