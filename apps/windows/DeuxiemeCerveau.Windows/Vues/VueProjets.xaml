@@ -52,6 +52,16 @@
 
             <ScrollViewer Grid.Row="2">
                 <StackPanel Spacing="6">
+                    <!-- Rattrapage : des calendriers de projets déjà supprimés traînaient dans les
+                         filtres. Ils ont été rangés à la corbeille au démarrage (§5.3, D-030) — une
+                         écriture que l'utilisateur n'a pas demandée se dit, et dit où la reprendre. -->
+                    <Border Background="{StaticResource Surface2}" CornerRadius="9" Padding="11,9"
+                            Margin="0,0,0,4"
+                            Visibility="{x:Bind Modele.MessageRattrapage, Mode=OneWay, Converter={StaticResource SiTexte}}">
+                        <TextBlock Text="{x:Bind Modele.MessageRattrapage, Mode=OneWay}" FontSize="11.5"
+                                   Foreground="{StaticResource Encre3}" TextWrapping="Wrap" />
+                    </Border>
+
                     <ItemsRepeater ItemsSource="{x:Bind Modele.Projets}">
                         <ItemsRepeater.ItemTemplate>
                             <DataTemplate x:DataType="vm:LigneProjet">
@@ -122,38 +132,100 @@
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
 
                     <TextBlock Text="{x:Bind Modele.ProjetOuvert.Nom, Mode=OneWay}"
                                Style="{StaticResource TitreVue}" FontSize="21"
                                VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
 
+                    <!-- Tout ce qui est affiché se modifie (§5) : un projet se renomme et se
+                         recolorie, et son calendrier suit (§5.3, D-030). -->
+                    <Button Grid.Column="1" Style="{StaticResource BoutonDiscret}" Content="Renommer"
+                            Padding="12,7" FontSize="12.5" VerticalAlignment="Center"
+                            Command="{x:Bind Modele.ModifierCommand}" />
+
                     <!-- Fermer un projet reporte ses tâches à faire (§3.2) : c'est le SERVEUR
                          qui applique la cascade, l'app ne fait que demander. -->
-                    <Button Grid.Column="1" Style="{StaticResource BoutonDiscret}" Content="Changer l'état"
+                    <Button Grid.Column="2" Style="{StaticResource BoutonDiscret}" Content="Changer l'état"
                             Padding="12,7" FontSize="12.5" VerticalAlignment="Center"
                             Command="{x:Bind Modele.ChangerStatutCommand}"
                             CommandParameter="{x:Bind Modele.ProjetOuvert, Mode=OneWay}" />
 
-                    <Button Grid.Column="2" Style="{StaticResource BoutonDiscret}" Content="Corbeille"
+                    <Button Grid.Column="3" Style="{StaticResource BoutonDiscret}" Content="Corbeille"
                             Padding="12,7" FontSize="12.5" VerticalAlignment="Center"
                             Command="{x:Bind Modele.SupprimerProjetCommand}"
                             CommandParameter="{x:Bind Modele.ProjetOuvert, Mode=OneWay}" />
                 </Grid>
 
-                <Grid Grid.Row="1" ColumnSpacing="8">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" />
-                    </Grid.ColumnDefinitions>
-                    <TextBox Text="{x:Bind Modele.NouvelleTache, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                             PlaceholderText="Ajouter une tâche…" FontSize="13.5"
-                             AutomationProperties.Name="Nouvelle tâche"
-                             KeyDown="SurToucheNouvelleTache" />
-                    <Button Grid.Column="1" Style="{StaticResource BoutonDiscret}" Content="Ajouter"
-                            Padding="13,8" FontSize="12.5"
-                            Command="{x:Bind Modele.AjouterTacheCommand}" />
-                </Grid>
+                <!-- Un seul bloc plutôt que trois rangées : une rangée vide consommerait quand même
+                     son RowSpacing, et laisserait un trou sous l'entête tant qu'on ne renomme pas.
+                     Les écarts sont donc portés par des marges, qui disparaissent avec l'élément. -->
+                <StackPanel Grid.Row="1">
+
+                    <!-- ============ RENOMMER / RECOLORIER (§5.3, D-030) ============
+                         Le nom et la couleur d'un projet identifient AUSSI son calendrier : les deux
+                         changent ensemble, comme ils sont nés ensemble. -->
+                    <StackPanel Spacing="10" Margin="0,0,0,14"
+                                Visibility="{x:Bind Modele.EnEdition, Mode=OneWay, Converter={StaticResource SiVrai}}">
+                        <TextBox Text="{x:Bind Modele.NomEnCours, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                 FontSize="13.5" AutomationProperties.Name="Renommer le projet"
+                                 KeyDown="SurToucheRenommer" />
+
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <!-- La couleur choisie, en grand : sans elle on tire au sort. -->
+                            <Border Width="30" Height="30" CornerRadius="9" BorderThickness="1"
+                                    BorderBrush="{StaticResource Trait}"
+                                    Background="{x:Bind Modele.CouleurEnCours, Mode=OneWay, Converter={StaticResource Hex}}" />
+                            <ItemsRepeater ItemsSource="{x:Bind Modele.Couleurs}">
+                                <ItemsRepeater.Layout>
+                                    <StackLayout Orientation="Horizontal" Spacing="8" />
+                                </ItemsRepeater.Layout>
+                                <ItemsRepeater.ItemTemplate>
+                                    <DataTemplate x:DataType="x:String">
+                                        <Button Width="30" Height="30" Padding="0" CornerRadius="9" BorderThickness="1"
+                                                BorderBrush="{StaticResource Trait}"
+                                                Background="{x:Bind Converter={StaticResource Hex}}"
+                                                Command="{Binding DataContext.Modele.ChoisirCouleurCommand, ElementName=RacineProjets}"
+                                                CommandParameter="{x:Bind}"
+                                                AutomationProperties.Name="Choisir cette couleur" />
+                                    </DataTemplate>
+                                </ItemsRepeater.ItemTemplate>
+                            </ItemsRepeater>
+                        </StackPanel>
+
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button Style="{StaticResource BoutonPrimaire}" Content="Enregistrer"
+                                    Padding="12,7" FontSize="12.5"
+                                    Command="{x:Bind Modele.EnregistrerModificationCommand}" />
+                            <Button Style="{StaticResource BoutonDiscret}" Content="Annuler"
+                                    Padding="12,7" FontSize="12.5"
+                                    Command="{x:Bind Modele.AnnulerModificationCommand}" />
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!-- Les refus se lisent ICI, sous le geste qui les provoque — et non au bas
+                         d'une liste de tâches qu'il faut dérouler pour apprendre qu'on a été
+                         refusé. -->
+                    <TextBlock Text="{x:Bind Modele.Message, Mode=OneWay}" FontSize="12"
+                               Foreground="{StaticResource Negatif}" TextWrapping="Wrap"
+                               Margin="0,0,0,14"
+                               Visibility="{x:Bind Modele.Message, Mode=OneWay, Converter={StaticResource SiTexte}}" />
+
+                    <Grid ColumnSpacing="8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBox Text="{x:Bind Modele.NouvelleTache, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                 PlaceholderText="Ajouter une tâche…" FontSize="13.5"
+                                 AutomationProperties.Name="Nouvelle tâche"
+                                 KeyDown="SurToucheNouvelleTache" />
+                        <Button Grid.Column="1" Style="{StaticResource BoutonDiscret}" Content="Ajouter"
+                                Padding="13,8" FontSize="12.5"
+                                Command="{x:Bind Modele.AjouterTacheCommand}" />
+                    </Grid>
+                </StackPanel>
 
                 <ScrollViewer Grid.Row="2">
                     <StackPanel Spacing="2">
@@ -201,10 +273,6 @@
                                 </DataTemplate>
                             </ItemsRepeater.ItemTemplate>
                         </ItemsRepeater>
-
-                        <TextBlock Text="{x:Bind Modele.Message, Mode=OneWay}" FontSize="12"
-                                   Foreground="{StaticResource Negatif}" TextWrapping="Wrap" Margin="0,10,0,0"
-                                   Visibility="{x:Bind Modele.Message, Mode=OneWay, Converter={StaticResource SiTexte}}" />
 
                         <!-- ============ CALENDRIER DU PROJET (§5.3, D-028) ============
                              Les mêmes occurrences que le calendrier principal, filtrées sur le seul
