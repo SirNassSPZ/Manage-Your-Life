@@ -87,6 +87,14 @@ public partial class App : Application
 
             var arguments = Environment.GetCommandLineArgs();
 
+            // Synchro (§6.2) : ouverture, après saisie, retour du réseau, périodique.
+            //
+            // JAMAIS en mode capture. Une capture se fait sur un dossier garni par --donnees
+            // (D-026) ; y lancer la synchro pousserait ces données de démonstration vers le
+            // serveur réel, où rien ne les distinguerait des vraies.
+            if (Outils.CaptureVisuel.CheminDemande(arguments) is null)
+                principale.Modele.Synchro.Demarrer();
+
             // Mode outil : --vue <zone> pose la zone avant la capture, sinon on ne photographierait
             // jamais que l'écran d'ouverture.
             var iVue = Array.IndexOf(arguments, "--vue");

@@ -10,7 +10,12 @@ namespace DeuxiemeCerveau.App.Synchro;
 /// Idempotence et curseur rendent toute coupure réseau inoffensive : rejouer un lot ne l'applique pas
 /// deux fois, et le curseur est le point de reprise. server_seq est toujours posé par le serveur.
 /// </summary>
-public sealed class MoteurSynchro(DepotLocal depot, IdentiteAppareil identite, IClientApi api)
+/// <param name="porte">
+/// Sérialise les touches à la base sans englober les appels réseau (voir <see cref="IPorteDonnees"/>).
+/// Absente, aucune sérialisation : c'est le cas d'un test ou d'un outil, seul sur sa base.
+/// </param>
+public sealed class MoteurSynchro(
+    DepotLocal depot, IdentiteAppareil identite, IClientApi api, IPorteDonnees? porte = null)
 {
     public const string CleCurseur = "curseur_pull";
     public const string CleEnregistre = "appareil_enregistre";
@@ -19,6 +24,7 @@ public sealed class MoteurSynchro(DepotLocal depot, IdentiteAppareil identite, I
     public const int TailleLot = 200;
 
     private readonly FilePurges _purges = new(depot);
+    private readonly IPorteDonnees _porte = porte ?? PorteOuverte.Instance;
 
     /// <summary>Un cycle complet (§6.2 « Cycle. Push puis pull ») : enregistrement si besoin, push, purges, pull.</summary>
     public async Task Synchroniser(string nomAppareil, string plateforme, CancellationToken jeton = default)
@@ -36,11 +42,14 @@ public sealed class MoteurSynchro(DepotLocal depot, IdentiteAppareil identite, I
     /// </summary>
     public async Task AssurerEnregistrement(string nom, string plateforme, CancellationToken jeton = default)
     {
-        if (depot.LireEtat(CleEnregistre) == "true")
+        if (_porte.Franchir(() => depot.LireEtat(CleEnregistre)) == "true")
             return;
         var idServeur = await api.EnregistrerAppareil(nom, plateforme, jeton);
-        depot.EcrireEtat(IdentiteAppareil.Cle, idServeur.ToString());
-        depot.EcrireEtat(CleEnregistre, "true");
+        _porte.Franchir(() =>
+        {
+            depot.EcrireEtat(IdentiteAppareil.Cle, idServeur.ToString());
+            depot.EcrireEtat(CleEnregistre, "true");
+        });
     }
 
     /// <summary>
@@ -53,30 +62,39 @@ public sealed class MoteurSynchro(DepotLocal depot, IdentiteAppareil identite, I
     {
         while (true)
         {
-            var enAttente = depot.Outbox();
-            if (enAttente.Count == 0)
+            var lot = _porte.Franchir(() =>
+            {
+                var enAttente = depot.Outbox();
+                return enAttente.Count == 0
+                    ? null
+                    : new LotPush { AppareilId = identite.Obtenir(), Changements = enAttente.Take(TailleLot).ToList() };
+            });
+
+            if (lot is null)
                 return;
 
-            var changements = enAttente.Take(TailleLot).ToList();
-            var lot = new LotPush { AppareilId = identite.Obtenir(), Changements = changements };
+            // Hors de la porte : l'interface doit rester vivante pendant l'aller-retour (filet 1).
             var reponse = await api.Pousser(lot, jeton);
 
-            foreach (var resultat in reponse.Resultats)
+            _porte.Franchir(() =>
             {
-                if (resultat.Resultat == ResultatChangement.RefusePurge)
+                foreach (var resultat in reponse.Resultats)
                 {
-                    var chg = changements.First(c => c.ChangeId == resultat.ChangeId);
-                    depot.DansTransaction(() =>
+                    if (resultat.Resultat == ResultatChangement.RefusePurge)
                     {
-                        depot.SupprimerReel(chg.Entite, chg.EntiteId);   // la copie locale est détruite (§5.6)
-                        depot.ViderOutboxEntite(chg.Entite, chg.EntiteId); // et les changements en attente abandonnés
-                    });
+                        var chg = lot.Changements.First(c => c.ChangeId == resultat.ChangeId);
+                        depot.DansTransaction(() =>
+                        {
+                            depot.SupprimerReel(chg.Entite, chg.EntiteId);   // la copie locale est détruite (§5.6)
+                            depot.ViderOutboxEntite(chg.Entite, chg.EntiteId); // et les changements en attente abandonnés
+                        });
+                    }
+                    else
+                    {
+                        depot.RetirerOutbox(resultat.ChangeId); // confirmé (appliqué, perdant archivé, ou rejoué)
+                    }
                 }
-                else
-                {
-                    depot.RetirerOutbox(resultat.ChangeId); // confirmé (appliqué, perdant archivé, ou rejoué)
-                }
-            }
+            });
         }
     }
 
@@ -87,18 +105,25 @@ public sealed class MoteurSynchro(DepotLocal depot, IdentiteAppareil identite, I
     /// </summary>
     public async Task PousserPurges(CancellationToken jeton = default)
     {
-        var enAttente = _purges.Lister();
-        if (enAttente.Count == 0)
-            return;
-        var lot = new LotPurge
+        var lot = _porte.Franchir(() =>
         {
-            AppareilId = identite.Obtenir(),
-            Purges = enAttente
-                .Select(p => new DemandePurge { ChangeId = p.ChangeId, Entite = p.Entite, EntiteId = p.EntiteId })
-                .ToList(),
-        };
+            var enAttente = _purges.Lister();
+            return enAttente.Count == 0
+                ? null
+                : new LotPurge
+                {
+                    AppareilId = identite.Obtenir(),
+                    Purges = enAttente
+                        .Select(p => new DemandePurge { ChangeId = p.ChangeId, Entite = p.Entite, EntiteId = p.EntiteId })
+                        .ToList(),
+                };
+        });
+
+        if (lot is null)
+            return;
+
         var reponse = await api.Purger(lot, jeton);
-        _purges.Retirer(reponse.Resultats.Select(r => r.ChangeId));
+        _porte.Franchir(() => _purges.Retirer(reponse.Resultats.Select(r => r.ChangeId)));
     }
 
     /// <summary>
@@ -110,8 +135,9 @@ public sealed class MoteurSynchro(DepotLocal depot, IdentiteAppareil identite, I
     {
         while (true)
         {
-            var page = await api.Tirer(LireCurseur(), TailleLot, jeton);
-            depot.DansTransaction(() =>
+            var curseur = _porte.Franchir(LireCurseur);
+            var page = await api.Tirer(curseur, TailleLot, jeton);
+            _porte.Franchir(() => depot.DansTransaction(() =>
             {
                 foreach (var entite in page.Entites)
                     depot.Ecrire(new EtatEntite(entite.Entite, entite.Id, entite.Version,
@@ -123,7 +149,7 @@ public sealed class MoteurSynchro(DepotLocal depot, IdentiteAppareil identite, I
                     depot.ViderOutboxEntite(purge.Entite, purge.Id);
                 }
                 depot.EcrireEtat(CleCurseur, page.Curseur.ToString());
-            });
+            }));
             if (!page.Encore)
                 return;
         }

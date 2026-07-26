@@ -1,3 +1,5 @@
+using DeuxiemeCerveau.App.Local;
+
 namespace DeuxiemeCerveau.Presentation;
 
 /// <summary>
@@ -7,10 +9,19 @@ namespace DeuxiemeCerveau.Presentation;
 /// tout le graphe, et que <c>DepotLocal.DansTransaction</c> ouvre une transaction ADO non
 /// réentrante : la synchro de fond ne doit jamais écrire pendant que l'interface lit.
 /// </para>
+/// <para>
+/// Sert aussi de <see cref="IPorteDonnees"/> au moteur de synchro, qui la referme autour de chaque
+/// touche à la base et la laisse <b>ouverte pendant le réseau</b> — sans quoi un réveil serverless
+/// de ~61 s bloquerait l'interface (filet 1, règle 10).
+/// </para>
 /// </summary>
-public sealed class AccesDonnees : IDisposable
+public sealed class AccesDonnees : IDisposable, IPorteDonnees
 {
     private readonly SemaphoreSlim _porte = new(1, 1);
+
+    public T Franchir<T>(Func<T> operation) => Lire(operation);
+
+    public void Franchir(Action operation) => Lire(operation);
 
     public T Lire<T>(Func<T> operation)
     {

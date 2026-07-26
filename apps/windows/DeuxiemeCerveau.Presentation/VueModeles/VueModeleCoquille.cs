@@ -79,7 +79,49 @@ public sealed partial class VueModeleCoquille : ObservableObject
         // Un import reconstitue TOUT l'état : aucune vue déjà chargée n'est encore valable.
         Sauvegarde.ApresImport = Rafraichir;
 
+        // Le fil de l'interface, capturé à la construction (Programme.Main y installe un
+        // DispatcherQueueSynchronizationContext). Un cycle de synchro se termine sur un fil de
+        // fond : toucher une propriété liée depuis là ferait lever WinUI. Nul dans un test, où
+        // tout s'exécute alors sur place.
+        _filInterface = SynchronizationContext.Current;
+
+        Synchro = new ServiceSynchroFond(CycleComplet, () => _composition.SynchroPossible)
+        {
+            // Seulement l'entête, et c'est délibéré : le compteur d'outbox doit redescendre, mais
+            // reconstruire les listes à chaque cycle les ferait bouger sous le doigt de
+            // l'utilisateur — le défaut corrigé sur l'ordre des tâches.
+            ApresCycle = () => SurFilInterface(RelireEntete),
+        };
+
         Aller(Zone.Aujourdhui);
+    }
+
+    private readonly SynchronizationContext? _filInterface;
+
+    /// <summary>
+    /// Un passage de fond complet : la synchro (§6.2), puis les pièces jointes restées à envoyer
+    /// (§7 — « l'envoi échoué se réessaie en tâche de fond »).
+    /// <para>
+    /// Les pièces viennent APRÈS : leurs métadonnées voyagent par la synchro ordinaire, et une
+    /// pièce dont le serveur ignore encore l'Élément parent n'aurait nulle part où se rattacher.
+    /// </para>
+    /// </summary>
+    private async Task CycleComplet(CancellationToken jeton)
+    {
+        await _composition.Synchro.Synchroniser(Environment.MachineName, "windows", jeton);
+        await _composition.PiecesJointes.EnvoyerEnAttente(jeton);
+    }
+
+    /// <summary>
+    /// Déclenchement de la synchro (§6.2). Porté par la coquille parce que c'est elle qui voit
+    /// passer toutes les écritures, via <see cref="Rafraichir"/> et <see cref="RafraichirEntete"/>.
+    /// </summary>
+    public ServiceSynchroFond Synchro { get; }
+
+    private void SurFilInterface(Action action)
+    {
+        if (_filInterface is null) action();
+        else _filInterface.Post(_ => action(), null);
     }
 
     /// <summary>Vrai tant que le solde de référence n'est pas posé (§3.4).</summary>
@@ -340,8 +382,23 @@ public sealed partial class VueModeleCoquille : ObservableObject
     /// L'entête seulement — solde et état de synchro. Existe pour les écritures qui mettent déjà
     /// leur propre vue à jour <b>sur place</b> : cocher une tâche doit rafraîchir le compteur de
     /// l'outbox sans reconstruire la liste sous le doigt de l'utilisateur.
+    /// <para>
+    /// Déclenche aussi la synchro (§6.2 « après toute saisie, différé de quelques secondes »).
+    /// C'est LE point de passage : <see cref="Rafraichir"/> finit ici, et toute écriture appelle
+    /// l'un ou l'autre. Un seul branchement couvre donc tous les chemins d'écriture.
+    /// </para>
     /// </summary>
     public void RafraichirEntete()
+    {
+        RelireEntete();
+        Synchro.DeclencherApresSaisie();
+    }
+
+    /// <summary>
+    /// Relit l'entête <b>sans</b> déclencher de synchro. Existe pour la fin d'un cycle : passer par
+    /// <see cref="RafraichirEntete"/> ferait replanifier un cycle à chaque cycle, indéfiniment.
+    /// </summary>
+    private void RelireEntete()
     {
         var solde = _composition.Acces.Lire(() => _composition.Aujourdhui.SoldeDeReference());
         EntetePossedeSolde = solde is not null;

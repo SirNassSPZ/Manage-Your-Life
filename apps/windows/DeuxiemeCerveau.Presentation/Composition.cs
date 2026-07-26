@@ -81,10 +81,12 @@ public sealed class Composition : IDisposable
         Confirmation = new ServiceConfirmation(depot, Saisie);
         Recalage = new ServiceRecalage(Aujourdhui, Demarrage);
         Purge = new ServicePurge(depot, new FilePurges(depot));
-        PiecesJointes = new ServicePiecesJointes(depot, Saisie, cache, Api, new TransfertBlobHttp(httpBlob));
+        PiecesJointes = new ServicePiecesJointes(depot, Saisie, cache, Api, new TransfertBlobHttp(httpBlob), Acces);
         Export = new ServiceExport(depot, horloge, cache);
         Import = new ServiceImport(depot, cache);
-        Synchro = new MoteurSynchro(depot, identite, Api);
+        // Acces sert de porte : le moteur la referme autour de chaque touche à la base et la laisse
+        // ouverte pendant le réseau. Sans elle, un réveil serverless gèlerait l'interface (filet 1).
+        Synchro = new MoteurSynchro(depot, identite, Api, Acces);
     }
 
     /// <summary>Dossier de données par défaut de l'utilisateur courant.</summary>

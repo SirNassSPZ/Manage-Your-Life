@@ -14,9 +14,17 @@ namespace DeuxiemeCerveau.App.Services;
 /// binaire vers Blob (via URL SAS) se fait ensuite en tâche de fond, avec confirmation. La lecture
 /// télécharge à la demande puis met en cache. Limite 25 Mo (§7).
 /// </summary>
+/// <param name="porte">
+/// Sérialise les touches à la base sans englober les appels réseau (<see cref="IPorteDonnees"/>) :
+/// l'envoi d'une pièce alterne base et réseau exactement comme la synchro. Absente, aucune
+/// sérialisation — le cas d'un test, seul sur sa base.
+/// </param>
 public sealed class ServicePiecesJointes(
-    DepotLocal depot, ServiceSaisie saisie, IStockageFichiersLocal cache, IClientApi api, ITransfertBlob blob)
+    DepotLocal depot, ServiceSaisie saisie, IStockageFichiersLocal cache, IClientApi api, ITransfertBlob blob,
+    IPorteDonnees? porte = null)
 {
+    private readonly IPorteDonnees _porte = porte ?? PorteOuverte.Instance;
+
     /// <summary>Joint un fichier à un Élément : cache local immédiat + métadonnées (confirme = false).</summary>
     public ResultatSaisie Joindre(Guid elementId, string nomFichier, byte[] contenu)
     {
@@ -35,7 +43,7 @@ public sealed class ServicePiecesJointes(
             BlobPath = $"{elementId:D}/{pieceId:D}", // schéma déterministe, miroir de l'API (D-016)
             Confirme = false,
         };
-        var resultat = saisie.Enregistrer(piece, EntiteSynchro.PieceJointe); // métadonnées → synchro
+        var resultat = _porte.Franchir(() => saisie.Enregistrer(piece, EntiteSynchro.PieceJointe)); // → synchro
         if (!resultat.Reussi)
             cache.Supprimer(pieceId);
         return resultat;
@@ -48,11 +56,15 @@ public sealed class ServicePiecesJointes(
     /// </summary>
     public async Task EnvoyerEnAttente(CancellationToken jeton = default)
     {
-        foreach (var etat in depot.Enumerer(EntiteSynchro.PieceJointe))
+        // La liste est prise en UNE fois, porte refermée : la parcourir en la tenant ouverte
+        // bloquerait l'interface pendant tous les téléversements (filet 1).
+        var aEnvoyer = _porte.Franchir(() => depot.Enumerer(EntiteSynchro.PieceJointe)
+            .Select(etat => SerialisationCanonique.Deserialiser<PieceJointe>(etat.PayloadCanonique))
+            .Where(piece => !piece.Confirme && !piece.Supprime)
+            .ToList());
+
+        foreach (var piece in aEnvoyer)
         {
-            var piece = SerialisationCanonique.Deserialiser<PieceJointe>(etat.PayloadCanonique);
-            if (piece.Confirme || piece.Supprime)
-                continue;
             var contenu = cache.Lire(piece.Id);
             if (contenu is null)
                 continue; // créée sur un autre appareil : rien à envoyer d'ici
@@ -62,7 +74,7 @@ public sealed class ServicePiecesJointes(
             await api.ConfirmerPiece(envoi.BlobPath, jeton);
 
             piece.Confirme = true;
-            saisie.Enregistrer(piece, EntiteSynchro.PieceJointe); // confirme = true → synchro
+            _porte.Franchir(() => saisie.Enregistrer(piece, EntiteSynchro.PieceJointe)); // confirmé → synchro
         }
     }
 
@@ -74,7 +86,7 @@ public sealed class ServicePiecesJointes(
     {
         if (cache.Lire(pieceId) is { } local)
             return local;
-        if (depot.Obtenir(EntiteSynchro.PieceJointe, pieceId) is null)
+        if (_porte.Franchir(() => depot.Obtenir(EntiteSynchro.PieceJointe, pieceId)) is null)
             return null;
         var lecture = await api.UrlLecturePiece(pieceId, jeton);
         var contenu = await blob.Telecharger(lecture.DownloadUrl, jeton);
