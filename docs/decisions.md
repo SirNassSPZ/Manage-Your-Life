@@ -560,6 +560,21 @@ posé serait une affirmation fausse. « Je ne sais pas encore » est une informa
   Le **repli** d'un groupe n'est délibérément **pas** un champ : c'est une préférence locale
   d'affichage, comme la mémoire des filtres masqués. Y mettre une colonne synchronisée ferait
   voyager entre appareils un état qui ne regarde que l'écran devant soi.
+
+  *Deux points tranchés à l'implémentation (2026-07-27).* **`icone` est bornée à 16 caractères**,
+  la largeur de sa colonne au §9 — refus explicite plutôt que troncature silencieuse à l'INSERT ;
+  la mesure est en unités UTF-16 des deux côtés, donc une émoji y pèse 2 comme dans la base.
+  **`ordre` n'a aucune contrainte** : ni signe, ni unicité. La spec n'en dit rien, et inventer une
+  règle aurait coûté plus qu'elle n'aurait rapporté — un rang absent ou dupliqué retombe sur le
+  classement par nom, qui est déjà le défaut.
+
+  > **Défaut trouvé en implémentant la 004, et il dépasse largement ce champ.** Le test de parité
+  > structurelle des deux dialectes (D-008) — le filet censé empêcher les schémas Windows et Apple
+  > de diverger — ne parsait que les `CREATE TABLE`. Or **toute migration additive passe par
+  > `ALTER TABLE`** : pour les migrations **003 et 004**, il comparait deux dictionnaires vides et
+  > rendait vert. La règle 18 n'était donc contrôlée que sur le schéma initial. Corrigé, et doublé
+  > d'un test qui vérifie que le lecteur voit réellement les colonnes ajoutées — sans lui, la
+  > vacuité reviendrait sans bruit à la prochaine forme de script non reconnue.
 - **§5.5 — la note est une boîte de capture.** Enregistrer vide **toujours** la zone, correction
   d'une note rouverte comprise. Le vidage suit l'écriture confirmée et ne la précède jamais : vider
   avant d'avoir écrit perdrait la note si l'enregistrement était refusé.
