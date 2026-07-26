@@ -588,6 +588,27 @@ posé serait une affirmation fausse. « Je ne sais pas encore » est une informa
   modifie**, réglages et compte en bas. D-028 ayant retiré à la maquette son rôle de plan d'IA,
   ce sont des précisions ordinaires — mais elles **lient l'app iOS à l'identique**.
 
+### Deux trous de symétrie repérés en implémentant, non comblés (2026-07-27)
+
+La symétrie « le calendrier suit son projet » est complète **à l'aller** (créer, renommer,
+supprimer) et **incomplète au retour**. Repérés en livrant, hors du périmètre engagé, donc signalés
+plutôt que corrigés à la volée :
+
+1. **« Gérer les calendriers » laisse modifier un calendrier de projet à la main.**
+   `ServiceLecture.Categories()` ne filtre pas sur `Origine`, si bien que l'écran de gestion des
+   catégories montre aussi les calendriers nés d'un projet — et permet de les renommer ou de les
+   supprimer indépendamment de lui. Le §5.4 dit précisément le contraire : « une catégorie se crée
+   à la main, un calendrier de projet **naît avec le projet** ». Renommer le calendrier sans le
+   projet fait diverger les deux noms, sans que rien ne le signale.
+2. **La corbeille ne restaure pas en paire.** Restaurer un projet ne restaure pas son calendrier ;
+   restaurer le seul calendrier d'un projet supprimé refait un orphelin — que le rattrapage rangera
+   au lancement suivant, ce qui est cohérent avec l'invariant mais **silencieux**, et donne à
+   l'utilisateur l'impression que sa restauration n'a pas pris.
+
+Les deux touchent `VueModeleCategories` et `VueModeleCorbeille`. À traiter ensemble, la question
+étant la même : **un calendrier de projet n'a pas de vie propre**, ni à la création, ni à la
+modification, ni à la restauration.
+
 ### Ce que cette décision doit à D-029
 
 C'est la première application du plan « Windows fini et amélioré, puis iOS ». Le danger propre à ce
