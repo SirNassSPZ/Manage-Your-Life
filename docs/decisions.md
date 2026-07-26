@@ -235,7 +235,31 @@ Quatre affinements d'**expérience** validés, choisis parce qu'ils **réduisent
 **Garde-fou.** Ces quatre points restent V1 **parce qu'**ils n'ajoutent ni entité, ni champ, ni règle de synchro. Toute dérive (un preset qui stockerait un plafond = enveloppe §3.6 V2 ; une suggestion qui deviendrait une catégorisation auto imposée ; un parsing NLP) sortirait du périmètre et repasserait par une décision.
 
 ## D-019 — Coquille WinUI : `Main` écrit à la main plutôt que généré
-**Statut : à valider** · Étape 4f · **consignée après coup** (2026-07-25) — la décision avait été prise et implémentée pendant le développement local de la coquille, mais jamais écrite ici. Reconstituée depuis le code (`Programme.cs`, `DeuxiemeCerveau.Windows.csproj`).
+**Statut : validée** (2026-07-26, décision de l'utilisateur : **surcoût accepté, à condition qu'il soit documenté**) · Étape 4f · **consignée après coup** (2026-07-25) — la décision avait été prise et implémentée pendant le développement local de la coquille, mais jamais écrite ici. Reconstituée depuis le code (`Programme.cs`, `DeuxiemeCerveau.Windows.csproj`).
+
+### ⚠️ LE SURCOÛT — les quatre règles d'ordre de `Programme.Main`
+
+**C'est la contrepartie du `Main` maison, et la seule.** Écrire ce `Main` soi-même veut dire
+reprendre à sa charge un ordre d'initialisation que WinUI garantissait tout seul. Ces quatre règles
+sont **imposées par la documentation Windows App SDK, pas par la logique** : rien dans le code ne
+les rend évidentes, et les enfreindre produit des pannes **qui ne ressemblent pas à leur cause**.
+
+| # | Règle | Ce qui casse si on l'enfreint |
+|---|---|---|
+| 1 | `WinRT.ComWrappersSupport.InitializeComWrappers()` **en tout premier** | `E_NOINTERFACE` dès `new App()` — l'app ne démarre pas |
+| 2 | `ServiceToasts.Enregistrer()` **avant** `GetActivatedEventArgs()` | Aucune notification ne s'affiche, **en silence** (app non empaquetée : c'est `Register()` qui lui fabrique une identité) |
+| 3 | Redirection d'instance **avant** d'initialiser la moindre fenêtre | Deux processus sur `local.db` — **menace directe sur les filets 1 et 2** |
+| 4 | `UnregisterKey()` à l'arrêt | Une instance en cours de fermeture reçoit une redirection et la perd |
+
+**Avant de toucher à `Programme.Main`, relire ce tableau.** Une ligne ajoutée au mauvais endroit
+casse l'une des quatre sans message clair. Coût estimé d'un diagnostic à froid : une journée.
+
+**Ce que le surcoût achète, en échange :** l'invariant « **un seul processus ouvre jamais
+`local.db`** » — dont dépendent D-023 (notifications) et la sûreté de l'outbox. Le marché a été
+jugé bon : surcoût permanent mais borné, contre un risque de corruption des données supprimé.
+
+**Pour l'app Apple :** l'invariant se retranscrit, ces quatre règles **non** — elles sont propres
+au Windows App SDK. SwiftUI aura ses propres contraintes d'ordre, à documenter au même endroit.
 
 **Justification resserrée (2026-07-25), après vérification de la documentation Microsoft.** Des trois motifs invoqués dans le code, **un seul** exige réellement un `Main` maison :
 
@@ -261,7 +285,42 @@ Quatre affinements d'**expérience** validés, choisis parce qu'ils **réduisent
 - La **dette assumée** ci-dessus est donc levée : le `Main` maison porte désormais les trois fonctions qui le justifiaient.
 
 ## D-020 — La coquille WinUI vit hors de `DeuxiemeCerveau.sln`
-**Statut : à valider** · Étape 4f · **consignée après coup** (2026-07-25), reconstituée depuis `DeuxiemeCerveau.Windows.csproj`.
+**Statut : validée** (2026-07-26, décision de l'utilisateur : **garder Linux et ajouter les balayages**) · Étape 4f · **consignée après coup** (2026-07-25), reconstituée depuis `DeuxiemeCerveau.Windows.csproj`.
+
+### Le risque résiduel, réduit par deux tests de convention (2026-07-26)
+
+Le vrai coût de cette décision n'est pas la compilation séparée, c'est que **le câblage de la
+coquille n'est vérifié par personne** : le job `coquille` compile, il ne lance rien et ne clique sur
+rien. Le projet l'a payé **six fois** — trois boutons morts, l'export sans porte (D-024), la saisie
+sans chemin (D-027), et la vue Finances qui a tourné **entièrement non liée pendant des heures**.
+Chaque fois, le code compilait et tous les tests étaient verts.
+
+`ConventionsCoquilleTests` (dans `DeuxiemeCerveau.Presentation.Tests`) ajoute deux contrôles :
+
+| Contrôle | Ce qu'il attrape |
+|---|---|
+| `Toute_ressource_statique_utilisee_est_declaree` | Un `{StaticResource}` non déclaré — qui interrompt `Bindings.Initialize()` et laisse **toute** la vue non liée, sans rien afficher qui le signale |
+| `Tout_bouton_porte_une_action` | Un `<Button>` / `<HyperlinkButton>` sans `Command`, `Click` ni `x:Name` |
+
+**Ils ne compilent ni ne chargent WinUI** : ils lisent les `.xaml` **comme du texte**. C'est ce qui
+leur permet de tourner sur la CI Linux avec le reste de la solution — `ci.yml` n'a eu besoin
+d'**aucune modification**. Et ils tournent en local à chaque `dotnet test`, donc **avant** le commit.
+
+**Leurs limites, à connaître pour ne pas leur faire trop confiance :**
+- `x:Name` prouve qu'un bouton *peut* être câblé dans le code-behind, pas qu'il *l'est*. Le contrôle
+  attrape le cas franc — aucune action du tout — pas le câblage incomplet.
+- Ils ne voient que le XAML. Un service composé mais jamais appelé (synchro, pièces jointes) leur
+  échappe entièrement : c'est un troisième balayage, pas encore écrit.
+- La liste `ClesFourniesParLeFramework` est l'échappatoire prévue pour les clés WinUI natives.
+  **L'alimenter plutôt que désactiver le test** — un contrôle à faux positifs finit ignoré.
+
+**Pourquoi la CI reste sur Linux** (question posée le 2026-07-26) : `net8.0` est neutre, donc le
+robot teste **le même code** que celui qui tourne sous Windows. Si un test ne passait que sous
+Windows, cela signifierait qu'un comportement propre à la plateforme s'est glissé dans le cœur ou la
+présentation — précisément ce qui se casserait à la réécriture en Swift. **La CI Linux est un
+détecteur de divergence gratuit et permanent**, et la règle 4 y gagne sa promesse jumelle : le cœur
+ne doit rien à Azure, et rien à Windows non plus. Écarté : tout basculer sur `windows-latest`, qui
+perdrait ce détecteur et coûterait environ le double de temps de calcul.
 
 `DeuxiemeCerveau.Windows` est **exclu de la solution**. La CI applicative tourne sur `ubuntu-latest` et WinUI ne compile que sous Windows (D-014) : l'inclure casserait `dotnet build` et `dotnet test` à la racine pour tout le monde. La coquille se compile par **chemin de `.csproj`**, dans un job `windows-latest` dédié — même motif que les projets de `tools/`.
 
@@ -303,7 +362,7 @@ Un **quatrième niveau**, `Encre4` (l'ancien `#9A938C`), est conservé pour l'es
 **Écarté :** un projet de tests `net8.0-windows` exécuté sur le seul job Windows. Il aurait laissé la logique de présentation hors de la CI principale, donc invisible pour l'app Apple et hors des 441 tests de référence.
 
 ## D-023 — Notifications locales : qui a le droit d'ouvrir la base
-**Statut : à valider** · Étape 4h · spec §4, §5.7 · **précise D-019**
+**Statut : validée** (2026-07-26, décision de l'utilisateur) · Étape 4h · spec §4, §5.7 · **précise D-019**
 
 **Le point dur n'est pas le toast, c'est le processus.** Remettre une notification demande un déclenchement quand l'app est fermée, donc une tâche planifiée, donc **un second processus**. Or D-019 a établi qu'un seul processus doit toucher `%LOCALAPPDATA%\DeuxiemeCerveau\local.db` : `BaseLocale` ouvre une `SqliteConnection` en mode rollback par défaut — ni WAL, ni `busy_timeout` — et applique les migrations à l'ouverture, qui est une écriture. Deux processus concurrents, et c'est `SQLITE_BUSY` immédiat au mieux.
 
@@ -338,7 +397,14 @@ Sans la minuterie horaire, une app laissée ouverte depuis lundi ne notifierait 
 **Dette réglée au passage.** Recevoir une redirection d'activation ne faisait rien : un second lancement disparaissait en silence. Il fallait le traiter de toute façon — cliquer un toast relance l'exe et passe par ce chemin. `Programme.SurActivation` ramène désormais la fenêtre devant, en la restaurant d'abord si elle était réduite.
 
 ## D-024 — L'export avait un service, pas de porte
-**Statut : à valider** · Étape 4i · spec §5.7, §13
+**Statut : validée** (2026-07-26, décision de l'utilisateur) · Étape 4i · spec §5.7, §13
+
+> **Réserve de l'utilisateur à la validation (2026-07-26).** Le **principe** est validé : l'export a
+> une porte, elle vit contre l'état de synchro, et l'import refuse une installation non vierge.
+> La **mise en forme** de ce bloc, elle, va changer — des modifications UI/UX sont annoncées.
+> Ce qui est acquis et ne doit pas se perdre dans un remaniement d'interface : l'export reste
+> **atteignable sans réseau** (§5.7), et le refus d'import sur installation non vierge est une
+> **règle de sûreté**, pas un choix esthétique.
 
 **Constat.** `ServiceExport` et `ServiceImport` étaient écrits, testés, et exercés par le scénario 3 de `--parite` — mais **aucune vue ne les appelait**. Dans toute la coquille, les seuls appels à `Exporter` / `Importer` étaient dans `ScenariosParite.cs`. L'utilisateur n'avait aucun moyen d'exporter ses données.
 
@@ -355,7 +421,13 @@ Elle utilise `File.Create` / `File.OpenRead` sur `StorageFile.Path` plutôt que 
 **Le rappel mensuel est désactivable, comme l'exige le §5.7** — une case dans le même bloc, adossée au drapeau de `JournalRappels` (D-023).
 
 ## D-025 — Groupement par catégorie : mise en forme, pas modèle
-**Statut : à valider** · Étape 4i · spec §3.3, §5.1 · **répond à I-004 point 1**
+**Statut : validée pour ce qu'elle fait** (2026-07-26) · **réserve de fond ouverte → Q-003** · Étape 4i · spec §3.3, §5.1 · **répond à I-004 point 1**
+
+> **Réserve de l'utilisateur à la validation (2026-07-26) :** « il ne faut pas que ça soit **que**
+> des étiquettes de rangement, il faut aussi que ça soit de la **comptabilité** ». Le groupement
+> livré est validé comme **lecture**, mais l'exigence dépasse la mise en forme et rouvre un point
+> que le §3.6 avait tranché. Traitée en **Q-003**, à instruire avec D-027 lors de la session
+> « comptabilité ». **Ne rien coder d'ici là.**
 
 Troisième point de la demande I-004, le seul qui restait dans le périmètre V1. **Aucun champ, aucune entité, aucune règle de synchro** : les Éléments portent déjà leurs catégories (§3.3), la vue ne fait que les ranger.
 
@@ -370,7 +442,7 @@ Troisième point de la demande I-004, le seul qui restait dans le périmètre V1
 **La commande de pliage vit sur le groupe, pas sur le modèle de vue parent.** Liée depuis un gabarit, une `RelayCommand<T>` du parent reçoit le DataContext hérité tant que l'élément n'est pas posé et lève dans `CanExecute` — c'est exactement le défaut qui noie `demarrage.log` depuis la vue Calendrier. Sans paramètre, le piège n'existe pas.
 
 ## D-026 — `--donnees` : photographier sans écrire chez l'utilisateur
-**Statut : à valider** · Étape 4i
+**Statut : validée** (2026-07-26, décision de l'utilisateur) · Étape 4i
 
 `--donnees <chemin>` monte l'application sur un autre dossier de données que celui de l'utilisateur. Vérifier un écran garni exigeait sinon d'écrire des lignes de démonstration dans la vraie base — inacceptable — ou de se contenter d'un écran vide, qui ne prouve rien.
 
@@ -413,7 +485,14 @@ Un projet sans ses tâches n'est qu'une étiquette : la tâche entre donc en V1.
 La frontière est posée pour être **contrôlable par une assertion**, pas par du jugement : **en V1, une `tache` porte toujours un `projet_id`.** Une tâche sans projet est refusée par le cœur. Le jour où I-004 est décidé, la règle saute — et c'est un seul endroit.
 
 ## D-028 — Quatre corrections d'architecture d'information
-**Statut : à valider** · Étape 4k · demandées par l'utilisateur après usage réel · spec §5.1, §5.3, §5.4
+**Statut : validée** (2026-07-26, décision de l'utilisateur) · Étape 4k · demandées par l'utilisateur après usage réel · spec §5.1, §5.3, §5.4
+
+> **Précision de l'utilisateur à la validation (2026-07-26) : « la maquette n'était pas finie ».**
+> `docs/maquette.html` n'est donc **pas** un plan d'architecture d'information à respecter, et
+> s'écarter d'elle sur ce plan ne constitue plus un écart à justifier au cas par cas. Elle reste la
+> référence de **ton, de disposition et de palette** (D-021). D'autres corrections d'IA sont
+> attendues : les traiter comme des précisions ordinaires — spec d'abord, puis code — et non comme
+> des dérogations. Ce qui ne change pas : toute correction retenue **lie l'app Apple à l'identique**.
 
 Quatre demandes qui portent sur **où les choses vivent**, pas sur ce qu'elles calculent. Aucune n'ajoute de donnée : ce sont les mêmes occurrences, lues autrement.
 
@@ -440,3 +519,98 @@ Le §5.4 dit « inspiré d'Apple Calendar » et la maquette montre un segment «
 Le filtre du calendrier principal (§5.4) répond à « qu'est-ce qui arrive cette semaine, tous sujets confondus ». Il ne répond pas à « où en est ce projet dans le temps », qui demande de ne voir **que** lui. Le §5.3 a été précisé : la vue calendrier du projet est une lecture de plus sur les mêmes occurrences, filtrée sur le calendrier du projet.
 
 **Aucune entité, aucun champ, aucune migration** pour les quatre.
+
+## Q-003 — Question ouverte : les catégories doivent-elles compter, et pas seulement classer ?
+**Statut : ouverte** (2026-07-26) · soulevée par l'utilisateur en validant D-025 · spec §3.3, §3.6, §5.1, §13
+
+**La demande.** Les sous-totaux par catégorie ne doivent pas être de simples étiquettes : ils
+doivent constituer de la **comptabilité** — des chiffres sur lesquels on peut s'appuyer.
+
+**Pourquoi ce n'est pas un correctif d'affichage.** Aujourd'hui, un Élément rangé dans deux
+catégories est compté **dans les deux** : les sous-totaux ne se rapportent donc pas au total du
+mois. Ce n'est pas un défaut d'implémentation, c'est la conséquence directe du §3.3 — une catégorie
+est un **label**, et un Élément en porte **une liste**.
+
+**Le §3.6 a déjà tranché exactement cette question, et dans l'autre sens :**
+
+> « L'alternative "budget = catégorie avec plafond" a été **écartée** : les catégories étant
+> multiples par Élément, **un même euro serait compté dans plusieurs enveloppes**. L'allocation
+> unique garantit qu'une dépense ne pèse que sur un seul budget. **Les catégories restent le
+> système de classement et de filtrage ; les budgets sont le système de plafonds.** »
+
+Autrement dit : **ce que l'utilisateur demande porte déjà un nom dans la spec — ce sont les budgets
+(enveloppes, §3.6)** — et ils sont rangés en **V2** (§13). La demande n'est donc pas hors sujet :
+elle réclame d'avancer un module existant, pas d'en inventer un.
+
+### Les trois voies
+
+| Voie | Ce que ça donne | Ce que ça coûte |
+|---|---|---|
+| **(a) Remonter les enveloppes (§3.6) en V1** — *recommandée* | Chaque dépense allouée à **un seul** budget → chaque euro compté **une fois** → les totaux bouclent. Suivi mensuel alloué / dépensé / engagé / reste, calculé par l'API. | Un module réel, écrit **deux fois** + écran de suivi. **Aucune migration** : `budget_id` et la table `budgets` sont au schéma depuis la V1. Spec : §13 à modifier. |
+| **(b) Catégorie unique sur les Éléments financiers** | Les sous-totaux bouclent sans rien ajouter. | Contredit le §3.3 (liste de catégories) et casse l'unification **catégorie = calendrier** : un filtre de calendrier veut naturellement plusieurs appartenances. Spec : §3.1 et §3.3 à modifier. |
+| **(c) Rendre la lecture honnête sans changer le modèle** | Afficher explicitement le montant compté plusieurs fois, et distinguer « somme des groupes » de « total réel du mois ». | Presque rien, aucune spec à toucher. Mais **ce n'est pas de la comptabilité** — ça ne fait qu'avouer le problème au lieu de le résoudre. |
+
+**Recommandation : (a).** C'est la réponse que la spec avait déjà conçue pour cette demande précise,
+le schéma est prêt (dividende de la « stabilité du schéma », comme pour D-027), et c'est la seule
+des trois qui donne des chiffres sur lesquels s'appuyer. Le coût réel est l'écriture double et
+l'écran de suivi — le même marché que D-027, accepté en connaissance de cause.
+
+**Décision requise (périmètre — appartient à l'utilisateur).** Comme pour D-027 : si (a) ou (b) est
+retenue, **modifier `docs/specification.md` d'abord**, signaler le changement, coder ensuite
+(`CLAUDE.md`). À instruire avec D-027 lors de la session « comptabilité » annoncée.
+
+> **Débloquée par D-029 (2026-07-26).** L'objection « les enveloppes sont en V2 » **tombe** : il n'y
+> a plus de V2 comme barrière de périmètre. La voie (a) ne se heurte donc plus qu'à son coût réel
+> — un module et un écran de suivi — et non à une frontière de version. Elle reste à décider, mais
+> la question est devenue « le veut-on ? » et non « a-t-on le droit ? ».
+
+## D-029 — Il n'y aura pas de V2 : Windows fini et amélioré d'abord, iOS ensuite
+**Statut : décidée par l'utilisateur** (2026-07-26) · **change l'ordre de construction de `CLAUDE.md`** · spec §13
+
+**La décision, dans les mots de l'utilisateur :** finir l'application **Windows**, puis **réfléchir à
+toutes les améliorations** qu'on pourrait y faire et les coder — et **seulement ensuite** écrire
+l'application **iOS**, pour qu'elle soit codée **une seule fois**, améliorations comprises.
+
+**Ce que ça change.**
+
+1. **Le découpage V1 / V2 / V3 (§13) cesse d'être une barrière de périmètre.** Il reste un ordre de
+   priorité utile, mais « c'est V2 » n'est plus un motif de refus. Ce qui décide désormais, c'est le
+   coût et l'intérêt de la fonctionnalité — plus son étiquette de version. Conséquence immédiate :
+   **Q-003 est débloquée** (enveloppes), et les items d'`idees.md` redeviennent instruisables un par
+   un, comme l'utilisateur l'avait déjà demandé le 2026-07-26.
+2. **L'ordre de construction de `CLAUDE.md` s'allonge d'une étape.** Entre l'Étape 4 (Windows) et
+   l'Étape 5 (Apple) s'insère une **phase d'améliorations sur Windows**. L'Étape 5 ne démarre
+   qu'une fois cette phase close.
+3. **La cible Apple se resserre sur l'iPhone** — l'utilisateur veut tester sur son téléphone. iPad
+   et Mac restent au §2 mais ne commandent plus la priorité.
+
+**Pourquoi c'est un bon choix — et ce n'est pas qu'une question de temps.** Le risque n° 1 du projet
+est la **divergence silencieuse** entre les deux apps. Construire les deux en parallèle multiplie
+les occasions de diverger : chaque changement d'avis doit être répercuté deux fois, à chaud. En
+figeant le comportement sur **une** app d'abord, chaque fonctionnalité n'est écrite en Swift
+qu'**une fois stabilisée**. La séquence proposée réduit donc le risque n° 1 au lieu de l'augmenter.
+
+### ⚠️ La condition qui rend ce plan sûr — non négociable
+
+**Chaque amélioration doit entrer dans `docs/specification.md` AVANT d'être codée sur Windows.**
+
+C'est déjà la règle de `CLAUDE.md`, mais ce plan la rend **vitale** plutôt que simplement saine.
+Motif : si les améliorations s'accumulent dans le **code C#** sans passer par la spec, alors au
+moment d'écrire l'app iOS il n'existera plus de source de vérité — et on lira le code Windows pour
+savoir quoi faire. Or `CLAUDE.md` l'interdit explicitement pour la synchro (« pas le code Windows
+comme référence : la source est §6, afin que les deux implémentations **dérivent du même texte** »),
+et le motif vaut pour tout le reste.
+
+**Le danger propre à ce plan est donc la dérive documentaire**, pas la divergence de code : entre
+Windows fini et iOS commencé, la spec est le **seul** pont. Un écart non consigné devient
+invisible — il ne se manifestera qu'à l'Étape 6, sur deux apps déjà écrites.
+
+**Contrôle à tenir :** à la clôture de la phase d'améliorations, la spec doit décrire l'app Windows
+**telle qu'elle est**, sans écart connu. C'est le livrable qui autorise à démarrer l'iOS.
+
+### Ce qui ne change pas
+
+- Les **18 règles** du §14 et les trois filets du §6 — ils protègent les données, pas le calendrier.
+- L'**Étape 6 (parité croisée)** reste obligatoire une fois les deux apps écrites.
+- Le **point d'arrêt de fin d'Étape 4** reste dû : cette décision réordonne la suite, elle ne clôt
+  pas l'étape en cours.

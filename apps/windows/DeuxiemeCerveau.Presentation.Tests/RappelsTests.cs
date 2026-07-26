@@ -57,8 +57,14 @@ public class RappelsTests
         var demain = DateOnly.FromDateTime(DateTime.Now).AddDays(1);
         f.AjouterSortie("Loyer", Midi(demain));
 
-        var premier = PlanificateurRappels.Echeances(f.Composition, DateTimeOffset.Now);
-        var second = PlanificateurRappels.Echeances(f.Composition, DateTimeOffset.Now.AddHours(3));
+        // Heure FIXE, pas DateTimeOffset.Now : « deux fois dans la même journée » doit le rester.
+        // Avec Now, un lancement après 21:00 mettait le second appel au lendemain — « demain »
+        // devenait le surlendemain, la liste sortait vide et le test échouait sur un index. Le code
+        // de production avait raison ; c'était le test qui datait mal ses deux instants.
+        var matin = new DateTimeOffset(DateTime.Today.AddHours(8));
+
+        var premier = PlanificateurRappels.Echeances(f.Composition, matin);
+        var second = PlanificateurRappels.Echeances(f.Composition, matin.AddHours(3));
 
         Assert.Equal(premier[0].Cle, second[0].Cle);
         Assert.Contains(demain.ToString("yyyy-MM-dd"), premier[0].Cle);

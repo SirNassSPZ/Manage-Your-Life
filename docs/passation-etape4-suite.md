@@ -265,12 +265,44 @@ utilisé pour lire `demarrage.log` (`T0[4-9]`) ne couvrait pas les heures de l'a
 rendait « 0 erreur » sur un journal qui en contenait trente.
 
 **Deux réflexes à garder :**
-- Après toute édition de XAML, vérifier que chaque `{StaticResource}` est déclaré. Un balayage
-  suffit et prend une seconde :
-
-```bash
-python3 -c "import re,glob,io,os; j=set(re.findall(r'x:Key=\"([^\"]+)\"', io.open('apps/windows/DeuxiemeCerveau.Windows/Ressources/Jetons.xaml',encoding='utf-8').read())); [print(os.path.basename(f), sorted({m for m in re.findall(r'\{StaticResource (\w+)\}', io.open(f,encoding='utf-8').read())} - set(re.findall(r'x:Key=\"([^\"]+)\"', io.open(f,encoding='utf-8').read())) - j)) for f in glob.glob('apps/windows/DeuxiemeCerveau.Windows/Vues/*.xaml')]"
-```
-
+- ~~Après toute édition de XAML, vérifier à la main que chaque `{StaticResource}` est déclaré.~~
+  **Automatisé le 2026-07-26** — voir ci-dessous.
 - Lire `demarrage.log` en comparant le **nombre de lignes avant / après** le lancement, jamais en
   filtrant sur une heure écrite à la main.
+
+## 11. Les deux balayages sont automatiques (D-020)
+
+Le contrôle des `{StaticResource}` était documenté ci-dessus comme **une commande Python à retaper**.
+C'était précisément la faiblesse : ce piège avait déjà été repayé une fois **parce que le contrôle
+manuel s'était trompé de motif d'heure** et rendait « 0 erreur » sur trente. Un garde-fou ne dépend
+de la mémoire de personne.
+
+`apps/windows/DeuxiemeCerveau.Presentation.Tests/ConventionsCoquilleTests.cs` porte désormais :
+
+- **`Toute_ressource_statique_utilisee_est_declaree`** — chaque `{StaticResource}` d'une vue est
+  déclaré, localement ou dans `Ressources/Jetons.xaml`.
+- **`Tout_bouton_porte_une_action`** — chaque `<Button>` / `<HyperlinkButton>` porte `Command`,
+  `Click` ou `x:Name`.
+
+Ils tournent avec `dotnet test` — **en local avant le commit**, et sur la CI Linux sans modification
+de `ci.yml`. Ils lisent le XAML **comme du texte**, donc ne compilent pas WinUI (D-020 tient).
+
+En cas d'échec, le message donne **le fichier et la ligne**. Pour une clé WinUI native légitimement
+non déclarée chez nous, l'ajouter à `ClesFourniesParLeFramework` — **jamais** désactiver le test.
+
+**Ce qu'ils ne voient pas :** un service composé mais jamais appelé. C'est le défaut qui a produit
+l'export sans porte, la saisie sans chemin, et — trouvés le 2026-07-26 — **la synchro jamais
+déclenchée** et **les pièces jointes sans aucun chemin**. Un troisième balayage reste à écrire.
+
+## 12. Piège neuf — un test qui date ses instants avec `Now` peut franchir minuit
+
+`RappelsTests.La_cle_porte_le_jour_pour_qu_un_rappel_ne_sorte_qu_une_fois` vérifiait qu'un rappel
+déclenché **deux fois dans la même journée** garde la même clé. Il écrivait ce « deux fois » comme
+`DateTimeOffset.Now` puis `Now.AddHours(3)`.
+
+**Passé 21:00, le second instant tombe le lendemain** : « demain » devient le surlendemain, la liste
+sort vide, et le test échoue sur un index hors limites. Latent depuis l'écriture, il ne s'est
+manifesté qu'à une session tardive — et aurait cassé la CI sur tout lancement entre 21:00 et minuit.
+
+Le code de production avait raison. **Ancrer les tests sur une heure fixe** (`DateTime.Today.AddHours(8)`)
+dès qu'ils ajoutent des heures : sinon le test ne teste pas ce qu'il prétend.
