@@ -93,42 +93,21 @@ public static class CalculateurProjection
 
         var flux = new Dictionary<MoisCalendaire, (long Entrees, long Sorties)>();
 
-        foreach (var element in requete.Elements)
+        foreach (var mouvement in Mouvements(requete.Elements, instantReference, finHorizonUtc))
         {
-            // Exclusions (§5.1.3, D-004) : annulés, supprimés (corbeille), financiers sans date ou sans montant.
-            if (!element.EstFinancier || element.Supprime || element.Statut == StatutElement.Annule)
+            // Rattachement au mois calendaire local — ce que l'utilisateur voit (D-004).
+            var mois = MoisCalendaire.Depuis(mouvement.Locale);
+            if (mois > dernierMois)
                 continue;
-            if (element.DateDebut is not { } dateDebut || element.MontantCentimes is not { } montant)
-                continue;
+            if (mois < moisReference)
+                mois = moisReference; // cas limite fuseaux très à l'ouest (D-004)
 
-            var fuseau = element.Fuseau is { Length: > 0 } id && FuseauxIana.Resoudre(id) is { } tz
-                ? tz
-                : TimeZoneInfo.Utc;
-            var sens = element.Sens ?? (element.Type == TypeElement.Revenu ? Sens.Entree : Sens.Sortie);
-
-            IEnumerable<Occurrence> occurrences = element.Recurrence is { Length: > 0 } rrule
-                ? ExpanseurRecurrence.Expanser(RegleRecurrence.Analyser(rrule), dateDebut, fuseau, finHorizonUtc)
-                : [ExpanseurRecurrence.OccurrenceUnique(dateDebut, fuseau)];
-
-            foreach (var occurrence in occurrences)
-            {
-                if (occurrence.Utc < instantReference)
-                    continue; // déjà contenu dans le solde de référence (§5.1.3)
-
-                // Rattachement au mois calendaire local — ce que l'utilisateur voit (D-004).
-                var mois = MoisCalendaire.Depuis(occurrence.Locale);
-                if (mois > dernierMois)
-                    continue;
-                if (mois < moisReference)
-                    mois = moisReference; // cas limite fuseaux très à l'ouest (D-004)
-
-                var (entrees, sorties) = flux.GetValueOrDefault(mois);
-                if (sens == Sens.Entree)
-                    entrees += montant;
-                else
-                    sorties += montant;
-                flux[mois] = (entrees, sorties);
-            }
+            var (entrees, sorties) = flux.GetValueOrDefault(mois);
+            if (mouvement.Sens == Sens.Entree)
+                entrees += mouvement.Centimes;
+            else
+                sorties += mouvement.Centimes;
+            flux[mois] = (entrees, sorties);
         }
 
         // La sortie hypothétique de la confrontation (§5.1bis) rejoint le flux comme n'importe
@@ -177,6 +156,91 @@ public static class CalculateurProjection
         }
 
         return resultat;
+    }
+
+    /// <summary>Une occurrence financière retenue : quand, combien, dans quel sens.</summary>
+    private readonly record struct Mouvement(DateTimeOffset Utc, DateTime Locale, long Centimes, Sens Sens);
+
+    /// <summary>
+    /// Les occurrences financières à compter, de l'instant de référence à la fin de la fenêtre.
+    /// <para>
+    /// <b>Partagé entre la cascade mensuelle et le solde courant, et c'est le point.</b> Les deux
+    /// répondent à la même question — « qu'est-ce qui bouge, et de combien » — et ne diffèrent que
+    /// par la borne : un mois calendaire d'un côté, un instant de l'autre. Dupliquer les exclusions
+    /// et l'expansion des RRULE les ferait diverger tôt ou tard, et il faudrait alors décider
+    /// laquelle a raison.
+    /// </para>
+    /// </summary>
+    private static IEnumerable<Mouvement> Mouvements(
+        IReadOnlyList<Element> elements, DateTimeOffset instantReference, DateTimeOffset finFenetreUtc)
+    {
+        foreach (var element in elements)
+        {
+            // Exclusions (§5.1.3, D-004) : annulés, supprimés (corbeille), financiers sans date ou
+            // sans montant. « EstFinancier » est AUSSI ce qui tient les envies hors du calcul
+            // (§5.1bis, D-027) — le garde-fou n'est plus l'absence du champ montant, c'est ici.
+            if (!element.EstFinancier || element.Supprime || element.Statut == StatutElement.Annule)
+                continue;
+            if (element.DateDebut is not { } dateDebut || element.MontantCentimes is not { } montant)
+                continue;
+
+            var fuseau = element.Fuseau is { Length: > 0 } id && FuseauxIana.Resoudre(id) is { } tz
+                ? tz
+                : TimeZoneInfo.Utc;
+            var sens = element.Sens ?? (element.Type == TypeElement.Revenu ? Sens.Entree : Sens.Sortie);
+
+            IEnumerable<Occurrence> occurrences = element.Recurrence is { Length: > 0 } rrule
+                ? ExpanseurRecurrence.Expanser(RegleRecurrence.Analyser(rrule), dateDebut, fuseau, finFenetreUtc)
+                : [ExpanseurRecurrence.OccurrenceUnique(dateDebut, fuseau)];
+
+            foreach (var occurrence in occurrences)
+            {
+                if (occurrence.Utc < instantReference)
+                    continue; // déjà contenu dans le solde de référence (§5.1.3)
+
+                yield return new Mouvement(occurrence.Utc, occurrence.Locale, montant, sens);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Le <b>solde courant</b> à un instant donné (§5.1) — le chiffre que l'utilisateur lit en
+    /// premier : <i>combien j'ai, maintenant</i>.
+    /// <para>
+    /// C'est la cascade du §5.1 <b>arrêtée à cet instant</b> plutôt qu'à une fin de mois : le solde
+    /// de référence, plus le net des occurrences financières entre sa date et l'instant demandé.
+    /// Mêmes exclusions, même expansion des RRULE, même arithmétique — <see cref="Mouvements"/> est
+    /// partagé avec <see cref="Calculer"/> pour que ce soit vrai par construction et non par
+    /// relecture.
+    /// </para>
+    /// <para>
+    /// <b>Les envies n'y entrent jamais</b> (§5.1bis, D-027), pour la même raison qu'elles n'entrent
+    /// pas dans la projection : elles ne sont pas financières. Une envie ne déplace donc pas ce
+    /// chiffre, quel que soit le prix qu'on lui prête.
+    /// </para>
+    /// <para>
+    /// <b>Jamais stocké</b> — calculé à la lecture, comme toute la projection (règle 9).
+    /// </para>
+    /// <para>
+    /// Si l'instant précède la date de référence, l'intervalle est vide et le solde de référence est
+    /// rendu tel quel : par définition, tout ce qui le précède y est déjà contenu (§5.1.3).
+    /// </para>
+    /// </summary>
+    public static long SoldeCourant(SoldeReference solde, IReadOnlyList<Element> elements, DateTimeOffset instant)
+    {
+        var instantReference = new DateTimeOffset(solde.Date.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc));
+
+        // Deux jours de marge à l'expansion : tout offset réel tient dans ±14 h, et le filtre
+        // ci-dessous tranche ensuite à l'instant exact.
+        var net = 0L;
+        foreach (var mouvement in Mouvements(elements, instantReference, instant.AddDays(2)))
+        {
+            if (mouvement.Utc > instant)
+                continue;
+            net += mouvement.Sens == Sens.Entree ? mouvement.Centimes : -mouvement.Centimes;
+        }
+
+        return solde.Centimes + net;
     }
 
     /// <summary>

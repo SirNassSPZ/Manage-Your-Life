@@ -112,7 +112,11 @@
                 <Border Grid.Column="2" BorderBrush="{StaticResource Trait}" BorderThickness="1,0,0,0"
                         Padding="14,0,0,0" VerticalAlignment="Center">
                     <StackPanel HorizontalAlignment="Right">
-                        <TextBlock Text="SOLDE" FontSize="9.5" FontWeight="SemiBold" CharacterSpacing="50"
+                        <!-- « POINT DE DÉPART », pas « SOLDE » : ce chiffre est le solde de
+                             référence (§3.4), immobile par conception. L'appeler « solde » le
+                             faisait passer pour l'argent du moment — c'est le solde COURANT de
+                             l'accueil qui joue ce rôle (§5.1), et lui vient du serveur. -->
+                        <TextBlock Text="POINT DE DÉPART" FontSize="9.5" FontWeight="SemiBold" CharacterSpacing="50"
                                    Foreground="{StaticResource Encre3}" HorizontalAlignment="Right" />
                         <TextBlock Text="{x:Bind Modele.SoldeEntete, Mode=OneWay}" FontSize="15.5"
                                    FontWeight="SemiBold" CharacterSpacing="-20"

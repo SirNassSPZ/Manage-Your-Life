@@ -140,7 +140,13 @@ public sealed class ServiceApi(
             elements);
 
         var resultat = CalculateurProjection.Calculer(requete);
-        return new ReponseProjectionDto([.. resultat.Select(Dto)]);
+
+        // Le solde courant voyage avec la projection plutôt que par une route à lui : c'est le même
+        // état lu au même instant, et deux routes pourraient répondre sur deux lectures différentes.
+        var soldeCourant = CalculateurProjection.SoldeCourant(
+            requete.Solde, elements, horloge.MaintenantUtc);
+
+        return new ReponseProjectionDto([.. resultat.Select(Dto)], soldeCourant);
     }
 
     /// <summary>

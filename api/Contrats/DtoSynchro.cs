@@ -72,7 +72,13 @@ public sealed record MoisProjeteDto(
     bool Decouvert,
     [property: JsonPropertyName("avant_reference")] bool AvantReference);
 
-public sealed record ReponseProjectionDto(IReadOnlyList<MoisProjeteDto> Mois);
+/// <param name="SoldeCourantCentimes">
+/// Le solde à l'instant de l'appel (§5.1) — le chiffre que l'app affiche en grand. Il découle des
+/// Éléments encodés, contrairement au solde de référence qui ne bouge qu'au recalage (§3.4).
+/// </param>
+public sealed record ReponseProjectionDto(
+    IReadOnlyList<MoisProjeteDto> Mois,
+    [property: JsonPropertyName("solde_courant_centimes")] long SoldeCourantCentimes);
 
 /// <summary>
 /// Confrontation d'un montant au budget projeté (§5.1bis, §8). Les <b>deux</b> cascades sont

@@ -160,10 +160,17 @@ public sealed partial class VueModeleCalendrier : ObservableObject
 
             var reste = (duJour?.Count ?? 0) - pastilles.Count;
 
+            var horsMois = jour.Month != _mois.Month;
+
             Cases.Add(new CaseJour(
                 Numero: jour.Day.ToString(),
-                HorsMois: jour.Month != _mois.Month,
-                EstAujourdhui: jour == aujourdhui,
+                HorsMois: horsMois,
+                // Le marqueur veut dire « vous êtes ici », donc jamais sur un jour de débordement :
+                // la grille d'un mois montre aussi la fin du précédent et le début du suivant, et
+                // marquer « aujourd'hui » dans ces jours-là le ferait apparaître alors qu'on
+                // consulte un AUTRE mois. Ne se voyait que les jours où la date du jour tombe dans
+                // le débordement d'un mois voisin — une dizaine de jours par mois.
+                EstAujourdhui: jour == aujourdhui && !horsMois,
                 Pastilles: pastilles,
                 Debordement: reste > 0 ? $"+{reste}" : null));
         }

@@ -161,12 +161,23 @@ public sealed partial class VueModeleAujourdhui : ObservableObject
     public ObservableCollection<GroupeAgenda> Agenda { get; } = [];
 
     /// <summary>
-    /// Le premier mois à découvert (§5.1 point 5 : « l'app met en évidence tout mois dont la clôture
-    /// est négative »). La projection est SERVEUR (règle 9), donc cet appel part en tâche de fond :
-    /// l'accueil s'affiche complet sans lui et ne l'attend jamais (filet 1).
+    /// Va chercher au serveur ce que l'accueil ne peut pas calculer : le <b>solde courant</b>
+    /// (§5.1) et le premier mois à découvert (§5.1 point 5).
     /// <para>
-    /// Un échec est volontairement muet. L'accueil doit rester calme ; c'est la vue Budget projeté
-    /// qui explique pourquoi la projection manque.
+    /// Les deux viennent du même appel, à dessein : c'est le même état lu au même instant. Deux
+    /// appels séparés pourraient répondre sur deux lectures différentes et afficher un solde qui
+    /// contredit son alerte.
+    /// </para>
+    /// <para>
+    /// La projection est SERVEUR (règle 9), donc cet appel part en tâche de fond : l'accueil
+    /// s'affiche complet sans lui et ne l'attend jamais (filet 1).
+    /// </para>
+    /// <para>
+    /// <b>Un échec ne laisse pas un chiffre faux à l'écran.</b> L'alerte s'efface en silence — c'est
+    /// la vue Budget projeté qui explique pourquoi la projection manque — mais le solde, lui, dit
+    /// franchement qu'il est indisponible. Afficher le solde de référence à sa place ferait
+    /// exactement ce qu'on cherche à corriger : montrer un nombre immobile qu'on prend pour son
+    /// argent du moment.
     /// </para>
     /// </summary>
     public async Task ChargerAlerteDecouvert()
@@ -174,11 +185,21 @@ public sealed partial class VueModeleAujourdhui : ObservableObject
         AlerteMontant = null;
         AlerteLibelle = null;
 
-        if (!_composition.Options.Api.EstConfiguree) return;
+        if (!SoldePose) return; // sans point de départ, il n'y a rien à projeter (§3.4)
+
+        if (!_composition.Options.Api.EstConfiguree)
+        {
+            SoldeIndisponible();
+            return;
+        }
 
         try
         {
             var projection = await _composition.Api.Projeter(12);
+
+            SoldeAffiche = Format.Euros(projection.SoldeCourantCentimes);
+            SoldeMention = _mentionReference;
+
             var decouvert = projection.Mois.FirstOrDefault(m =>
                 !m.AvantReference && m.ClotureCentimes is < 0);
 
@@ -189,9 +210,19 @@ public sealed partial class VueModeleAujourdhui : ObservableObject
         }
         catch
         {
-            // Muet par choix : voir la remarque ci-dessus.
+            SoldeIndisponible();
         }
     }
+
+    private void SoldeIndisponible()
+    {
+        SoldeAffiche = "—";
+        SoldeMention = "Solde indisponible : il est calculé par le serveur. "
+            + _mentionReference;
+    }
+
+    /// <summary>D'où part la projection — la vraie place du solde de référence (§3.4).</summary>
+    private string _mentionReference = "";
 
     public void Charger()
     {
@@ -211,13 +242,20 @@ public sealed partial class VueModeleAujourdhui : ObservableObject
         SoldePose = solde is not null;
         if (solde is not null)
         {
-            SoldeAffiche = Format.Euros(solde.Centimes);
-            SoldeMention = solde.Date == aujourdhui
-                ? "Recalé aujourd'hui. Factures, revenus et envies se projettent à partir de ce point."
-                : $"Recalé le {Format.JourLong(solde.Date)}. Factures, revenus et envies se projettent à partir de ce point.";
+            // Le grand chiffre est le SOLDE COURANT, qui vient du serveur (§5.1) — pas le solde de
+            // référence, immobile par conception (§3.4). C'est cette confusion qui faisait lire
+            // « 700 € » comme un montant bloqué dont on ne savait pas ce qu'il représentait.
+            // En attendant la réponse : un tiret, jamais une valeur d'attente qu'on prendrait
+            // pour le résultat.
+            var quand = solde.Date == aujourdhui ? "aujourd'hui" : "le " + Format.JourLong(solde.Date);
+            _mentionReference = $"Point de départ : {Format.Euros(solde.Centimes)}, posé {quand}.";
+
+            SoldeAffiche = "—";
+            SoldeMention = _mentionReference;
         }
         else
         {
+            _mentionReference = "";
             SoldeAffiche = "—";
             SoldeMention = "Pose ton solde de référence : sans point de départ, aucune projection n'est possible.";
         }

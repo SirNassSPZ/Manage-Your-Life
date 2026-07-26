@@ -121,6 +121,47 @@ public class ServiceApiTests
         Assert.True(projection.Mois[1].Decouvert);
     }
 
+    [Fact]
+    public void La_projection_porte_le_solde_courant()
+    {
+        // Le chiffre que l'accueil affiche en grand (§5.1). Il voyage AVEC la projection : c'est le
+        // même état lu au même instant, et deux routes séparées pourraient se contredire.
+        // L'horloge de test est fixée au 15 juillet 2026, le loyer tombe le 5 : il est passé.
+        _service.Recaler(new DemandeRecalageSolde(
+            Guid.NewGuid(), 150000, new DateOnly(2026, 7, 1), FabriqueApi.T0, FabriqueApi.AppareilA));
+
+        _service.Pousser(FabriqueApi.Lot(FabriqueApi.Changement(
+            FabriqueApi.Facture(recurrence: "FREQ=MONTHLY"), EntiteSynchro.Element)));
+
+        Assert.Equal(70000, _service.Projeter(3).SoldeCourantCentimes); // 150 000 − 80 000
+    }
+
+    [Fact]
+    public void Une_envie_ne_deplace_ni_la_projection_ni_le_solde_courant()
+    {
+        // GARDE-FOU, à travers l'API cette fois (D-027 : « deux tests le défendent explicitement,
+        // un dans le cœur et un à travers l'API — ne pas les supprimer en croyant à des doublons »).
+        // Depuis que l'envie peut porter un prix, ce n'est plus l'absence du champ qui protège le
+        // calcul mais son exclusion stricte. C'est le « ne rien inventer sur les envies d'achat ».
+        _service.Recaler(new DemandeRecalageSolde(
+            Guid.NewGuid(), 150000, new DateOnly(2026, 7, 1), FabriqueApi.T0, FabriqueApi.AppareilA));
+
+        var envie = FabriqueApi.Facture();
+        envie.Type = TypeElement.Envie;
+        envie.Sens = null;              // interdit sur une envie (§3.1)
+        envie.DateDebut = null;
+        envie.Fuseau = null;
+        envie.MontantCentimes = 30000;  // prix prêté, facultatif (D-027)
+        envie.Statut = StatutElement.Idee;
+
+        _service.Pousser(FabriqueApi.Lot(FabriqueApi.Changement(envie, EntiteSynchro.Element)));
+
+        var projection = _service.Projeter(3);
+        Assert.Equal(150000, projection.SoldeCourantCentimes);
+        Assert.Equal(150000, projection.Mois[0].ClotureCentimes);
+        Assert.Equal(0, projection.Mois[0].SortiesCentimes);
+    }
+
     // ----- Confrontation d'une envie au budget (§5.1bis, D-027) -----
 
     /// <summary>Solde de 1 500 € au 1er juillet 2026, sans aucun mouvement : la cascade est plate.</summary>

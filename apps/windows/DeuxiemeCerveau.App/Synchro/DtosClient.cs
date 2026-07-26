@@ -79,7 +79,13 @@ public sealed record MoisProjeteClient(
     [property: JsonPropertyName("avant_reference")] bool AvantReference);
 
 /// <summary>Réponse de <c>GET /projection/budget</c> (§8).</summary>
-public sealed record ReponseProjectionClient(IReadOnlyList<MoisProjeteClient> Mois);
+/// <param name="SoldeCourantCentimes">
+/// Le solde à l'instant de l'appel (§5.1) — ce que l'accueil affiche en grand. Calculé par le
+/// serveur comme la projection (règle 9) : l'app ne le recalcule jamais.
+/// </param>
+public sealed record ReponseProjectionClient(
+    IReadOnlyList<MoisProjeteClient> Mois,
+    [property: JsonPropertyName("solde_courant_centimes")] long SoldeCourantCentimes);
 
 /// <summary>
 /// Réponse de <c>GET /projection/confrontation</c> (§5.1bis, §8) : « est-ce que ça rentre ? ».
