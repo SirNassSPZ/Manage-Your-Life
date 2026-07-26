@@ -43,26 +43,33 @@
                                CharacterSpacing="50" Foreground="{StaticResource Encre3}" />
                 </StackPanel>
 
-                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="9"
-                            VerticalAlignment="Center">
-                    <Border Width="9" Height="9" CornerRadius="3" VerticalAlignment="Center"
-                            Background="{x:Bind Type, Converter={StaticResource CouleurType}}" />
-                    <TextBlock Text="{x:Bind Titre}" FontSize="14" Foreground="{StaticResource Encre}"
-                               TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                <!-- Le corps de la ligne ouvre la correction (§5). C'est un Button et non un
+                     Tapped sur la Grid entière : la case à cocher garde ainsi son propre geste,
+                     et sélectionner pour confirmer n'ouvre pas le formulaire par accident. -->
+                <Button Grid.Column="2" Background="Transparent" BorderThickness="0" Padding="0"
+                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
+                        Click="SurModifier" ToolTipService.ToolTip="Modifier"
+                        AutomationProperties.Name="{x:Bind Titre}">
+                    <StackPanel Orientation="Horizontal" Spacing="9" VerticalAlignment="Center">
+                        <Border Width="9" Height="9" CornerRadius="3" VerticalAlignment="Center"
+                                Background="{x:Bind Type, Converter={StaticResource CouleurType}}" />
+                        <TextBlock Text="{x:Bind Titre}" FontSize="14" Foreground="{StaticResource Encre}"
+                                   TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
 
-                    <Border Background="{StaticResource Surface2}" BorderBrush="{StaticResource Trait}"
-                            BorderThickness="1" CornerRadius="5" Padding="6,1" VerticalAlignment="Center"
-                            Visibility="{x:Bind Recurrence, Converter={StaticResource SiTexte}}">
-                        <TextBlock Text="{x:Bind Recurrence}" FontSize="10" FontWeight="SemiBold"
-                                   Foreground="{StaticResource Encre3}" />
-                    </Border>
+                        <Border Background="{StaticResource Surface2}" BorderBrush="{StaticResource Trait}"
+                                BorderThickness="1" CornerRadius="5" Padding="6,1" VerticalAlignment="Center"
+                                Visibility="{x:Bind Recurrence, Converter={StaticResource SiTexte}}">
+                            <TextBlock Text="{x:Bind Recurrence}" FontSize="10" FontWeight="SemiBold"
+                                       Foreground="{StaticResource Encre3}" />
+                        </Border>
 
-                    <Border CornerRadius="5" Padding="6,1" VerticalAlignment="Center"
-                            Background="{x:Bind Regle, Converter={StaticResource FondStatut}}">
-                        <TextBlock Text="{x:Bind Statut}" FontSize="10" FontWeight="SemiBold"
-                                   Foreground="{x:Bind Regle, Converter={StaticResource EncreStatut}}" />
-                    </Border>
-                </StackPanel>
+                        <Border CornerRadius="5" Padding="6,1" VerticalAlignment="Center"
+                                Background="{x:Bind Regle, Converter={StaticResource FondStatut}}">
+                            <TextBlock Text="{x:Bind Statut}" FontSize="10" FontWeight="SemiBold"
+                                       Foreground="{x:Bind Regle, Converter={StaticResource EncreStatut}}" />
+                        </Border>
+                    </StackPanel>
+                </Button>
 
                 <TextBlock Grid.Column="3" Text="{x:Bind Montant}" FontSize="14.5" FontWeight="SemiBold"
                            CharacterSpacing="-10" VerticalAlignment="Center" MinWidth="110"

@@ -92,6 +92,10 @@ public sealed partial class Coquille : UserControl
     {
         // Finances n'offre que l'argent et les envies : un rendez-vous se plane au Calendrier (§5.4).
         vue.Ajouter += () => Modele.Saisie.OuvrirFinancesCommand.Execute(null);
+
+        // Corriger un mouvement en cliquant dessus (§5). La lecture de l'Élément vit dans le
+        // modèle de vue, pas ici : la coquille affiche et saisit, rien d'autre (règle 2).
+        vue.Modifier += Modele.ModifierElement;
         return vue;
     }
 

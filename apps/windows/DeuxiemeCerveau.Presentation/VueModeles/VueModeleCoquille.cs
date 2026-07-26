@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using DeuxiemeCerveau.Core.Modele;
+using DeuxiemeCerveau.Core.Synchro;
 
 namespace DeuxiemeCerveau.Presentation.VueModeles;
 
@@ -117,6 +118,23 @@ public sealed partial class VueModeleCoquille : ObservableObject
     /// passer toutes les écritures, via <see cref="Rafraichir"/> et <see cref="RafraichirEntete"/>.
     /// </summary>
     public ServiceSynchroFond Synchro { get; }
+
+    /// <summary>
+    /// Ouvre le formulaire sur un Élément existant, pour le corriger (§5). Vit ici et non dans la
+    /// coquille Windows : lire l'Élément est de la logique, et la coquille n'a le droit d'afficher
+    /// et de saisir (règle 2).
+    /// <para>
+    /// Silencieux si l'Élément a disparu entre-temps — supprimé sur un autre appareil, ou tiré par
+    /// une synchro entre l'affichage de la liste et le clic.
+    /// </para>
+    /// </summary>
+    public void ModifierElement(Guid id)
+    {
+        var etat = _composition.Acces.Lire(() => _composition.Depot.Obtenir(EntiteSynchro.Element, id));
+        if (etat is null) return;
+
+        Saisie.OuvrirPour(Core.Json.SerialisationCanonique.Deserialiser<Element>(etat.PayloadCanonique));
+    }
 
     private void SurFilInterface(Action action)
     {

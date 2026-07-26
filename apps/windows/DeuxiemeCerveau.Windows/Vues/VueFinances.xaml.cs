@@ -24,5 +24,21 @@ public sealed partial class VueFinances : UserControl
     /// </summary>
     public event Action? Ajouter;
 
+    /// <summary>
+    /// Ouvre un mouvement pour le corriger (§5 — « tout ce qui est affiché se modifie »). Même
+    /// motif que <see cref="Ajouter"/> : c'est la coquille qui porte le formulaire.
+    /// </summary>
+    public event Action<Guid>? Modifier;
+
     private void SurAjouter(object envoyeur, Microsoft.UI.Xaml.RoutedEventArgs args) => Ajouter?.Invoke();
+
+    /// <summary>
+    /// Clic sur une ligne. Le geste de SÉLECTION (la bulle) reste distinct : sans quoi cocher pour
+    /// confirmer ouvrirait aussi le formulaire, et les deux se marcheraient dessus.
+    /// </summary>
+    private void SurModifier(object envoyeur, Microsoft.UI.Xaml.RoutedEventArgs args)
+    {
+        if (envoyeur is Microsoft.UI.Xaml.FrameworkElement { DataContext: LigneFinance ligne })
+            Modifier?.Invoke(ligne.ElementId);
+    }
 }
