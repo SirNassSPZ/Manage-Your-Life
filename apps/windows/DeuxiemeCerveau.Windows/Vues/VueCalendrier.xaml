@@ -81,8 +81,9 @@
 
             <!-- Pas d'« ajouter un élément » quand on gère les calendriers : le bouton de création
                  de cette page est « Créer », juste dessous. -->
+            <!-- Ce bouton n'avait aucune action : la zone Calendrier ne savait rien créer. -->
             <Button Grid.Column="3" Style="{StaticResource BoutonPrimaire}" Content="Nouvel élément"
-                    VerticalAlignment="Center"
+                    VerticalAlignment="Center" Click="SurNouvelElement"
                     Visibility="{x:Bind Modele.EstGestion, Mode=OneWay, Converter={StaticResource SiFaux}}" />
         </Grid>
 

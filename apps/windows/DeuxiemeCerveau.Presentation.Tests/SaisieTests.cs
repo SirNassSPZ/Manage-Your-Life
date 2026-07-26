@@ -16,7 +16,7 @@ public class SaisieTests
     private static VueModeleSaisie Ouvrir(FabriquePresentation f)
     {
         var modele = new VueModeleSaisie(f.Composition);
-        modele.OuvrirCommand.Execute(null);
+        modele.Ouvrir();                 // tous les types, comme depuis l'accueil
         return modele;
     }
 
@@ -237,5 +237,54 @@ public class SaisieTests
         Assert.False(modele.Ouvert);
         Assert.Equal("", modele.Titre);
         Assert.Equal("", modele.Montant);
+    }
+}
+
+/// <summary>
+/// Les types offerts dépendent de l'endroit d'où l'on ouvre le formulaire (§5.1, §5.4) : Finances
+/// ne plane pas de rendez-vous, et le Calendrier ne saisit pas d'argent.
+/// </summary>
+public class TypesOffertsTests
+{
+    [Fact]
+    public void Depuis_Finances_aucun_rendez_vous_n_est_proposable()
+    {
+        using var f = new FabriquePresentation();
+        var modele = new VueModeleSaisie(f.Composition);
+
+        modele.OuvrirFinancesCommand.Execute(null);
+
+        Assert.DoesNotContain(modele.Types, t => t.Type == TypeElement.Rendezvous);
+        Assert.Contains(modele.Types, t => t.Type == TypeElement.Facture);
+        Assert.Contains(modele.Types, t => t.Type == TypeElement.Envie);
+        // Le type actif doit être offert : sinon le formulaire s'ouvre sur un bouton absent.
+        Assert.Contains(modele.Types, t => t.Type == modele.Type);
+    }
+
+    [Fact]
+    public void Depuis_le_Calendrier_seul_le_rendez_vous_est_proposable()
+    {
+        using var f = new FabriquePresentation();
+        var modele = new VueModeleSaisie(f.Composition);
+
+        modele.OuvrirCalendrierCommand.Execute(null);
+
+        Assert.Equal(TypeElement.Rendezvous, Assert.Single(modele.Types).Type);
+        Assert.Equal(TypeElement.Rendezvous, modele.Type);
+        Assert.False(modele.DemandeMontant);
+    }
+
+    [Fact]
+    public void Rouvrir_ailleurs_remplace_la_liste_au_lieu_de_l_empiler()
+    {
+        using var f = new FabriquePresentation();
+        var modele = new VueModeleSaisie(f.Composition);
+
+        modele.OuvrirFinancesCommand.Execute(null);
+        modele.OuvrirCalendrierCommand.Execute(null);
+        modele.OuvrirFinancesCommand.Execute(null);
+
+        Assert.Equal(4, modele.Types.Count);
+        Assert.Single(modele.Types, t => t.Actif);
     }
 }

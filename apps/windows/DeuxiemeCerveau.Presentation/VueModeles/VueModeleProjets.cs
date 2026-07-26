@@ -6,14 +6,27 @@ using DeuxiemeCerveau.Core.Synchro;
 
 namespace DeuxiemeCerveau.Presentation.VueModeles;
 
-/// <summary>Une tâche de projet (§5.3) telle que la liste l'affiche.</summary>
+/// <summary>
+/// Une tâche de projet (§5.3) telle que la liste l'affiche.
+/// <para>
+/// <see cref="Faite"/> et <see cref="Priorite"/> sont <b>mutables et observables</b> : cocher une
+/// tâche modifie la ligne SUR PLACE au lieu de reconstruire toute la liste. Reconstruire faisait
+/// recréer les lignes sous le clic, et les coches se retrouvaient sur les mauvaises.
+/// </para>
+/// </summary>
 public sealed partial class LigneTache : ObservableObject
 {
     public required Guid Id { get; init; }
     public required string Titre { get; init; }
-    public required Priorite Priorite { get; init; }
-    public required bool Faite { get; init; }
     public required bool Reportee { get; init; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(EtiquettePriorite))]
+    [NotifyPropertyChangedFor(nameof(APriorite))]
+    private Priorite _priorite;
+
+    [ObservableProperty]
+    private bool _faite;
 
     /// <summary>« Haute », « Basse » — vide pour la priorité normale, qui n'a rien à annoncer.</summary>
     public string EtiquettePriorite => Priorite switch
@@ -24,6 +37,12 @@ public sealed partial class LigneTache : ObservableObject
     };
 
     public bool APriorite => EtiquettePriorite.Length > 0;
+
+    /// <summary>
+    /// Renotifie la coche sans changer sa valeur. Une CheckBox se coche d'elle-même au clic : si
+    /// l'écriture échoue, il faut la ramener sur l'état réel, sinon elle affiche un mensonge.
+    /// </summary>
+    internal void RemettreCocheAuReel() => OnPropertyChanged(nameof(Faite));
 }
 
 /// <summary>Un projet et ses tâches (§3.2, §5.3).</summary>
@@ -35,8 +54,12 @@ public sealed partial class LigneProjet : ObservableObject
     public required StatutProjet Statut { get; init; }
     public required IReadOnlyList<LigneTache> Taches { get; init; }
 
-    /// <summary>« 3 tâches · 1 faite » — l'avancement d'un coup d'œil.</summary>
-    public required string Avancement { get; init; }
+    /// <summary>
+    /// « 3 tâches · 1 faite » — l'avancement d'un coup d'œil. Observable : cocher une tâche le met
+    /// à jour sans reconstruire la liste.
+    /// </summary>
+    [ObservableProperty]
+    private string _avancement = "";
 
     public bool EstActif => Statut == StatutProjet.Actif;
 
@@ -73,6 +96,12 @@ public sealed partial class VueModeleProjets : ObservableObject
 
     /// <summary>Rappelé après toute écriture : la barre latérale et le calendrier en dépendent.</summary>
     public Action? ApresChangement { get; set; }
+
+    /// <summary>
+    /// Rappelé après une écriture que cette vue a déjà reflétée sur place. Ne doit RIEN recharger
+    /// ici — sinon la liste se reconstruit sous le clic et les coches partent de travers.
+    /// </summary>
+    public Action? ApresChangementLeger { get; set; }
 
     public ObservableCollection<LigneProjet> Projets { get; } = [];
 
@@ -239,23 +268,46 @@ public sealed partial class VueModeleProjets : ObservableObject
         ApresChangement?.Invoke();
     }
 
-    /// <summary>Coche ou décoche une tâche (§3.1 : `a_faire` ↔ `fait`).</summary>
+    /// <summary>
+    /// Coche ou décoche une tâche (§3.1 : `a_faire` ↔ `fait`). La ligne est modifiée <b>sur
+    /// place</b> : pas de rechargement, donc aucune ligne ne bouge sous le doigt.
+    /// </summary>
     [RelayCommand]
     private void BasculerTache(LigneTache tache)
     {
-        Modifier(tache.Id, e => e.Statut = tache.Faite ? StatutElement.AFaire : StatutElement.Fait);
+        var vise = !tache.Faite;
+        if (!Persister(tache.Id, e => e.Statut = vise ? StatutElement.Fait : StatutElement.AFaire))
+        {
+            tache.RemettreCocheAuReel();
+            return;
+        }
+
+        tache.Faite = vise;
+        RecalculerAvancement();
     }
 
     /// <summary>Fait tourner la priorité — trois valeurs, un seul geste, pas de menu à ouvrir.</summary>
     [RelayCommand]
     private void CyclerPriorite(LigneTache tache)
     {
-        Modifier(tache.Id, e => e.Priorite = tache.Priorite switch
+        var vise = tache.Priorite switch
         {
             Priorite.Basse => Priorite.Normale,
             Priorite.Normale => Priorite.Haute,
             _ => Priorite.Basse,
-        });
+        };
+
+        if (!Persister(tache.Id, e => e.Priorite = vise)) return;
+
+        // La priorité ne trie plus la liste (voir ServiceLecture.TachesDeProjet) : changer une
+        // étiquette ne doit pas déplacer la ligne qu'on vient de viser.
+        tache.Priorite = vise;
+    }
+
+    /// <summary>Met à jour l'avancement du projet ouvert sans reconstruire ses lignes.</summary>
+    private void RecalculerAvancement()
+    {
+        if (ProjetOuvert is { } ouvert) ouvert.Avancement = Avancement(ouvert.Taches);
     }
 
     [RelayCommand]
@@ -295,7 +347,11 @@ public sealed partial class VueModeleProjets : ObservableObject
         ApresChangement?.Invoke();
     }
 
-    private void Modifier(Guid id, Action<Element> changement)
+    /// <summary>
+    /// Écrit un changement de tâche dans la base et rend vrai s'il est passé. <b>Ne recharge
+    /// pas</b> : l'appelant met la ligne à jour sur place, ce qui garde la liste immobile.
+    /// </summary>
+    private bool Persister(Guid id, Action<Element> changement)
     {
         var resultat = _composition.Acces.Lire(() =>
         {
@@ -305,11 +361,23 @@ public sealed partial class VueModeleProjets : ObservableObject
             return _composition.Saisie.Enregistrer(element, EntiteSynchro.Element);
         });
 
-        if (resultat is { Reussi: false })
-            Message = string.Join(" / ", resultat.Erreurs.Select(e => e.Message));
+        if (resultat is null)
+        {
+            Message = "Tâche introuvable — elle a peut-être été supprimée ailleurs.";
+            Charger();
+            return false;
+        }
 
-        Charger();
-        ApresChangement?.Invoke();
+        if (!resultat.Reussi)
+        {
+            Message = string.Join(" / ", resultat.Erreurs.Select(e => e.Message));
+            return false;
+        }
+
+        Message = null;
+        // L'état de synchro change (outbox) : la coquille doit le voir, mais la liste reste en place.
+        ApresChangementLeger?.Invoke();
+        return true;
     }
 
     private void ModifierProjet(Guid id, Action<Projet> changement)

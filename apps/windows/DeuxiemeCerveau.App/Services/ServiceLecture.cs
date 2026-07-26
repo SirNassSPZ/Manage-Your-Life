@@ -77,15 +77,21 @@ public sealed class ServiceLecture(DepotLocal depot)
             .ToList();
 
     /// <summary>
-    /// Les tâches d'un projet (§5.3). Tri : l'ordre manuel d'abord quand il est posé — c'est
-    /// justement ce que l'utilisateur a demandé en le posant — puis la priorité, puis le titre.
+    /// Les tâches d'un projet (§5.3), dans l'ordre manuel s'il est posé, sinon dans l'ordre où
+    /// elles ont été ajoutées.
+    /// <para>
+    /// <b>Ni la priorité ni le titre ne trient.</b> Les deux l'ont fait, et c'était un défaut :
+    /// une liste triée par titre ne place jamais les tâches là où on les a tapées, et un tri par
+    /// priorité fait SAUTER une ligne dès qu'on change sa priorité — on croit alors cocher la
+    /// première et on en coche une autre. Une liste de tâches doit rester où on l'a laissée ; la
+    /// priorité est une étiquette, pas un ordre.
+    /// </para>
     /// </summary>
     public IReadOnlyList<Element> TachesDeProjet(Guid projet)
         => Elements()
             .Where(e => !e.Supprime && e.Type == TypeElement.Tache && e.ProjetId == projet)
             .OrderBy(e => e.OrdreManuel ?? int.MaxValue)
-            .ThenByDescending(e => e.Priorite ?? Priorite.Normale)
-            .ThenBy(e => e.Titre, StringComparer.CurrentCulture)
+            .ThenBy(e => e.DateCreation)
             .ToList();
 
     private IEnumerable<Projet> TousProjets()

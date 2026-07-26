@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using DeuxiemeCerveau.App.Services;
 using DeuxiemeCerveau.Core.Modele;
 
@@ -34,6 +35,96 @@ public sealed partial class VueModeleAujourdhui : ObservableObject
     private readonly Composition _composition;
 
     public VueModeleAujourdhui(Composition composition) => _composition = composition;
+
+    /// <summary>Rappelé après un recalage : tout l'écran repose sur le solde de référence.</summary>
+    public Action? ApresChangement { get; set; }
+
+    // ----- Recalage du solde de référence (§3.4) -----
+    //
+    // Le bouton « Recaler le solde » existait dans la vue depuis l'Étape 4f mais n'était relié à
+    // RIEN, alors que ServiceRecalage était écrit et testé. C'est le geste UNIQUE de correction
+    // prévu par la spec : on redonne son solde réel et tout se reprojette à partir de là.
+
+    [ObservableProperty]
+    private bool _recalageOuvert;
+
+    [ObservableProperty]
+    private string _soldeSaisi = "";
+
+    [ObservableProperty]
+    private DateOnly _dateRecalage = DateOnly.FromDateTime(DateTime.Now);
+
+    /// <summary>L'écart affiché TEL QUEL avant validation — pour que le geste soit compris, pas subi.</summary>
+    [ObservableProperty]
+    private string? _apercuRecalage;
+
+    [ObservableProperty]
+    private string? _erreurRecalage;
+
+    [RelayCommand]
+    private void OuvrirRecalage()
+    {
+        var actuel = _composition.Acces.Lire(() => _composition.Aujourdhui.SoldeDeReference());
+        // Pré-remplir avec le solde actuel : on corrige un écart, on ne repart pas de zéro.
+        SoldeSaisi = actuel is null ? "" : Format.Euros(actuel.Centimes).Replace(" €", "").Trim();
+        DateRecalage = DateOnly.FromDateTime(DateTime.Now);
+        ApercuRecalage = null;
+        ErreurRecalage = null;
+        RecalageOuvert = true;
+    }
+
+    [RelayCommand]
+    private void FermerRecalage()
+    {
+        RecalageOuvert = false;
+        ApercuRecalage = null;
+        ErreurRecalage = null;
+    }
+
+    /// <summary>
+    /// Aperçu sans rien écrire : d'où l'on part, où l'on va, et l'écart. C'est ce que
+    /// <c>ServiceRecalage.Preparer</c> existe pour donner.
+    /// </summary>
+    [RelayCommand]
+    private void ApercuRecalageCommande()
+    {
+        if (!LireSoldeSaisi(out var centimes)) return;
+
+        var etat = _composition.Acces.Lire(() => _composition.Recalage.Preparer(centimes, DateRecalage));
+        ApercuRecalage = etat.EcartCentimes is not { } ecart
+            ? $"Premier réglage : le solde de départ sera {Format.Euros(etat.NouveauCentimes)}."
+            : ecart == 0
+                ? "Aucun écart : la projection part déjà du bon endroit."
+                : $"Écart de {Format.EurosRelatif(ecart)} par rapport au {Format.JourLong(etat.AncienneDate!.Value)}. "
+                  + "Tout se reprojettera à partir du nouveau point.";
+    }
+
+    [RelayCommand]
+    private void AppliquerRecalage()
+    {
+        if (!LireSoldeSaisi(out var centimes)) return;
+
+        var resultat = _composition.Acces.Lire(() => _composition.Recalage.Appliquer(centimes, DateRecalage));
+        if (!resultat.Reussi)
+        {
+            ErreurRecalage = string.Join(" / ", resultat.Erreurs.Select(e => e.Message));
+            return;
+        }
+
+        RecalageOuvert = false;
+        ApercuRecalage = null;
+        Charger();
+        ApresChangement?.Invoke();
+    }
+
+    /// <summary>Un découvert se saisit avec un signe moins (§3.4) : le solde négatif est autorisé.</summary>
+    private bool LireSoldeSaisi(out long centimes)
+    {
+        ErreurRecalage = null;
+        if (Format.TryCentimes(SoldeSaisi, out centimes)) return true;
+        ErreurRecalage = $"Montant illisible : « {SoldeSaisi.Trim()} ».";
+        return false;
+    }
 
     [ObservableProperty]
     private string _salutation = "Bonjour";

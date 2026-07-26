@@ -46,6 +46,7 @@ public sealed class Composition : IDisposable
     public ServiceAujourdhui Aujourdhui { get; }
     public ServiceDemarrage Demarrage { get; }
     public ServiceConfirmation Confirmation { get; }
+    public ServiceRecalage Recalage { get; }
     public ServicePurge Purge { get; }
     public ServicePiecesJointes PiecesJointes { get; }
     public ServiceExport Export { get; }
@@ -78,6 +79,7 @@ public sealed class Composition : IDisposable
         Aujourdhui = new ServiceAujourdhui(depot, Calendrier);
         Demarrage = new ServiceDemarrage(depot, Saisie);
         Confirmation = new ServiceConfirmation(depot, Saisie);
+        Recalage = new ServiceRecalage(Aujourdhui, Demarrage);
         Purge = new ServicePurge(depot, new FilePurges(depot));
         PiecesJointes = new ServicePiecesJointes(depot, Saisie, cache, Api, new TransfertBlobHttp(httpBlob));
         Export = new ServiceExport(depot, horloge, cache);

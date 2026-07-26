@@ -57,15 +57,28 @@ public sealed partial class VueModeleSaisie : ObservableObject
 
     public ObservableCollection<ChoixCategorie> Categories { get; } = [];
 
-    /// <summary>Les types saisissables en V1, dans l'ordre où on les utilise vraiment.</summary>
-    public ObservableCollection<ChoixType> Types { get; } =
+    /// <summary>
+    /// Les types offerts, <b>selon l'endroit d'où l'on ouvre le formulaire</b>. Un rendez-vous se
+    /// plane depuis le Calendrier, pas depuis Finances : proposer l'argent et l'agenda dans le même
+    /// menu partout brouille ce que chaque onglet sert à faire.
+    /// </summary>
+    public ObservableCollection<ChoixType> Types { get; } = [];
+
+    private static readonly (TypeElement Type, string Nom)[] Catalogue =
     [
-        new() { Type = TypeElement.Facture, Nom = "Facture", Actif = true },
-        new() { Type = TypeElement.Paiement, Nom = "Paiement" },
-        new() { Type = TypeElement.Revenu, Nom = "Revenu" },
-        new() { Type = TypeElement.Rendezvous, Nom = "Rendez-vous" },
-        new() { Type = TypeElement.Envie, Nom = "Envie" },
+        (TypeElement.Facture, "Facture"),
+        (TypeElement.Paiement, "Paiement"),
+        (TypeElement.Revenu, "Revenu"),
+        (TypeElement.Envie, "Envie"),
+        (TypeElement.Rendezvous, "Rendez-vous"),
     ];
+
+    /// <summary>L'argent et les envies : ce que la zone Finances sait recevoir (§5.1).</summary>
+    private static readonly TypeElement[] PourFinances =
+        [TypeElement.Facture, TypeElement.Paiement, TypeElement.Revenu, TypeElement.Envie];
+
+    /// <summary>Le calendrier plane les rendez-vous, et rien d'autre (§5.4).</summary>
+    private static readonly TypeElement[] PourCalendrier = [TypeElement.Rendezvous];
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(DemandeMontant))]
@@ -102,10 +115,27 @@ public sealed partial class VueModeleSaisie : ObservableObject
 
     public string LibelleMontant => Type == TypeElement.Envie ? "Prix estimé (facultatif)" : "Montant";
 
-    /// <summary>Ouvre le formulaire et recharge les catégories cochables.</summary>
+    /// <summary>Ouvre le formulaire pour la zone Finances : argent et envies.</summary>
     [RelayCommand]
-    private void Ouvrir()
+    private void OuvrirFinances() => Ouvrir(PourFinances);
+
+    /// <summary>Ouvre le formulaire pour la zone Calendrier : rendez-vous.</summary>
+    [RelayCommand]
+    private void OuvrirCalendrier() => Ouvrir(PourCalendrier);
+
+    /// <summary>Ouvre le formulaire et recharge les catégories cochables.</summary>
+    public void Ouvrir(IReadOnlyList<TypeElement>? types = null)
     {
+        var offerts = types ?? [.. Catalogue.Select(c => c.Type)];
+        Types.Clear();
+        foreach (var (type, nom) in Catalogue.Where(c => offerts.Contains(c.Type)))
+            Types.Add(new ChoixType { Type = type, Nom = nom });
+
+        // Le premier type offert devient le type actif : sans ça, le formulaire s'ouvrirait sur un
+        // type absent de ses propres boutons.
+        Type = Types[0].Type;
+        Types[0].Actif = true;
+
         var categories = _composition.Acces.Lire(() => _composition.Lecture.Categories());
         Categories.Clear();
         foreach (var categorie in categories)

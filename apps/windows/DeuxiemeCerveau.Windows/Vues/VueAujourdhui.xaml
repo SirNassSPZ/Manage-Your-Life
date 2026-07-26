@@ -10,10 +10,12 @@
         <pres:CouleurMontant x:Key="CouleurMontant" />
         <pres:TexteVersVisibilite x:Key="SiTexte" />
         <pres:BoolVersVisibilite x:Key="SiVrai" />
+        <pres:JourDate x:Key="JourDate" />
         <!-- BoutonPrimaire / BoutonDiscret viennent de Ressources/Jetons.xaml : une seule
              définition pour toute l'app, sinon les vues divergent en silence. -->
     </UserControl.Resources>
 
+    <Grid x:Name="RacineAujourdhui">
     <ScrollViewer Background="{StaticResource Surface}" Padding="22,20,22,22">
         <StackPanel>
 
@@ -29,8 +31,12 @@
                                Style="{StaticResource TitreVueAccessoire}" VerticalAlignment="Bottom" />
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                    <Button Style="{StaticResource BoutonDiscret}" Content="Recaler le solde" />
-                    <Button Style="{StaticResource BoutonPrimaire}" Content="Ajouter" />
+                    <!-- Ces deux boutons existaient sans Command depuis l'Étape 4f : ServiceRecalage
+                         était écrit et testé, mais aucun geste ne l'atteignait. -->
+                    <Button Style="{StaticResource BoutonDiscret}" Content="Recaler le solde"
+                            Command="{x:Bind Modele.OuvrirRecalageCommand}" />
+                    <Button Style="{StaticResource BoutonPrimaire}" Content="Ajouter"
+                            Click="SurAjouter" />
                 </StackPanel>
             </Grid>
 
@@ -139,4 +145,55 @@
 
         </StackPanel>
     </ScrollViewer>
+
+    <!-- ============ RECALAGE DU SOLDE (§3.4) ============
+         Le geste UNIQUE de correction : on redonne son solde réel et tout se reprojette. L'écart
+         est montré TEL QUEL avant validation, pour que ce soit un entretien et non un aveu. -->
+    <Grid Background="#66000000"
+          Visibility="{x:Bind Modele.RecalageOuvert, Mode=OneWay, Converter={StaticResource SiVrai}}">
+        <Border Background="{StaticResource Surface}" CornerRadius="{StaticResource RayonFenetre}"
+                BorderBrush="{StaticResource Trait}" BorderThickness="1"
+                Padding="24,22" Width="430"
+                HorizontalAlignment="Center" VerticalAlignment="Center">
+            <StackPanel Spacing="15">
+                <TextBlock Text="Recaler le solde" Style="{StaticResource TitreVue}" FontSize="21" />
+                <TextBlock Style="{StaticResource TexteCourant}" FontSize="13"
+                           Text="Donne ton solde réel : la projection repart de ce point. Un découvert se saisit avec un signe moins." />
+
+                <StackPanel Spacing="7">
+                    <TextBlock Text="SOLDE RÉEL" Style="{StaticResource EtiquetteMajuscule}" />
+                    <TextBox Style="{StaticResource ChampMontant}" PlaceholderText="0,00"
+                             Text="{x:Bind Modele.SoldeSaisi, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                             AutomationProperties.Name="Solde réel en euros" />
+                </StackPanel>
+
+                <StackPanel Spacing="7">
+                    <TextBlock Text="À CETTE DATE" Style="{StaticResource EtiquetteMajuscule}" />
+                    <CalendarDatePicker Date="{x:Bind Modele.DateRecalage, Mode=TwoWay, Converter={StaticResource JourDate}}"
+                                        HorizontalAlignment="Stretch" FontSize="13.5"
+                                        AutomationProperties.Name="Date du recalage" />
+                </StackPanel>
+
+                <Border Background="{StaticResource Surface2}" CornerRadius="9" Padding="11,9"
+                        Visibility="{x:Bind Modele.ApercuRecalage, Mode=OneWay, Converter={StaticResource SiTexte}}">
+                    <TextBlock Text="{x:Bind Modele.ApercuRecalage, Mode=OneWay}" FontSize="12.5"
+                               Foreground="{StaticResource Encre2}" TextWrapping="Wrap" />
+                </Border>
+
+                <TextBlock Text="{x:Bind Modele.ErreurRecalage, Mode=OneWay}" FontSize="12.5"
+                           Foreground="{StaticResource Negatif}" TextWrapping="Wrap"
+                           Visibility="{x:Bind Modele.ErreurRecalage, Mode=OneWay, Converter={StaticResource SiTexte}}" />
+
+                <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+                    <Button Style="{StaticResource BoutonDiscret}" Content="Annuler"
+                            Command="{x:Bind Modele.FermerRecalageCommand}" />
+                    <Button Style="{StaticResource BoutonDiscret}" Content="Voir l'écart"
+                            Command="{x:Bind Modele.ApercuRecalageCommandeCommand}" />
+                    <Button Style="{StaticResource BoutonPrimaire}" Content="Recaler"
+                            Command="{x:Bind Modele.AppliquerRecalageCommand}" />
+                </StackPanel>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Grid>
 </UserControl>

@@ -62,7 +62,7 @@ public sealed partial class Coquille : UserControl
     {
         Zone.Aujourdhui => Brancher(new VueAujourdhui(), Modele.Accueil),
         Zone.BudgetProjete => new VueBudget(Modele.Budget),
-        Zone.Calendrier => new VueCalendrier(Modele.Calendrier, Modele.Categories),
+        Zone.Calendrier => BrancherCalendrier(new VueCalendrier(Modele.Calendrier, Modele.Categories)),
         Zone.Finances => BrancherSaisie(new VueFinances(Modele.Finances)),
         Zone.Notes => new VueNotes(Modele.Notes),
         Zone.Corbeille => new VueCorbeille(Modele.Corbeille),
@@ -76,13 +76,22 @@ public sealed partial class Coquille : UserControl
     /// </summary>
     private VueFinances BrancherSaisie(VueFinances vue)
     {
-        vue.Ajouter += () => Modele.Saisie.OuvrirCommand.Execute(null);
+        // Finances n'offre que l'argent et les envies : un rendez-vous se plane au Calendrier (§5.4).
+        vue.Ajouter += () => Modele.Saisie.OuvrirFinancesCommand.Execute(null);
         return vue;
     }
 
-    private static VueAujourdhui Brancher(VueAujourdhui vue, VueModeleAujourdhui modele)
+    private VueCalendrier BrancherCalendrier(VueCalendrier vue)
+    {
+        vue.NouvelElement += () => Modele.Saisie.OuvrirCalendrierCommand.Execute(null);
+        return vue;
+    }
+
+    private VueAujourdhui Brancher(VueAujourdhui vue, VueModeleAujourdhui modele)
     {
         vue.Brancher(modele);
+        // L'accueil est le seul écran qui voit tout : sa saisie offre donc tous les types.
+        vue.Ajouter += () => Modele.Saisie.Ouvrir();
         return vue;
     }
 }

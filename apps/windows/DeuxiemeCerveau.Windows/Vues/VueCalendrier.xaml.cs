@@ -22,6 +22,15 @@ public sealed partial class VueCalendrier : UserControl
         RacineCal.DataContext = this;
     }
 
+    /// <summary>
+    /// Ouvre la saisie d'un rendez-vous. Le Calendrier est le SEUL endroit qui plane un
+    /// rendez-vous (§5.4) ; Finances n'offre que l'argent et les envies.
+    /// </summary>
+    public event Action? NouvelElement;
+
+    private void SurNouvelElement(object envoyeur, Microsoft.UI.Xaml.RoutedEventArgs args)
+        => NouvelElement?.Invoke();
+
     public VueModeleCalendrier Modele { get; }
 
     public VueModeleCategories Categories { get; }

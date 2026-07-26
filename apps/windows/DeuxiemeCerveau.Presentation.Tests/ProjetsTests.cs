@@ -183,3 +183,92 @@ public class ProjetsTests
         Assert.False(projets.EstV2);
     }
 }
+
+/// <summary>
+/// Les tâches doivent rester OÙ ON LES A MISES. Défaut signalé par l'utilisateur : « quand j'appuie
+/// sur la touche un, ça sélectionne le trois » — la liste était triée par titre et re-triée par
+/// priorité, donc les lignes bougeaient sous le doigt.
+/// </summary>
+public class OrdreDesTachesTests
+{
+    private static VueModeleProjets AvecTaches(FabriquePresentation f, params string[] titres)
+    {
+        var modele = new VueModeleProjets(f.Composition);
+        modele.NouveauNom = "Commencer le MMA";
+        modele.CreerCommand.Execute(null);
+        foreach (var t in titres)
+        {
+            modele.NouvelleTache = t;
+            modele.AjouterTacheCommand.Execute(null);
+        }
+        return modele;
+    }
+
+    [Fact]
+    public void Les_taches_restent_dans_l_ordre_d_ajout_pas_dans_l_ordre_alphabetique()
+    {
+        using var f = new FabriquePresentation();
+        // Volontairement à contre-sens de l'alphabet : « Trouver » d'abord, « Acheter » ensuite.
+        var modele = AvecTaches(f, "Trouver un club", "Acheter des gants", "Premier cours");
+
+        var titres = modele.ProjetOuvert!.Taches.Select(t => t.Titre).ToList();
+
+        Assert.Equal(["Trouver un club", "Acheter des gants", "Premier cours"], titres);
+    }
+
+    [Fact]
+    public void Cocher_une_tache_ne_deplace_aucune_ligne()
+    {
+        using var f = new FabriquePresentation();
+        var modele = AvecTaches(f, "Trouver un club", "Acheter des gants", "Premier cours");
+        var avant = modele.ProjetOuvert!.Taches.Select(t => t.Id).ToList();
+        var premiere = modele.ProjetOuvert!.Taches[0];
+
+        modele.BasculerTacheCommand.Execute(premiere);
+
+        // Même ordre, mêmes objets : la liste n'a pas été reconstruite sous le clic.
+        Assert.Equal(avant, modele.ProjetOuvert!.Taches.Select(t => t.Id));
+        Assert.True(modele.ProjetOuvert!.Taches[0].Faite);
+        Assert.Same(premiere, modele.ProjetOuvert!.Taches[0]);
+    }
+
+    [Fact]
+    public void Changer_la_priorite_ne_deplace_aucune_ligne()
+    {
+        // C'était le pire des deux : le tri par priorité faisait SAUTER la ligne qu'on venait de
+        // viser, si bien qu'un second clic touchait une autre tâche.
+        using var f = new FabriquePresentation();
+        var modele = AvecTaches(f, "Une", "Deux", "Trois");
+        var avant = modele.ProjetOuvert!.Taches.Select(t => t.Titre).ToList();
+
+        modele.CyclerPrioriteCommand.Execute(modele.ProjetOuvert!.Taches[0]);
+
+        Assert.Equal(avant, modele.ProjetOuvert!.Taches.Select(t => t.Titre));
+        Assert.Equal(Priorite.Haute, modele.ProjetOuvert!.Taches[0].Priorite);
+    }
+
+    [Fact]
+    public void L_ordre_survit_a_un_rechargement()
+    {
+        using var f = new FabriquePresentation();
+        var modele = AvecTaches(f, "Trouver un club", "Acheter des gants");
+        var id = modele.Projets[0].Id;
+
+        var relu = new VueModeleProjets(f.Composition);
+        relu.OuvrirCommand.Execute(relu.Projets.Single(p => p.Id == id));
+
+        Assert.Equal(["Trouver un club", "Acheter des gants"],
+                     relu.ProjetOuvert!.Taches.Select(t => t.Titre));
+    }
+
+    [Fact]
+    public void Cocher_met_l_avancement_a_jour_sans_recharger()
+    {
+        using var f = new FabriquePresentation();
+        var modele = AvecTaches(f, "Une", "Deux");
+
+        modele.BasculerTacheCommand.Execute(modele.ProjetOuvert!.Taches[0]);
+
+        Assert.Contains("1 faite", modele.ProjetOuvert!.Avancement);
+    }
+}

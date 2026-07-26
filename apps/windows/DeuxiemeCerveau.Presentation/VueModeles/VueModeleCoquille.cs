@@ -67,10 +67,14 @@ public sealed partial class VueModeleCoquille : ObservableObject
         // Un projet créé, fermé ou supprimé change AUSSI la liste des calendriers : son filtre
         // naît et s'éteint avec lui (§5.4).
         Projets.ApresChangement = Rafraichir;
+        Projets.ApresChangementLeger = RafraichirEntete;
 
         // Une saisie touche le calendrier, les finances, la projection et l'accueil à la fois :
         // il n'y a pas de vue à recharger en particulier, c'est tout l'écran.
         Saisie.ApresEnregistrement = Rafraichir;
+
+        // Recaler le solde change le point de départ de TOUTE projection (§3.4).
+        Accueil.ApresChangement = Rafraichir;
 
         // Un import reconstitue TOUT l'état : aucune vue déjà chargée n'est encore valable.
         Sauvegarde.ApresImport = Rafraichir;
@@ -324,6 +328,16 @@ public sealed partial class VueModeleCoquille : ObservableObject
         if (Zone == Zone.Corbeille) Corbeille.Charger();
         if (Zone == Zone.Projets) Projets.Charger();
 
+        RafraichirEntete();
+    }
+
+    /// <summary>
+    /// L'entête seulement — solde et état de synchro. Existe pour les écritures qui mettent déjà
+    /// leur propre vue à jour <b>sur place</b> : cocher une tâche doit rafraîchir le compteur de
+    /// l'outbox sans reconstruire la liste sous le doigt de l'utilisateur.
+    /// </summary>
+    public void RafraichirEntete()
+    {
         var solde = _composition.Acces.Lire(() => _composition.Aujourdhui.SoldeDeReference());
         EntetePossedeSolde = solde is not null;
         SoldeEntete = solde is null ? "—" : Format.Euros(solde.Centimes);

@@ -22,4 +22,12 @@ public sealed partial class VueAujourdhui : UserControl
         // et sans l'attendre — l'interface n'attend jamais le réseau (filet 1).
         Loaded += async (_, _) => await modele.ChargerAlerteDecouvert();
     }
+
+    /// <summary>
+    /// Ouvre la saisie. Portée par la coquille : le formulaire se superpose à l'écran entier, pas
+    /// au seul panneau qui l'a déclenché.
+    /// </summary>
+    public event Action? Ajouter;
+
+    private void SurAjouter(object envoyeur, Microsoft.UI.Xaml.RoutedEventArgs args) => Ajouter?.Invoke();
 }
