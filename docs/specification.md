@@ -75,10 +75,14 @@ Les deux applications **doivent** représenter l'Élément avec exactement ces c
 - `date_approximative` : booléen. `true` pour une envie sans date arrêtée — déclenche le rappel intelligent plutôt qu'une alerte fixe.
 - `recurrence` : chaîne **RRULE (RFC 5545)** facultative. **NON NÉGOCIABLE : aucun format de récurrence maison.** L'expansion d'une RRULE se fait **dans le fuseau de l'Élément** (un loyer « le 5 » reste le 5, changements d'heure compris).
 
-**Argent** (uniquement `facture`, `paiement`, `revenu`)
-- `montant_centimes` : entier, en **centimes**. **NON NÉGOCIABLE : jamais de virgule flottante pour l'argent.**
+**Argent** (`facture`, `paiement`, `revenu` — et le prix estimé d'une `envie`, ci-dessous)
+- `montant_centimes` : entier, en **centimes**. **NON NÉGOCIABLE : jamais de virgule flottante pour l'argent.** **Obligatoire** pour `facture`, `paiement`, `revenu`.
 - `devise` : ISO 4217 (`EUR` par défaut).
-- `sens` : `entree` (revenu) | `sortie` (facture, paiement).
+- `sens` : `entree` (revenu) | `sortie` (facture, paiement). **Interdit sur tout autre type**, `envie` comprise.
+
+**Prix estimé d'une envie.** Une `envie` peut porter `montant_centimes` et `devise`, l'un et l'autre **facultatifs**. C'est le prix qu'on lui **prête**, pas une dépense : une envie n'a ni date d'échéance ni sens, et **n'entre jamais dans le budget projeté** (§5.1). Seule la **confrontation** — un geste explicite de l'utilisateur — la fait apparaître dans une projection, et sans rien écrire.
+
+> *Cette autorisation renverse Q-002, qui avait tranché l'inverse le 2026-07-25. Motif du renversement : la confrontation d'une envie au budget projeté est passée en V1 (§5.1, §13), et elle a besoin d'un nombre. Le garde-fou n'est plus l'absence du champ mais l'exclusion stricte de la projection nominale — c'est ce que les tests doivent défendre.*
 
 **Classement**
 - `categories` : liste de références de catégories (§3.3).
@@ -181,7 +185,7 @@ Cette répartition est le principal garde-fou contre la divergence des deux apps
 
 ### 5.1 Finances (V1)
 
-**Sources de revenu** — entrée unique ou récurrente (RRULE). **Sorties** — paiements ponctuels, factures, paiements récurrents. **Liste d'achats souhaités** — envies d'achat par catégories, confrontables au budget projeté.
+**Sources de revenu** — entrée unique ou récurrente (RRULE). **Sorties** — paiements ponctuels, factures, paiements récurrents. **Liste d'achats souhaités** — envies d'achat par catégories, **confrontables au budget projeté (V1, §5.1bis)**.
 
 **Budgets de dépenses (enveloppes)** — définition libre de budgets mensuels plafonnés (§3.6) ; chaque dépense allouable à une enveloppe ; vue de suivi mensuel alloué / dépensé / engagé / reste. *Le champ `budget_id` existe dans le modèle et le schéma dès la V1 (stabilité du schéma, pas de migration) ; la gestion des enveloppes et l'écran de suivi arrivent en V2.*
 
@@ -196,24 +200,51 @@ Cette répartition est le principal garde-fou contre la divergence des deux apps
 
 *Résultat pour l'utilisateur : « à la fin de tel mois, il me restera tant », mois par mois, avec les mois rouges visibles d'un coup d'œil.*
 
+### 5.1bis Confrontation d'une envie au budget projeté (V1)
+
+Répond à une seule question : ***« est-ce que ça rentre en septembre ? »***
+
+**Vit dans l'API, à côté de l'algorithme du budget projeté, et pour la même raison** (§4) : c'est un calcul, il s'écrit **une seule fois** et les deux apps l'affichent. Une confrontation calculée côté client serait le risque n° 1 en action.
+
+**Algorithme officiel — NON NÉGOCIABLE :**
+
+1. **Entrées** : un `montant_centimes` (celui de l'envie, ou un montant fourni pour la simulation) et un **mois cible M** de l'horizon.
+2. **Projection nominale** : exactement §5.1, inchangée. L'envie n'y figure pas.
+3. **Projection simulée** : la même, plus **une sortie unique** de `montant_centimes` rattachée au mois M. Aucune occurrence n'est créée, aucun Élément n'est modifié.
+4. **Verdict** : `passe` si, dans la projection simulée, **aucun mois de M jusqu'à la fin de l'horizon** n'a une clôture négative. Sinon `ne_passe_pas`, avec le **premier mois qui casse** et de combien.
+5. **Rendu** : les deux cascades, pour que l'app montre l'écart mois par mois — pas seulement un oui/non.
+6. **Jamais stocké, rien n'est écrit. NON NÉGOCIABLE.** Une confrontation est une lecture. Elle ne crée ni Élément, ni occurrence, ni trace ; deux confrontations identiques rendent le même résultat et ne laissent rien derrière.
+
+**Ce qu'elle n'est pas.** Décider d'acheter reste un geste séparé : l'utilisateur crée alors une **sortie datée** (`paiement`), qui entre dans la projection nominale par le chemin ordinaire (§5.1). La confrontation ne se transforme jamais toute seule en dépense.
+
+*Résultat pour l'utilisateur : « si tu prends ça en septembre, tu finis novembre à −120 € » — ou « ça passe, et il te reste 400 € ».*
+
 ### 5.2 Organisation quotidienne
 
 - **Rendez-vous** à date fixe, avec rappels — **V1** (le calendrier en a besoin pour exister).
-- **Tâches** : priorité + ordre manuel (V2). Le tri « intelligent » : V3.
+- **Tâches** : priorité + ordre manuel — **V1 à l'intérieur d'un projet** (§5.3), car un projet sans ses tâches n'est qu'une étiquette. Le tri « intelligent » : V3.
+- **Onglet de tâches autonome**, hors projet (listes libres, catégorisables) : **V2**. La frontière est nette et vérifiable : en V1, une `tache` porte **toujours** un `projet_id`.
 - **Score** des tâches obligatoires : V2.
 - **Templates de planning** : V2.
-- **Activités « envies »** avec rappel intelligent : V2.
+- **Activités « envies »** avec rappel intelligent : V2. *(La confrontation au budget, elle, est V1 — §5.1bis. Ce sont deux choses distinctes : l'une devine quand rappeler, l'autre calcule si ça rentre.)*
 
-### 5.3 Projets personnels (V2)
+### 5.3 Projets personnels (V1)
 
-Tâches propres, label, calendrier dédié devenant filtre automatique du calendrier principal. Comportement de fermeture : §3.2.
+Un objectif de vie qu'on poursuit dans le temps (*commencer le MMA*, *arrêter de fumer*, *étudier pour les examens*). Modèle : §3.2.
+
+- **Tâches propres.** Une tâche appartient à un projet (`projet_id`, obligatoire en V1) et porte `priorite` et `ordre_manuel` (§3.1). Statuts : `a_faire`, `fait`, `reporte`, `annule`.
+- **Label.** Le projet a un nom et une couleur, qui identifient ses tâches et ses occurrences partout où elles apparaissent.
+- **Calendrier dédié devenant filtre automatique** du calendrier principal (§5.4) — sans que l'utilisateur ait à créer quoi que ce soit.
+- **Fermeture** (§3.2, déjà implémentée dans le cœur) : quand un projet passe `termine` ou `en_pause`, ses tâches `a_faire` passent en `reporte`. Rien n'est perdu, rien ne pollue les vues actives. Son calendrier-filtre reste disponible, désactivé par défaut.
+
+**Ce qui reste V2 :** le score, les templates de planning, et les listes de tâches **hors projet** (§5.2).
 
 ### 5.4 Calendrier principal unifié (V1)
 
 Onglet à part entière, inspiré d'Apple Calendar.
 - Superposition de calendriers ; chaque catégorie est un filtre affichable/masquable.
 - **Affiche dès la V1 :** les rendez-vous **et les échéances financières** (factures, paiements, revenus datés) — le calendrier montre la vie ET l'argent.
-- Les calendriers de projets s'y ajoutent automatiquement en V2.
+- **Les calendriers de projets s'y ajoutent automatiquement (V1, §5.3).** Ils se distinguent des catégories : une catégorie se crée à la main, un calendrier de projet **naît avec le projet** et disparaît de la liste active à sa fermeture (désactivé par défaut, jamais supprimé).
 
 ### 5.5 Note libre (V1)
 
@@ -308,6 +339,7 @@ Hébergement : **Azure Functions** (plan Consommation) — chaque route ci-desso
 | `GET /sync/pull?since={seq}` | Renvoie les Éléments/catégories/projets modifiés depuis le curseur, **les purges (§5.6)**, + nouveau curseur |
 | `POST /purge` | Purge définitive depuis la corbeille (§5.6) ; idempotente ; atomique ; refusée si l'entité a été restaurée ou est inconnue |
 | `GET /projection/budget?mois=12` | Renvoie la projection mensuelle (§5.1) : ouverture, entrées, sorties, clôture par mois |
+| `GET /projection/confrontation?montant_centimes={n}&mois_cible={AAAA-MM}&mois={12}` | Confronte un montant au budget projeté (§5.1bis) : les deux cascades, le verdict, et le premier mois qui casse. **Lecture pure — n'écrit rien.** |
 | `PUT /settings/solde-reference` | Recale le solde de référence (§3.4) |
 | `GET /attachments/upload-url` | URL SAS d'envoi |
 | `POST /attachments/confirm` | Confirme un envoi terminé |
@@ -506,10 +538,12 @@ L'agent doit exécuter ces scénarios et corriger toute divergence **avant** liv
 **Ne pas tout construire en parallèle.** Livrer un socle qui a de la valeur seul, puis empiler.
 
 **V1 — Le socle utile, sûr et récupérable.**
-Modèle d'Élément complet ; saisie typée (facture, paiement, revenu, rendez-vous, note) ; **budget projeté** de bout en bout avec solde de référence ; **calendrier principal** affichant rendez-vous + échéances financières, avec filtres par catégories ; **note libre** ; **pièces jointes** ; **corbeille** ; rappels par **notifications locales** (rendez-vous et échéances) ; **export/import complet côté client** avec rappel mensuel ; **synchronisation complète** (les trois filets, outbox, push/pull, journal) — la synchro et l'export font partie de la V1, car ce sont eux qui protègent les données.
+Modèle d'Élément complet ; saisie typée (facture, paiement, revenu, rendez-vous, note, **tâche de projet**) ; **budget projeté** de bout en bout avec solde de référence ; **confrontation d'une envie au budget projeté** (§5.1bis) ; **projets personnels** avec tâches propres et calendriers-filtres automatiques (§5.3) ; **calendrier principal** affichant rendez-vous + échéances financières, avec filtres par catégories **et par projets** ; **note libre** ; **pièces jointes** ; **corbeille** ; rappels par **notifications locales** (rendez-vous et échéances) ; **export/import complet côté client** avec rappel mensuel ; **synchronisation complète** (les trois filets, outbox, push/pull, journal) — la synchro et l'export font partie de la V1, car ce sont eux qui protègent les données.
+
+> **Élargissement décidé le 2026-07-26** (décision de l'utilisateur, après livraison de l'app Windows de l'Étape 4). Sont entrés en V1 : les **projets personnels** avec leurs tâches (ex-V2, §5.3) et la **confrontation des envies au budget** (ex-V2, §5.1bis). Le coût assumé : chaque module entre dans le périmètre des deux apps et des scénarios de parité §12. Ce qui n'a **pas** bougé : tâches hors projet, score, templates de planning, enveloppes, rappel intelligent.
 
 **V2 — L'organisation.**
-Tâches (priorité, ordre manuel), score, templates de planning, activités « envies » et rappel intelligent, projets personnels avec calendriers-filtres automatiques, liste d'achats confrontée au budget, **budgets de dépenses (gestion des enveloppes et suivi mensuel, §3.6)**, import avec fusion dans des données existantes.
+Listes de **tâches hors projet** (§5.2), score, templates de planning, activités « envies » et rappel intelligent, **budgets de dépenses (gestion des enveloppes et suivi mensuel, §3.6)**, import avec fusion dans des données existantes.
 
 **V3 — L'intelligence.**
 Agencement automatique des tâches (optimisation sous contraintes — en dernier), rappel intelligent affiné, conversion des notes libres en Éléments typés (saisie en langage naturel), notifications push centralisées si nécessaire.

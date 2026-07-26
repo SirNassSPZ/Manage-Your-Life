@@ -3,7 +3,10 @@
 > Consigne (CLAUDE.md) : toute idée hors périmètre V1 est consignée ici, **jamais codée** sans décision.
 > Format : une entrée par idée, avec la date et le contexte d'origine.
 
-## I-001 — Projets personnels complets (module) — **prévu V2 par la spec (§5.3, §5.4)**
+## I-001 — Projets personnels complets (module) — ~~V2~~ → **ENTRÉ EN V1 le 2026-07-26 (D-027)**
+
+> **Décision de périmètre prise par l'utilisateur.** La spec a été modifiée en conséquence : §5.3 passe en V1, §5.2 distingue la tâche **de projet** (V1) de la tâche hors projet (V2), §5.4 rend les calendriers de projets automatiques dès la V1, §13 est à jour. Ce qui suit est le texte d'origine, conservé pour la trace.
+
 **Consigné le 2026-07-24** · demandé par l'utilisateur pendant la maquette d'interface (Étape 4f).
 
 Vision de l'utilisateur (à réaliser telle quelle) : des **projets personnels** — ex. « commencer le sport à la salle », « commencer le MMA », « étudier pour les examens », « arrêter de fumer »… Chaque projet :
@@ -28,7 +31,10 @@ Demande : intégrer **Gmail** dans l'application — accéder à sa boîte mail 
 
 **Besoin sous-jacent à clarifier.** Souvent, « je veux Gmail » cache un besoin précis : *capturer les factures/reçus reçus par e-mail dans mes finances*. Si c'est ça, des voies **plus légères et dans le périmètre** existent : pièce jointe = photo/PDF d'une facture (§7, en cours) ; V3 = conversion d'une note en Élément typé. À confirmer avec l'utilisateur avant toute décision.
 
-## I-003 — Envie d'achat : intégration/confrontation au budget projeté — **prévu V2 par la spec (§5.1, §13)**
+## I-003 — Envie d'achat : confrontation au budget projeté — ~~V2~~ → **ENTRÉE EN V1 le 2026-07-26 (D-027)**
+
+> **Décision de périmètre prise par l'utilisateur.** La spec a été modifiée : §5.1bis définit l'algorithme officiel (dans l'API, jamais stocké), §3.1 autorise un `montant_centimes` **facultatif** sur une envie, §8 ajoute la route. **Q-002 est renversée** — voir D-027 pour le motif, et le correctif ci-dessous qui ne vaut plus. Ce qui suit est le texte d'origine, conservé pour la trace.
+
 **Consigné le 2026-07-24** · demandé par l'utilisateur pendant la maquette de l'onglet Finances.
 
 Demande : pour chaque **envie d'achat**, pouvoir soit **l'intégrer au budget projeté du mois souhaité** (« est-ce que ça rentre en septembre ? ») soit **la laisser en suspens**, sans l'affecter à aucun budget.
@@ -64,6 +70,8 @@ Demande, en quatre points : (1) catégoriser les éléments des onglets en colon
 **Décision requise (périmètre — appartient à l'utilisateur) :** livrer d'abord la V1 telle que définie, en y incluant les trois points ci-dessus qui en font déjà partie ; **ou** élargir formellement la V1 au module tâches/listes — ce qui exige de **modifier la spécification d'abord** (CLAUDE.md), et d'accepter le délai et le risque supplémentaires.
 
 *Réponse (2026-07-25) : livrer la V1 d'abord. La vue 7 jours et la gestion des calendriers sont faites ; le groupement pliable reste à faire.*
+
+*Suite (2026-07-26) : **les trois points V1 sont livrés.** Le groupement pliable est en place dans Finances, sous-vue « Par catégorie » (D-025) — elle était déclarée dans la barre latérale mais retombait sur « Tout ». Le Calendrier n'est volontairement pas groupé par catégorie : il a déjà cet axe par ses filtres (§5.4) et ses deux lectures sont organisées par jour ; superposer les deux mettrait deux axes en concurrence dans la même vue. **Il ne reste donc de I-004 que ce qui est hors périmètre V1** : tâches, listes, planifications.*
 
 ## I-005 — Notes à la hauteur de Notion : favoris, mise en forme riche, images — **hors périmètre V1 (§5.5)**
 **Consigné le 2026-07-26** · demandé par l'utilisateur après la livraison de la vue Notes.

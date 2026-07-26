@@ -111,8 +111,8 @@ La spec (§5.1) fixe l'algorithme ; précisions nécessaires à une implémentat
 
 La purge définitive (§5.6) est la seule destruction réelle, mais le contrat §8 v3.1 n'exposait **aucune route de purge**. Une purge locale seule ferait « ressusciter » l'entité au pull suivant. → Résolue par la décision D-010 ci-dessous, intégrée à la spec **v3.2** (modifiée d'abord, conformément à la consigne).
 
-## Q-002 — Une envie d'achat peut-elle porter un montant ? — **NON**
-**Statut : tranchée** (2026-07-25, décision de l'utilisateur : **tenir le §3.1**) · découverte en écrivant les tests de la vue Finances · spec §3.1, §5.1
+## Q-002 — Une envie d'achat peut-elle porter un montant ? — ~~**NON**~~ → **OUI, facultatif** (renversée)
+**Statut : RENVERSÉE le 2026-07-26 par D-027.** Ce qui suit décrit l'état du 2026-07-25 et reste utile pour comprendre *pourquoi* la question s'est posée ; **il ne décrit plus le comportement attendu**. Voir **D-027**.
 
 **Retenu : option (a).** L'envie reste un souhait **nommé, sans montant**. Aucun changement de modèle, aucune migration, aucune règle nouvelle à écrire deux fois. Un prix se matérialise le jour où l'utilisateur décide d'acheter, sous forme de **sortie datée** — qui entre alors naturellement dans le budget projeté (§5.1).
 
@@ -257,7 +257,8 @@ Quatre affinements d'**expérience** validés, choisis parce qu'ils **réduisent
 - `DISABLE_XAML_GENERATED_MAIN` est activé et `Programme.Main` est écrit à la main.
 - Conséquence obligatoire : `WinRT.ComWrappersSupport.InitializeComWrappers()` doit être appelé en premier ; sans lui, toute activation COM WinRT échoue en `E_NOINTERFACE` dès `new App()`.
 - L'application est **non empaquetée** (`WindowsPackageType=None`), dépendante du framework (`WindowsAppSDKSelfContained=false`, valeur explicite car le paquet Base a `true` par défaut), avec `RuntimeIdentifier=win-x64` — sans RID, les DLL natives du bootstrapper et de WinUI ne sont pas copiées et le lancement échoue en `DllNotFoundException`.
-- **Reste à faire** : les modes `--rappels` / `--digest` ne sont pas encore implémentés ; seul le mode outil `--capture` / `--vue` / `--capture-delai` (comparaison du rendu à la maquette) l'est.
+- **Fait depuis (D-023)** : les modes `--rappels` / `--digest` existent, ainsi que l'activation par toast. Ils ne sont **pas** des modes outil — ils s'effacent devant l'instance en place au lieu de l'ignorer, précisément pour tenir l'invariant ci-dessus. Voir D-023.
+- La **dette assumée** ci-dessus est donc levée : le `Main` maison porte désormais les trois fonctions qui le justifiaient.
 
 ## D-020 — La coquille WinUI vit hors de `DeuxiemeCerveau.sln`
 **Statut : à valider** · Étape 4f · **consignée après coup** (2026-07-25), reconstituée depuis `DeuxiemeCerveau.Windows.csproj`.
@@ -300,3 +301,113 @@ Un **quatrième niveau**, `Encre4` (l'ancien `#9A938C`), est conservé pour l'es
 **Conséquence pour l'app Apple.** La couche de présentation est écrite deux fois (C#, Swift) — c'est le risque n° 1. Des tests sur le comportement attendu (grille du calendrier, arrondis, filtres) documentent désormais ce que la version Swift doit reproduire, au lieu de laisser le code C# faire foi.
 
 **Écarté :** un projet de tests `net8.0-windows` exécuté sur le seul job Windows. Il aurait laissé la logique de présentation hors de la CI principale, donc invisible pour l'app Apple et hors des 441 tests de référence.
+
+## D-023 — Notifications locales : qui a le droit d'ouvrir la base
+**Statut : à valider** · Étape 4h · spec §4, §5.7 · **précise D-019**
+
+**Le point dur n'est pas le toast, c'est le processus.** Remettre une notification demande un déclenchement quand l'app est fermée, donc une tâche planifiée, donc **un second processus**. Or D-019 a établi qu'un seul processus doit toucher `%LOCALAPPDATA%\DeuxiemeCerveau\local.db` : `BaseLocale` ouvre une `SqliteConnection` en mode rollback par défaut — ni WAL, ni `busy_timeout` — et applique les migrations à l'ouverture, qui est une écriture. Deux processus concurrents, et c'est `SQLITE_BUSY` immédiat au mieux.
+
+**Écarté : traiter `--rappels` comme un mode outil.** C'était le plan noté en passation. `--parite` s'en tire parce qu'il monte des postes **jetables** dans des dossiers temporaires ; `--rappels` doit lire les vraies données de l'utilisateur. Les mettre dans `ModesOutil` — donc hors de la redirection d'instance — aurait posé un second processus sur la base réelle, exactement ce que D-019 interdit.
+
+**Écarté aussi : passer la base en WAL + `busy_timeout`.** SQLite saurait alors encaisser un lecteur concurrent. Mais cela change une infrastructure partagée et testée pour le confort d'un seul appel, et l'app Apple devrait reprendre le même réglage sans que la spec ne l'exige nulle part. L'invariant « **un seul processus ouvre jamais `local.db`** » s'énonce, se vérifie et se retranscrit en Swift ; un réglage de pragma, beaucoup moins.
+
+**Retenu — le passage s'exécute là où la base est déjà ouverte.**
+
+| Situation | Ce qui se passe |
+|---|---|
+| App fermée, tâche planifiée déclenchée | Le processus fait le passage **sans fenêtre**, puis sort |
+| App ouverte, tâche planifiée déclenchée | Le processus **s'efface** sans rien ouvrir |
+| App ouverte | Elle fait ses propres passages : un au démarrage, puis un par heure |
+
+Sans la minuterie horaire, une app laissée ouverte depuis lundi ne notifierait plus rien de la semaine. Les deux chemins appellent le **même** `PlanificateurRappels.Derouler` et partagent le même journal : le doublon est impossible, quel que soit celui qui arrive en premier.
+
+`InstanceEnPlace()` lit `AppInstance.GetInstances()` **sans s'enregistrer**, contrairement à `FindOrRegisterForKey` : un mode de notification qui prendrait la clé deviendrait la cible des redirections pendant la seconde où il tourne, et avalerait un double-clic de l'utilisateur sans jamais ouvrir de fenêtre.
+
+**La décision reste dans la couche testée.** `PlanificateurRappels.Derouler(composition, journal, maintenant, forcerDigest, remettre)` porte tout l'enchaînement — décider, écarter ce qui a déjà sonné, remettre, noter — et reçoit la remise en paramètre. `DeuxiemeCerveau.Windows` ne fournit que `ServiceToasts.Remettre`. C'est D-022 appliqué : l'app Apple reprend un enchaînement décrit par des tests, pas par du code Windows.
+
+**Le journal (`rappels.json`) est hors du schéma synchronisé.** Un fichier JSON à côté de la base, délibérément : le §4 confie les rappels à chaque appareil (« chaque appareil notifie »). Ce qui a sonné ici ne regarde pas les autres appareils, et la règle 18 n'a pas à porter une table pour ça. Il retient les clés remises (purgées à 90 jours) et le drapeau **désactivable** du rappel d'export.
+
+**On note après la remise, jamais avant.** Si Windows refuse le toast — notifications coupées, `Show` en échec — rien n'est noté et le rappel repassera. Marquer comme remis ce que personne n'a vu perdrait le rappel pour de bon.
+
+**Rappel mensuel d'export (§5.7) : aucune planification propre.** Il voyage avec le passage hebdomadaire, sa clé porte le mois (`export-2026-07`), le journal écarte les suivants. Il arrive donc au moment où l'utilisateur fait déjà le point, et cela fait une tâche planifiée de moins.
+
+**Deux tâches planifiées qui se recouvrent, volontairement.** Quotidienne `--rappels` à 08:00, hebdomadaire `--digest` le dimanche à 09:00 (`apps/windows/PlanifierRappels.ps1`, tâches utilisateur, sans élévation — les notifications sont refusées aux applications élevées). Le dimanche, la quotidienne ferait déjà le digest via `EstJourDuDigest`. Le recouvrement achète une chose précise : avec `-StartWhenAvailable`, une machine éteinte le dimanche déclenche quand même le digest au rallumage — ce qu'un simple contrôle du jour de la semaine ne saurait pas rattraper, puisqu'on serait lundi.
+
+**Deux ordres imposés par la documentation Windows App SDK**, et ils se contredisent avec l'aisance : `NotificationInvoked` s'abonne **avant** `Register()`, et `Register()` s'appelle **avant** `GetActivatedEventArgs()` — celui-là même que la redirection d'instance unique utilise. D'où l'appel à `ServiceToasts.Enregistrer()` très tôt dans `Programme.Main`. L'app étant **non empaquetée**, `Register()` est ce qui lui fabrique une identité et inscrit le serveur COM qui permet à Windows de relancer l'exe au clic ; sans lui, rien ne s'affiche.
+
+**Dette réglée au passage.** Recevoir une redirection d'activation ne faisait rien : un second lancement disparaissait en silence. Il fallait le traiter de toute façon — cliquer un toast relance l'exe et passe par ce chemin. `Programme.SurActivation` ramène désormais la fenêtre devant, en la restaurant d'abord si elle était réduite.
+
+## D-024 — L'export avait un service, pas de porte
+**Statut : à valider** · Étape 4i · spec §5.7, §13
+
+**Constat.** `ServiceExport` et `ServiceImport` étaient écrits, testés, et exercés par le scénario 3 de `--parite` — mais **aucune vue ne les appelait**. Dans toute la coquille, les seuls appels à `Exporter` / `Importer` étaient dans `ScenariosParite.cs`. L'utilisateur n'avait aucun moyen d'exporter ses données.
+
+Le « fini quand » de l'Étape 4 était pourtant satisfait au sens littéral : les scénarios de parité passent, export et import compris. C'est la lecture **par scénarios** qui a laissé passer l'angle mort — un scénario automatisé n'a pas besoin de bouton. Le §13 range pourtant « export/import complet côté client » en **V1**, et livrer le rappel mensuel d'export (D-023) rendait le trou intenable : une notification qui invite à un geste qu'aucun écran ne propose est une promesse creuse.
+
+**Placement : contre l'état de synchro, pas dans un écran à soi.** La barre latérale porte déjà le bloc « où en sont mes données » — état de synchro, compte Entra. L'export répond à la même question. Une zone de plus dans la barre du haut aurait modifié l'architecture d'information de la maquette pour un geste qu'on fait une fois par mois ; le vrai théâtre de l'action est la boîte de dialogue système, pas un écran d'application.
+
+**Le sélecteur de fichier est la seule partie côté Windows.** `ISelecteurFichier` rend un `Stream`, pas un chemin : c'est le contrat de `ServiceExport.Exporter(Stream)`, et cela laisse un test brancher un `MemoryStream`. L'implémentation Windows existe parce qu'en application **non empaquetée**, un `FileSavePicker` n'a pas de fenêtre parente implicite et lève `E_INVALIDARG` tant qu'on ne lui a pas passé le HWND (`InitializeWithWindow`).
+
+Elle utilise `File.Create` / `File.OpenRead` sur `StorageFile.Path` plutôt que les extensions de flux WinRT : `OpenStreamForWriteAsync` a disparu du .NET moderne. `Create` tronque, ce qui règle au passage le cas d'une archive plus courte écrasant une plus longue. Un fournisseur virtuel (OneDrive à la demande) n'expose pas de chemin : le dire franchement vaut mieux qu'un `ArgumentException` nu.
+
+**L'import refuse une installation non vierge.** La V1 ne fusionne pas (§5.7) et `ServiceImport` écrase entité par entité : lancé sur des données existantes, il produirait un mélange que rien ne saurait défaire. « Vierge » se mesure sur le dépôt **brut**, corbeille comprise — un poste qui n'aurait que des Éléments supprimés n'est pas vierge, et un import y écraserait une corbeille encore récupérable (filet 2).
+
+**Le rappel mensuel est désactivable, comme l'exige le §5.7** — une case dans le même bloc, adossée au drapeau de `JournalRappels` (D-023).
+
+## D-025 — Groupement par catégorie : mise en forme, pas modèle
+**Statut : à valider** · Étape 4i · spec §3.3, §5.1 · **répond à I-004 point 1**
+
+Troisième point de la demande I-004, le seul qui restait dans le périmètre V1. **Aucun champ, aucune entité, aucune règle de synchro** : les Éléments portent déjà leurs catégories (§3.3), la vue ne fait que les ranger.
+
+**Finances seulement, et c'est un choix.** La demande parlait aussi du Calendrier. Il a déjà son axe par catégorie — les filtres « Mes calendriers » de la barre latérale, qui sont le mécanisme du §5.4 — et ses deux lectures sont organisées par **jour**. Y superposer un groupement par catégorie ferait entrer deux axes en concurrence dans la même vue. Finances, elle, avait une liste plate et une sous-vue « Par catégorie » **déjà déclarée dans la barre latérale mais inerte** : elle retombait sur « Tout ».
+
+**Un Élément à plusieurs catégories apparaît sous chacune.** Les sous-totaux ne s'additionnent donc pas au total du mois. C'est assumé, et cohérent avec ce que la vue faisait déjà : ce sont des étiquettes de liste, pas des projections (règle 9).
+
+**« Sans catégorie » est un groupe de plein droit**, pas un oubli — c'est souvent le plus gros, et le voir est ce qui donne envie de ranger. Il recueille aussi les Éléments dont la catégorie est passée à la corbeille : sans ce rattrapage, leurs mouvements s'évaporeraient de la vue.
+
+**Le pliage se souvient.** Les groupes sont reconstruits à chaque chargement ; sans mémoire, changer de mois rouvrirait tout ce que l'utilisateur vient de fermer — le même piège que les filtres de calendrier.
+
+**La commande de pliage vit sur le groupe, pas sur le modèle de vue parent.** Liée depuis un gabarit, une `RelayCommand<T>` du parent reçoit le DataContext hérité tant que l'élément n'est pas posé et lève dans `CanExecute` — c'est exactement le défaut qui noie `demarrage.log` depuis la vue Calendrier. Sans paramètre, le piège n'existe pas.
+
+## D-026 — `--donnees` : photographier sans écrire chez l'utilisateur
+**Statut : à valider** · Étape 4i
+
+`--donnees <chemin>` monte l'application sur un autre dossier de données que celui de l'utilisateur. Vérifier un écran garni exigeait sinon d'écrire des lignes de démonstration dans la vraie base — inacceptable — ou de se contenter d'un écran vide, qui ne prouve rien.
+
+`--mode` accepte désormais **n'importe quel intitulé de sous-vue**, et non plus les trois seuls noms du calendrier. La comparaison se fait sur les lettres nues, sans accents : les intitulés sont accentués (« Par catégorie ») et la page de codes de la console les massacre avant même que l'argument n'arrive.
+
+## D-027 — Élargissement de la V1 : projets personnels et confrontation au budget
+**Statut : à valider** · Étape 4j · **renverse Q-002** · **modifie la spec** §3.1, §5.1bis, §5.2, §5.3, §5.4, §8, §13
+
+**Décision de périmètre, prise par l'utilisateur le 2026-07-26**, après livraison de l'app Windows. Deux idées consignées passent de V2 à **V1** :
+
+- **I-001 — projets personnels** : tâches propres, label, calendrier dédié devenant filtre automatique (§5.3).
+- **I-003 — confrontation d'une envie au budget projeté** (§5.1bis).
+
+**Le coût a été énoncé avant la décision et accepté** : tout ce qui entre en V1 est écrit **deux fois** (C# et Swift) et doit passer les scénarios de parité §12. L'Étape 5 grossit d'autant. L'alternative proposée — écrire les sections de spec maintenant, coder après la V1 — a été écartée.
+
+**La spec a été modifiée d'abord** (CLAUDE.md), avant toute ligne de code.
+
+### Ce que l'élargissement ne coûte pas : aucune migration
+
+Le schéma §9 porte **déjà** tout ce qu'il faut : `montant_centimes` est `NULL`-able, `projet_id`, `priorite` et `ordre_manuel` existent, la table `projets` existe, et `categories.origine` accepte déjà `projet`. C'est le dividende du choix « stabilité du schéma » pris en V1 (§3.2, D-006) : les entités V2 étaient au schéma dès le départ précisément pour que ce jour-là ne coûte pas de migration. **Règle 18 non sollicitée.**
+
+### Le montant de l'envie — renversement de Q-002
+
+Q-002 avait tranché « pas de montant sur une envie », et c'était le bon appel **à ce moment-là** : la confrontation était V2, donc le champ n'aurait servi à rien et aurait coûté un aller-retour dans les deux apps. La confrontation entrant en V1, le nombre devient nécessaire.
+
+`montant_centimes` et `devise` deviennent **facultatifs** sur une `envie`. `sens` reste **interdit** : une envie n'est pas une sortie, c'est une sortie *éventuelle*.
+
+**Le garde-fou se déplace, il ne disparaît pas.** Avant, c'était l'absence du champ. Désormais c'est l'**exclusion stricte de la projection nominale** : une envie, montant ou pas, n'entre jamais dans `/projection/budget`. C'est ce que les tests doivent défendre, et c'est plus fragile qu'une interdiction de champ — donc à couvrir explicitement, pas incidemment.
+
+### La confrontation vit dans l'API
+
+Même motif que le budget projeté (§4, règle 2) : c'est un calcul, il s'écrit une fois, les deux apps l'affichent. Une confrontation calculée côté client serait le risque n° 1 en action — deux implémentations d'une arithmétique de cascade qui divergent d'un centime.
+
+Elle rend **les deux cascades**, pas un booléen : l'app doit pouvoir montrer l'écart mois par mois. Et elle **n'écrit rien** — ni Élément, ni occurrence, ni trace (règle 9).
+
+### La frontière tâche V1 / tâche V2, rendue vérifiable
+
+Un projet sans ses tâches n'est qu'une étiquette : la tâche entre donc en V1. Mais l'onglet to-do autonome (I-004) reste V2, et l'utilisateur ne l'a pas demandé ici.
+
+La frontière est posée pour être **contrôlable par une assertion**, pas par du jugement : **en V1, une `tache` porte toujours un `projet_id`.** Une tâche sans projet est refusée par le cœur. Le jour où I-004 est décidé, la règle saute — et c'est un seul endroit.
