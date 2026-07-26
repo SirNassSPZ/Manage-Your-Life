@@ -63,11 +63,22 @@ public sealed partial class Coquille : UserControl
         Zone.Aujourdhui => Brancher(new VueAujourdhui(), Modele.Accueil),
         Zone.BudgetProjete => new VueBudget(Modele.Budget),
         Zone.Calendrier => new VueCalendrier(Modele.Calendrier, Modele.Categories),
-        Zone.Finances => new VueFinances(Modele.Finances),
+        Zone.Finances => BrancherSaisie(new VueFinances(Modele.Finances)),
         Zone.Notes => new VueNotes(Modele.Notes),
         Zone.Corbeille => new VueCorbeille(Modele.Corbeille),
+        Zone.Projets => new VueProjets(Modele.Projets),
         _ => new VueAChantier(zone),
     };
+
+    /// <summary>
+    /// Relie le bouton « Ajouter » de la vue au formulaire de saisie, qui vit ici : il doit se
+    /// superposer à l'écran entier, pas au seul panneau qui l'a déclenché.
+    /// </summary>
+    private VueFinances BrancherSaisie(VueFinances vue)
+    {
+        vue.Ajouter += () => Modele.Saisie.OuvrirCommand.Execute(null);
+        return vue;
+    }
 
     private static VueAujourdhui Brancher(VueAujourdhui vue, VueModeleAujourdhui modele)
     {

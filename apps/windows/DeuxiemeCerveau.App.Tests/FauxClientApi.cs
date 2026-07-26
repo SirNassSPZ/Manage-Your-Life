@@ -2,6 +2,7 @@ using DeuxiemeCerveau.Api.Contrats;
 using DeuxiemeCerveau.Api.Services;
 using DeuxiemeCerveau.App.Synchro;
 using DeuxiemeCerveau.Core.Json;
+using DeuxiemeCerveau.Core.Modele;
 using DeuxiemeCerveau.Core.Synchro;
 
 namespace DeuxiemeCerveau.App.Tests;
@@ -46,6 +47,11 @@ public sealed class FauxClientApi(ServiceApi service) : IClientApi
 
     public Task<ReponseProjectionClient> Projeter(int mois, CancellationToken jeton = default)
         => Task.FromResult(Fil<ReponseProjectionDto, ReponseProjectionClient>(service.Projeter(mois)));
+
+    public Task<ReponseConfrontationClient> Confronter(
+        long montantCentimes, string moisCible, int mois, CancellationToken jeton = default)
+        => Task.FromResult(Fil<ReponseConfrontationDto, ReponseConfrontationClient>(
+            service.Confronter(montantCentimes, MoisCalendaire.Analyser(moisCible), mois)));
 
     public Task<ReponseUrlEnvoiClient> PreparerEnvoiPiece(Guid elementId, long tailleOctets, Guid attachmentId, CancellationToken jeton = default)
         => Task.FromResult(Fil<ReponseUrlEnvoiDto, ReponseUrlEnvoiClient>(service.PreparerEnvoiPiece(elementId, tailleOctets, attachmentId)));

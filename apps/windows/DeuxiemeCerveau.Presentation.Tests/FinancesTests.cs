@@ -211,12 +211,30 @@ public class FinancesTests
     }
 
     [Fact]
-    public void Une_envie_ne_peut_pas_porter_de_montant_en_V1()
+    public void Une_envie_porte_desormais_un_prix_estime_facultatif()
     {
-        // §3.1 : l'argent est réservé aux types facture / paiement / revenu, et le cœur le fait
-        // respecter. La maquette montre pourtant des prix sur les envies — contradiction connue,
-        // à trancher dans la spec. Ce test fige le comportement RÉEL pour qu'un changement de
-        // spec ne passe pas inaperçu.
+        // Ce test figeait l'interdiction (Q-002) « pour qu'un changement de spec ne passe pas
+        // inaperçu ». Il a fait exactement son travail : D-027 a fait entrer la confrontation au
+        // budget en V1 (§5.1bis), qui a besoin d'un nombre. Le §3.1 a été modifié d'abord.
+        using var f = new FabriquePresentation();
+        var envie = new Element
+        {
+            Type = TypeElement.Envie,
+            Titre = "Casque audio",
+            MontantCentimes = 18_000,
+            Devise = "EUR",
+            Statut = StatutElement.Idee,
+        };
+
+        var resultat = f.Composition.Saisie.Enregistrer(envie, Core.Synchro.EntiteSynchro.Element);
+
+        Assert.True(resultat.Reussi);
+    }
+
+    [Fact]
+    public void Une_envie_ne_porte_toujours_pas_de_sens()
+    {
+        // Ce qui n'a PAS changé : une envie n'est pas une sortie, c'est une sortie éventuelle.
         using var f = new FabriquePresentation();
         var envie = new Element
         {
@@ -231,7 +249,7 @@ public class FinancesTests
         var resultat = f.Composition.Saisie.Enregistrer(envie, Core.Synchro.EntiteSynchro.Element);
 
         Assert.False(resultat.Reussi);
-        Assert.Contains(resultat.Erreurs, e => e.Code == "montant_interdit");
+        Assert.Contains(resultat.Erreurs, e => e.Code == "sens_interdit");
     }
 
     [Fact]

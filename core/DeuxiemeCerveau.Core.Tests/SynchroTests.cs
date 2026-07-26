@@ -284,14 +284,16 @@ public class ProcesseurPushTests
         var supprimee = Fabrique.Tache(titre: "Supprimée", projetId: projet.Id);
         supprimee.Supprime = true;
         supprimee.DateSuppression = Fabrique.T0;
-        var horsProjet = Fabrique.Tache(titre: "Hors projet");
+        // Depuis D-027, une tâche V1 appartient toujours à un projet : « ailleurs » veut donc dire
+        // « dans un AUTRE projet », ce qui teste d'ailleurs mieux le ciblage de la fermeture.
+        var autreProjet = Fabrique.Tache(titre: "Autre projet");
 
         _push.Traiter(Fabrique.Lot(Fabrique.AppareilA,
             Fabrique.Changement(projet, EntiteSynchro.Projet),
             Fabrique.Changement(aFaire, EntiteSynchro.Element),
             Fabrique.Changement(faite, EntiteSynchro.Element),
             Fabrique.Changement(supprimee, EntiteSynchro.Element),
-            Fabrique.Changement(horsProjet, EntiteSynchro.Element)));
+            Fabrique.Changement(autreProjet, EntiteSynchro.Element)));
 
         var fermeture = Fabrique.Projet(id: projet.Id, statut: StatutProjet.Termine, version: 2,
             dateModification: Fabrique.T0.AddHours(1));
@@ -308,7 +310,7 @@ public class ProcesseurPushTests
         Assert.Equal(fermeture.DateModification, EtatElement(aFaire.Id).DateModification);
         Assert.Equal(StatutElement.Fait, EtatElement(faite.Id).Statut);
         Assert.Equal(StatutElement.AFaire, EtatElement(supprimee.Id).Statut);
-        Assert.Equal(StatutElement.AFaire, EtatElement(horsProjet.Id).Statut);
+        Assert.Equal(StatutElement.AFaire, EtatElement(autreProjet.Id).Statut);
     }
 
     [Fact]

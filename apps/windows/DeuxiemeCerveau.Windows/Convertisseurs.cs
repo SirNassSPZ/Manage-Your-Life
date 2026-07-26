@@ -1,4 +1,5 @@
 using DeuxiemeCerveau.Core.Modele;
+using DeuxiemeCerveau.Presentation.VueModeles;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Data;
 using Microsoft.UI.Xaml.Media;
@@ -66,6 +67,115 @@ public sealed class TexteVersVisibilite : IValueConverter
 {
     public object Convert(object value, Type t, object p, string l) =>
         string.IsNullOrWhiteSpace(value as string) ? Visibility.Collapsed : Visibility.Visible;
+
+    public object ConvertBack(object value, Type t, object p, string l) => throw new NotSupportedException();
+}
+
+/// <summary>
+/// Visible quand l'objet existe. Distinct de <see cref="TexteVersVisibilite"/>, qui ne juge que
+/// des chaînes : lui passer un objet le rendrait toujours invisible, en silence.
+/// </summary>
+public sealed class ObjetVersVisibilite : IValueConverter
+{
+    public object Convert(object value, Type t, object p, string l) =>
+        value is null ? Visibility.Collapsed : Visibility.Visible;
+
+    public object ConvertBack(object value, Type t, object p, string l) => throw new NotSupportedException();
+}
+
+/// <summary>
+/// Fond du verdict de confrontation (§5.1bis) : vert quand ça passe, rouge quand ça casse.
+/// La couleur double le texte, elle ne le remplace pas — le verdict reste lisible sans elle.
+/// </summary>
+public sealed class FondVerdict : IValueConverter
+{
+    public object Convert(object value, Type t, object p, string l) =>
+        value is true
+            ? new SolidColorBrush(global::Windows.UI.Color.FromArgb(0xFF, 0xE8, 0xF0, 0xEA))   // SaugeDouce
+            : new SolidColorBrush(global::Windows.UI.Color.FromArgb(0xFF, 0xF3, 0xE5, 0xE1));  // NegatifDouce
+
+    public object ConvertBack(object value, Type t, object p, string l) => throw new NotSupportedException();
+}
+
+/// <summary>Encre du verdict, contrastée sur le fond ci-dessus.</summary>
+public sealed class EncreVerdict : IValueConverter
+{
+    public object Convert(object value, Type t, object p, string l) =>
+        value is true
+            ? new SolidColorBrush(global::Windows.UI.Color.FromArgb(0xFF, 0x36, 0x69, 0x4A))   // sauge assombrie, AA sur SaugeDouce
+            : new SolidColorBrush(global::Windows.UI.Color.FromArgb(0xFF, 0x9A, 0x3E, 0x2E));  // terre cuite assombrie
+
+    public object ConvertBack(object value, Type t, object p, string l) => throw new NotSupportedException();
+}
+
+/// <summary>
+/// <c>bool</c> ↔ <c>bool?</c> pour <c>CheckBox.IsChecked</c>. Sans lui, un <c>x:Bind</c> TwoWay
+/// depuis un <c>bool</c> à travers un chemin imbriqué laisse la case en état INDÉTERMINÉ — un rond
+/// barré au lieu d'une coche, sans la moindre erreur pour le signaler.
+/// </summary>
+public sealed class BoolCoche : IValueConverter
+{
+    public object? Convert(object value, Type t, object p, string l) => value is true;
+
+    public object ConvertBack(object value, Type t, object p, string l) => value is true;
+}
+
+/// <summary>Nom lisible d'un type d'Élément (§3.1). « Rendezvous » ne se montre pas tel quel.</summary>
+public sealed class NomType : IValueConverter
+{
+    public object Convert(object value, Type t, object p, string l) => value switch
+    {
+        TypeElement.Facture => "Facture",
+        TypeElement.Paiement => "Paiement",
+        TypeElement.Revenu => "Revenu",
+        TypeElement.Rendezvous => "Rendez-vous",
+        TypeElement.Envie => "Envie",
+        TypeElement.Tache => "Tâche",
+        TypeElement.Note => "Note",
+        _ => "",
+    };
+
+    public object ConvertBack(object value, Type t, object p, string l) => throw new NotSupportedException();
+}
+
+/// <summary>
+/// <see cref="DateOnly"/> ↔ <see cref="DateTimeOffset"/> pour CalendarDatePicker, qui ne connaît
+/// pas DateOnly. Le fuseau de l'Élément est posé plus tard, à l'enregistrement (§3.5) : ici on ne
+/// manipule qu'un jour de calendrier, sans heure.
+/// </summary>
+public sealed class JourDate : IValueConverter
+{
+    public object? Convert(object value, Type t, object p, string l) =>
+        value is DateOnly jour
+            ? new DateTimeOffset(jour.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero)
+            : null;
+
+    public object ConvertBack(object value, Type t, object p, string l) =>
+        value is DateTimeOffset instant
+            ? DateOnly.FromDateTime(instant.DateTime)
+            : DateOnly.FromDateTime(DateTime.Now);
+}
+
+/// <summary>
+/// <see cref="Periodicite"/> ↔ index de ComboBox. L'ordre des items du XAML suit celui de l'enum ;
+/// les deux se lisent l'un à côté de l'autre, ce qui rend l'écart visible s'il apparaît.
+/// </summary>
+public sealed class IndexPeriodicite : IValueConverter
+{
+    public object Convert(object value, Type t, object p, string l) =>
+        value is Periodicite periodicite ? (int)periodicite : 0;
+
+    public object ConvertBack(object value, Type t, object p, string l) =>
+        value is int index && Enum.IsDefined(typeof(Periodicite), index)
+            ? (Periodicite)index
+            : Periodicite.Aucune;
+}
+
+/// <summary>Visible quand l'objet est ABSENT — l'état vide en regard du précédent.</summary>
+public sealed class ObjetAbsentVersVisibilite : IValueConverter
+{
+    public object Convert(object value, Type t, object p, string l) =>
+        value is null ? Visibility.Visible : Visibility.Collapsed;
 
     public object ConvertBack(object value, Type t, object p, string l) => throw new NotSupportedException();
 }

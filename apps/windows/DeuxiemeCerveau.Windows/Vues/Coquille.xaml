@@ -28,6 +28,10 @@
         <pres:TexteVersVisibilite x:Key="SiTexte" />
         <pres:BoolVersVisibilite x:Key="SiVrai" />
         <pres:BoolInverse x:Key="SiFaux" />
+        <pres:NomType x:Key="NomType" />
+        <pres:JourDate x:Key="JourDate" />
+        <pres:IndexPeriodicite x:Key="IndexPeriodicite" />
+        <pres:BoolCoche x:Key="Coche" />
 
         <!-- BoutonNav vit dans Ressources/Jetons.xaml : plusieurs vues s'en servent. -->
     </UserControl.Resources>
@@ -192,6 +196,61 @@
                         </ItemsControl>
                     </StackPanel>
 
+                    <!-- Calendriers de projets (§5.4, V1 depuis D-027). Une section à part : on ne
+                         les crée ni ne les supprime à la main, ils naissent et s'éteignent avec
+                         leur projet. Les mêler aux autres rendrait « Mes calendriers » ingérable. -->
+                    <StackPanel Visibility="{x:Bind Modele.AFiltresProjetsVisibles, Mode=OneWay, Converter={StaticResource SiVrai}}">
+                        <TextBlock Text="PROJETS" Style="{StaticResource EtiquetteMajuscule}" Margin="10,0,0,8" />
+                        <ItemsControl ItemsSource="{x:Bind Modele.CalendriersProjets}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:FiltreCalendrier">
+                                    <Button Style="{StaticResource BoutonNav}" Padding="10,7"
+                                            HorizontalAlignment="Stretch" Margin="0,0,0,1"
+                                            Command="{Binding DataContext.BasculerCalendrierCommand, ElementName=Racine}"
+                                            CommandParameter="{Binding}"
+                                            AutomationProperties.Name="{Binding Nom}">
+                                        <StackPanel Orientation="Horizontal" Spacing="10">
+                                            <Border Width="11" Height="11" CornerRadius="4" VerticalAlignment="Center"
+                                                    Opacity="{Binding Visible, Converter={StaticResource OpaciteFiltre}}"
+                                                    Background="{Binding Couleur, Converter={StaticResource Hex}}" />
+                                            <TextBlock Text="{Binding Nom}" FontSize="13" VerticalAlignment="Center"
+                                                       Foreground="{Binding Visible, Converter={StaticResource EncreFiltre}}" />
+                                        </StackPanel>
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+
+                    <!-- Sauvegarde (§5.7). Placée contre l'état de synchro, et non dans un écran à
+                         elle : les deux répondent à la même question — « où sont mes données, et
+                         qu'est-ce qui les protège ». L'export, lui, n'a jamais besoin du réseau. -->
+                    <StackPanel Spacing="4" Margin="10,0,0,0">
+                        <TextBlock Text="SAUVEGARDE" Style="{StaticResource EtiquetteMajuscule}"
+                                   Margin="0,0,0,4" />
+
+                        <HyperlinkButton Content="Exporter une archive…" Padding="0" FontSize="12"
+                                         Command="{x:Bind Modele.Sauvegarde.ExporterCommand}"
+                                         IsEnabled="{x:Bind Modele.Sauvegarde.Occupe, Mode=OneWay, Converter={StaticResource SiFaux}}" />
+
+                        <HyperlinkButton Content="Importer une archive…" Padding="0" FontSize="12"
+                                         Command="{x:Bind Modele.Sauvegarde.ImporterCommand}"
+                                         IsEnabled="{x:Bind Modele.Sauvegarde.Occupe, Mode=OneWay, Converter={StaticResource SiFaux}}" />
+
+                        <!-- §5.7 : le rappel mensuel doit être désactivable. -->
+                        <CheckBox IsChecked="{x:Bind Modele.Sauvegarde.RappelMensuel, Mode=TwoWay, Converter={StaticResource Coche}}"
+                                  MinWidth="0" Margin="0,2,0,0" Padding="8,0,0,0"
+                                  AutomationProperties.Name="Rappel mensuel d'export">
+                            <TextBlock Text="Me le rappeler chaque mois" FontSize="11.5"
+                                       Foreground="{StaticResource Encre2}" TextWrapping="Wrap" />
+                        </CheckBox>
+
+                        <TextBlock Text="{x:Bind Modele.Sauvegarde.Message, Mode=OneWay}"
+                                   FontSize="11.5" Foreground="{StaticResource Encre2}"
+                                   TextWrapping="Wrap" Margin="0,2,0,0"
+                                   Visibility="{x:Bind Modele.Sauvegarde.Message, Mode=OneWay, Converter={StaticResource SiTexte}}" />
+                    </StackPanel>
+
                     <!-- Compte Entra. La connexion est un geste explicite : sans elle, l'app reste
                          pleinement utilisable hors ligne (filet 1). -->
                     <StackPanel Spacing="6" Margin="10,0,0,0">
@@ -218,6 +277,119 @@
             <!-- La vue active est posée par le code-behind, d'après Modele.Zone. -->
             <ContentControl Grid.Column="1" x:Name="Hote"
                             HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch" />
+        </Grid>
+
+        <!-- ============ SAISIE TYPÉE (§13) — par-dessus tout l'écran ============
+             Un voile plutôt qu'un ContentDialog : la saisie est le geste central de
+             l'application, et un dialogue système imposerait ses propres boutons, sa police et
+             ses coins. Ici la forme reste celle de la maquette. -->
+        <Grid Grid.RowSpan="2" x:Name="VoileSaisie" Background="#66000000"
+              Visibility="{x:Bind Modele.Saisie.Ouvert, Mode=OneWay, Converter={StaticResource SiVrai}}">
+
+            <Border Background="{StaticResource Surface}" CornerRadius="{StaticResource RayonFenetre}"
+                    BorderBrush="{StaticResource Trait}" BorderThickness="1"
+                    Padding="24,22" Width="460" MaxHeight="620"
+                    HorizontalAlignment="Center" VerticalAlignment="Center">
+                <ScrollViewer>
+                    <StackPanel Spacing="15">
+                        <TextBlock Text="Ajouter" Style="{StaticResource TitreVue}" FontSize="21" />
+
+                        <!-- Le type d'abord : il commande tout le reste du formulaire. -->
+                        <StackPanel Spacing="7">
+                            <TextBlock Text="TYPE" Style="{StaticResource EtiquetteMajuscule}" />
+                            <ItemsControl ItemsSource="{x:Bind Modele.Saisie.Types}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <StackPanel Orientation="Horizontal" Spacing="6" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:ChoixType">
+                                        <!-- L'état actif se dit SUR le bouton : sans lui, les cinq
+                                             types sont indiscernables et on ne sait pas ce qu'on crée. -->
+                                        <Button Style="{StaticResource BoutonDiscret}" Padding="12,7" FontSize="12.5"
+                                                Content="{Binding Nom}"
+                                                Background="{Binding Actif, Converter={StaticResource FondActif}}"
+                                                Foreground="{Binding Actif, Converter={StaticResource EncreActif}}"
+                                                Command="{Binding DataContext.Saisie.ChoisirTypeCommand, ElementName=Racine}"
+                                                CommandParameter="{Binding}" />
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+
+                        <StackPanel Spacing="7">
+                            <TextBlock Text="TITRE" Style="{StaticResource EtiquetteMajuscule}" />
+                            <TextBox Text="{x:Bind Modele.Saisie.Titre, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                     PlaceholderText="Loyer, salaire, dentiste…" FontSize="14"
+                                     AutomationProperties.Name="Titre" />
+                        </StackPanel>
+
+                        <StackPanel Spacing="7"
+                                    Visibility="{x:Bind Modele.Saisie.DemandeMontant, Mode=OneWay, Converter={StaticResource SiVrai}}">
+                            <TextBlock Text="{x:Bind Modele.Saisie.LibelleMontant, Mode=OneWay}"
+                                       Style="{StaticResource EtiquetteMajuscule}" />
+                            <TextBox Style="{StaticResource ChampMontant}" PlaceholderText="0,00"
+                                     Text="{x:Bind Modele.Saisie.Montant, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                     AutomationProperties.Name="Montant en euros" />
+                        </StackPanel>
+
+                        <!-- Une envie n'a pas d'échéance : c'est un souhait, pas une date. -->
+                        <StackPanel Spacing="7"
+                                    Visibility="{x:Bind Modele.Saisie.DemandeDate, Mode=OneWay, Converter={StaticResource SiVrai}}">
+                            <TextBlock Text="DATE" Style="{StaticResource EtiquetteMajuscule}" />
+                            <CalendarDatePicker Date="{x:Bind Modele.Saisie.Date, Mode=TwoWay, Converter={StaticResource JourDate}}"
+                                                HorizontalAlignment="Stretch" FontSize="13.5"
+                                                AutomationProperties.Name="Date" />
+
+                            <TextBlock Text="RÉPÉTITION" Style="{StaticResource EtiquetteMajuscule}" Margin="0,6,0,0" />
+                            <ComboBox SelectedIndex="{x:Bind Modele.Saisie.Periodicite, Mode=TwoWay, Converter={StaticResource IndexPeriodicite}}"
+                                      HorizontalAlignment="Stretch" FontSize="13.5"
+                                      AutomationProperties.Name="Répétition">
+                                <ComboBoxItem Content="Une seule fois" />
+                                <ComboBoxItem Content="Tous les mois" />
+                                <ComboBoxItem Content="Toutes les semaines" />
+                                <ComboBoxItem Content="Tous les ans" />
+                            </ComboBox>
+                        </StackPanel>
+
+                        <StackPanel Spacing="7">
+                            <TextBlock Text="CALENDRIERS" Style="{StaticResource EtiquetteMajuscule}" />
+                            <ItemsControl ItemsSource="{x:Bind Modele.Saisie.Categories}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:ChoixCategorie">
+                                        <Button Style="{StaticResource BoutonNav}" Padding="9,6"
+                                                HorizontalAlignment="Stretch" Margin="0,0,0,1"
+                                                Command="{Binding DataContext.Saisie.BasculerCategorieCommand, ElementName=Racine}"
+                                                CommandParameter="{Binding}"
+                                                AutomationProperties.Name="{Binding Nom}">
+                                            <StackPanel Orientation="Horizontal" Spacing="10">
+                                                <Border Width="11" Height="11" CornerRadius="4" VerticalAlignment="Center"
+                                                        Opacity="{Binding Choisie, Converter={StaticResource OpaciteFiltre}}"
+                                                        Background="{Binding Couleur, Converter={StaticResource Hex}}" />
+                                                <TextBlock Text="{Binding Nom}" FontSize="13" VerticalAlignment="Center"
+                                                           Foreground="{Binding Choisie, Converter={StaticResource EncreFiltre}}" />
+                                            </StackPanel>
+                                        </Button>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+
+                        <TextBlock Text="{x:Bind Modele.Saisie.Erreur, Mode=OneWay}" FontSize="12.5"
+                                   Foreground="{StaticResource Negatif}" TextWrapping="Wrap"
+                                   Visibility="{x:Bind Modele.Saisie.Erreur, Mode=OneWay, Converter={StaticResource SiTexte}}" />
+
+                        <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right"
+                                    Margin="0,4,0,0">
+                            <Button Style="{StaticResource BoutonDiscret}" Content="Annuler"
+                                    Command="{x:Bind Modele.Saisie.FermerCommand}" />
+                            <Button Style="{StaticResource BoutonPrimaire}" Content="Enregistrer"
+                                    Command="{x:Bind Modele.Saisie.EnregistrerCommand}" />
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </Border>
         </Grid>
     </Grid>
 </UserControl>

@@ -74,6 +74,21 @@ public sealed record MoisProjeteDto(
 
 public sealed record ReponseProjectionDto(IReadOnlyList<MoisProjeteDto> Mois);
 
+/// <summary>
+/// Confrontation d'un montant au budget projeté (§5.1bis, §8). Les <b>deux</b> cascades sont
+/// rendues : l'app doit pouvoir montrer l'écart mois par mois, pas seulement un oui/non.
+/// </summary>
+public sealed record ReponseConfrontationDto(
+    bool Passe,
+    [property: JsonPropertyName("montant_centimes")] long MontantCentimes,
+    [property: JsonPropertyName("mois_cible")] string MoisCible,
+    /// <summary>« AAAA-MM » du premier mois qui passe en négatif, ou null si ça passe.</summary>
+    [property: JsonPropertyName("premier_mois_qui_casse")] string? PremierMoisQuiCasse,
+    /// <summary>Ce qui manque au pire moment. Zéro si ça passe.</summary>
+    [property: JsonPropertyName("manque_centimes")] long ManqueCentimes,
+    IReadOnlyList<MoisProjeteDto> Nominale,
+    IReadOnlyList<MoisProjeteDto> Simulee);
+
 /// <summary>Erreur de validation renvoyée au client (lot rejeté, §6.2.2).</summary>
 public sealed record ErreurChangementDto(
     [property: JsonPropertyName("change_id")] Guid ChangeId,

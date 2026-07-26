@@ -43,6 +43,15 @@ public sealed class ClientApiHttp(HttpClient http) : IClientApi
         return SerialisationCanonique.Deserialiser<ReponseProjectionClient>(reponse);
     }
 
+    public async Task<ReponseConfrontationClient> Confronter(
+        long montantCentimes, string moisCible, int mois, CancellationToken jeton = default)
+    {
+        var chemin = $"api/projection/confrontation?montant_centimes={montantCentimes}"
+                   + $"&mois_cible={Uri.EscapeDataString(moisCible)}&mois={mois}";
+        var reponse = await Envoyer(HttpMethod.Get, chemin, null, jeton);
+        return SerialisationCanonique.Deserialiser<ReponseConfrontationClient>(reponse);
+    }
+
     public async Task<ReponseUrlEnvoiClient> PreparerEnvoiPiece(Guid elementId, long tailleOctets, Guid attachmentId, CancellationToken jeton = default)
     {
         var chemin = $"api/attachments/upload-url?element_id={elementId}&taille_octets={tailleOctets}&attachment_id={attachmentId}";

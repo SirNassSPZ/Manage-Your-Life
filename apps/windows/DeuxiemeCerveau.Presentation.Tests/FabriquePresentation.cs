@@ -1,5 +1,6 @@
 using DeuxiemeCerveau.Core.Modele;
 using DeuxiemeCerveau.Core.Synchro;
+using DeuxiemeCerveau.Presentation.VueModeles;
 
 namespace DeuxiemeCerveau.Presentation.Tests;
 
@@ -20,6 +21,22 @@ public sealed class FabriquePresentation : IDisposable
     }
 
     public Composition Composition { get; }
+
+    /// <summary>Le dossier de données de ce poste — ce qui n'est pas dans la base y vit aussi.</summary>
+    public string Dossier => _dossier;
+
+    /// <summary>
+    /// La coquille montée sur ce poste. Le sélecteur de fichier renonce toujours : les tests qui
+    /// exercent l'export en fournissent un vrai (voir <c>SauvegardeTests</c>), les autres n'y
+    /// touchent pas et ne doivent surtout pas ouvrir de boîte de dialogue.
+    /// </summary>
+    public VueModeleCoquille Coquille() => new(Composition, new SelecteurQuiRenonce());
+
+    private sealed class SelecteurQuiRenonce : ISelecteurFichier
+    {
+        public Task<Stream?> PourEcrire(string nomPropose) => Task.FromResult<Stream?>(null);
+        public Task<Stream?> PourLire() => Task.FromResult<Stream?>(null);
+    }
 
     /// <summary>Enregistre une catégorie (= un calendrier, §3.3) et renvoie son identifiant.</summary>
     public Guid AjouterCategorie(string nom, string couleur = "#4A8C63")

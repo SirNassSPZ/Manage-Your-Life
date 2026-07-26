@@ -17,7 +17,7 @@ public class CoquilleTests
         f.AjouterCategorie("Santé");
         f.AjouterCategorie("Travail");
 
-        var coquille = new VueModeleCoquille(f.Composition);
+        var coquille = f.Coquille();
         var sante = coquille.Calendriers.Single(c => c.Nom == "Santé");
         Assert.True(sante.Visible);
 
@@ -38,7 +38,7 @@ public class CoquilleTests
     {
         using var f = new FabriquePresentation();
         f.AjouterCategorie("Santé");
-        var coquille = new VueModeleCoquille(f.Composition);
+        var coquille = f.Coquille();
         coquille.BasculerCalendrierCommand.Execute(coquille.Calendriers.Single(c => c.Nom == "Santé"));
 
         f.AjouterCategorie("Sport");
@@ -53,7 +53,7 @@ public class CoquilleTests
     {
         using var f = new FabriquePresentation();
         f.AjouterCategorie("Santé");
-        var coquille = new VueModeleCoquille(f.Composition);
+        var coquille = f.Coquille();
         var sante = coquille.Calendriers.Single(c => c.Nom == "Santé");
 
         coquille.BasculerCalendrierCommand.Execute(sante);
@@ -70,7 +70,7 @@ public class CoquilleTests
     public void L_intitule_des_sous_vues_ne_reste_jamais_seul(Zone zone, bool attendu)
     {
         using var f = new FabriquePresentation();
-        var coquille = new VueModeleCoquille(f.Composition);
+        var coquille = f.Coquille();
 
         coquille.Aller(zone);
 
@@ -90,7 +90,7 @@ public class CoquilleTests
         // filtrent rien. Une commande qui ne commande rien est pire qu'une commande absente.
         using var f = new FabriquePresentation();
         f.AjouterCategorie("Santé");
-        var coquille = new VueModeleCoquille(f.Composition);
+        var coquille = f.Coquille();
 
         coquille.Aller(zone);
 
@@ -100,21 +100,39 @@ public class CoquilleTests
     [Fact]
     public void Une_zone_V2_reste_inerte()
     {
-        // Périmètre V1 verrouillé : la zone est montrée, jamais atteinte.
+        // Périmètre V1 verrouillé : une zone V2 est montrée, jamais atteinte. Projets en est
+        // sorti (D-027) ; la règle, elle, tient toujours pour celles qui restent.
         using var f = new FabriquePresentation();
-        var coquille = new VueModeleCoquille(f.Composition);
-        var projets = coquille.Principales.Single(p => p.EstV2);
+        var coquille = f.Coquille();
+        var zonesV2 = coquille.Principales.Where(p => p.EstV2).ToList();
+
+        foreach (var zone in zonesV2)
+        {
+            coquille.NaviguerCommand.Execute(zone);
+            Assert.NotEqual(zone.Zone, coquille.Zone);
+        }
+    }
+
+    [Fact]
+    public void La_zone_Projets_est_desormais_atteignable()
+    {
+        // Le pendant du test ci-dessus : D-027 a fait entrer les projets en V1, et une zone qui
+        // n'est plus étiquetée V2 doit s'ouvrir pour de bon.
+        using var f = new FabriquePresentation();
+        var coquille = f.Coquille();
+        var projets = coquille.Principales.Single(p => p.Zone == Zone.Projets);
 
         coquille.NaviguerCommand.Execute(projets);
 
-        Assert.NotEqual(projets.Zone, coquille.Zone);
+        Assert.False(projets.EstV2);
+        Assert.Equal(Zone.Projets, coquille.Zone);
     }
 
     [Fact]
     public void Sans_solde_de_reference_l_entete_ne_montre_aucun_chiffre()
     {
         using var f = new FabriquePresentation();
-        var coquille = new VueModeleCoquille(f.Composition);
+        var coquille = f.Coquille();
 
         Assert.False(coquille.EntetePossedeSolde);
         Assert.Equal("—", coquille.SoldeEntete);
@@ -127,7 +145,7 @@ public class CoquilleTests
         using var f = new FabriquePresentation();
         f.Composition.Demarrage.DefinirSoldeReference(248_360, DateOnly.FromDateTime(DateTime.Now));
 
-        var coquille = new VueModeleCoquille(f.Composition);
+        var coquille = f.Coquille();
 
         Assert.True(coquille.EntetePossedeSolde);
         Assert.Contains("2", coquille.SoldeEntete);
@@ -139,7 +157,7 @@ public class CoquilleTests
     public void Hors_ligne_l_etat_de_synchro_compte_les_changements_en_attente()
     {
         using var f = new FabriquePresentation();
-        var coquille = new VueModeleCoquille(f.Composition);
+        var coquille = f.Coquille();
         Assert.Equal("Hors ligne", coquille.EtatSynchro);
 
         f.AjouterSortie("Courses", DateTimeOffset.UtcNow);

@@ -93,11 +93,27 @@ public static partial class ValidateurElement
                 erreurs.Add(new("sens", "sens_incoherent",
                     $"Sens « {e.Sens} » incohérent avec le type « {e.Type} » (§3.1)."));
         }
+        else if (e.Type == TypeElement.Envie)
+        {
+            // Prix ESTIMÉ d'une envie (§3.1, D-027) : facultatif, et ce n'est pas une dépense.
+            // Le garde-fou n'est plus l'absence du champ mais l'exclusion de la projection
+            // nominale — CalculateurProjection ignore tout ce qui n'est pas EstFinancier.
+            if (e.MontantCentimes is < 0)
+                erreurs.Add(new("montant_centimes", "montant_negatif",
+                    "Prix estimé négatif interdit sur une envie."));
+            if (e.Devise is { } devise && !FormatDevise().IsMatch(devise))
+                erreurs.Add(new("devise", "devise_invalide", $"Devise invalide : « {devise} » (ISO 4217, ex. EUR)."));
+
+            // Une envie n'est pas une sortie, c'est une sortie ÉVENTUELLE : le sens reste interdit.
+            if (e.Sens is not null)
+                erreurs.Add(new("sens", "sens_interdit",
+                    "Sens interdit sur une envie (§3.1 : une envie n'est pas un mouvement)."));
+        }
         else
         {
             if (e.MontantCentimes is not null)
                 erreurs.Add(new("montant_centimes", "montant_interdit",
-                    $"Montant interdit sur le type « {e.Type} » (§3.1 : argent uniquement facture, paiement, revenu)."));
+                    $"Montant interdit sur le type « {e.Type} » (§3.1 : argent uniquement facture, paiement, revenu, et le prix estimé d'une envie)."));
             if (e.Devise is not null)
                 erreurs.Add(new("devise", "devise_interdite", $"Devise interdite sur le type « {e.Type} »."));
             if (e.Sens is not null)
@@ -121,9 +137,17 @@ public static partial class ValidateurElement
             if (e.OrdreManuel is not null)
                 erreurs.Add(new("ordre_manuel", "champ_reserve_taches", "ordre_manuel est réservé aux tâches."));
         }
-        else if (e.ScorePoints is < 0)
+        else
         {
-            erreurs.Add(new("score_points", "score_negatif", "score_points doit être positif ou nul."));
+            if (e.ScorePoints is < 0)
+                erreurs.Add(new("score_points", "score_negatif", "score_points doit être positif ou nul."));
+
+            // Frontière V1 / V2, rendue VÉRIFIABLE (D-027) : en V1 la tâche n'existe qu'au sein
+            // d'un projet (§5.3). Les listes de tâches libres sont V2 (§5.2, I-004). Le jour où
+            // elles sont décidées, c'est cette seule règle qui saute.
+            if (e.ProjetId is null)
+                erreurs.Add(new("projet_id", "tache_hors_projet",
+                    "En V1, une tâche appartient à un projet (§5.2, §5.3). Les listes de tâches libres sont V2."));
         }
 
         // ----- Rappels (§3.1) -----

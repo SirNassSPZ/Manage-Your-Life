@@ -21,6 +21,13 @@ public interface IClientApi
     /// <summary>Projection budgétaire (§5.1) — calculée par le serveur sur les données synchronisées (§4).</summary>
     Task<ReponseProjectionClient> Projeter(int mois, CancellationToken jeton = default);
 
+    /// <summary>
+    /// Confrontation d'un montant au budget projeté (§5.1bis) — même motif que la projection :
+    /// le calcul vit au serveur, écrit une fois, affiché par les deux apps.
+    /// </summary>
+    Task<ReponseConfrontationClient> Confronter(
+        long montantCentimes, string moisCible, int mois, CancellationToken jeton = default);
+
     // ----- Pièces jointes (§7) : courtage d'URL SAS ; le binaire transite en direct vers Blob -----
 
     Task<ReponseUrlEnvoiClient> PreparerEnvoiPiece(Guid elementId, long tailleOctets, Guid attachmentId, CancellationToken jeton = default);

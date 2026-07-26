@@ -59,13 +59,31 @@ public partial class App : Application
                 Environment.Exit(rapport.Contains("Les trois scénarios passent.") ? 0 : 1);
             }
 
-            _composition = Composition.Creer(options, jetons, manipulateurApi: Pile);
+            // --donnees <chemin> : monter l'app sur un dossier de données autre que celui de
+            // l'utilisateur. C'est ce qui permet de photographier un écran garni sans jamais
+            // écrire une ligne de démonstration dans la vraie base.
+            var argsDemarrage = Environment.GetCommandLineArgs();
+            var iDonnees = Array.IndexOf(argsDemarrage, "--donnees");
+            var dossier = iDonnees >= 0 && iDonnees + 1 < argsDemarrage.Length
+                ? argsDemarrage[iDonnees + 1]
+                : null;
+
+            _composition = Composition.Creer(options, jetons, dossier, Pile);
 
             var principale = new FenetrePrincipale(_composition);
             _fenetre = principale;
             _fenetrePrincipale = WinRT.Interop.WindowNative.GetWindowHandle(principale);
             principale.Closed += (_, _) => _composition?.Dispose();
             principale.Activate();
+
+            // Un second lancement, ou le clic sur un toast : les deux relancent l'exe, qui redirige
+            // vers cette instance. Sans ces deux relais, il ne se passerait rien à l'écran.
+            Programme.SurActivation = AuPremierPlan;
+            Services.ServiceToasts.SurClic = AuPremierPlan;
+
+            // Tant que l'app tourne, c'est elle qui notifie : la tâche planifiée s'efface devant
+            // elle (D-019 — un seul processus sur local.db).
+            DemarrerPassagesRappels(_composition);
 
             var arguments = Environment.GetCommandLineArgs();
 
@@ -78,22 +96,27 @@ public partial class App : Application
                     principale.Modele.Aller(zone);
             }
 
-            // --mode <Mois|SeptJours|Gestion> : la zone Calendrier porte trois lectures, et la
-            // capture doit pouvoir atteindre les deux autres que celle d'ouverture.
+            // --mode <sous-vue> : plusieurs zones portent plusieurs lectures des mêmes données, et
+            // la capture doit pouvoir atteindre les autres que celle d'ouverture.
             var iMode = Array.IndexOf(arguments, "--mode");
-            if (iMode >= 0 && iMode + 1 < arguments.Length
-                && Enum.TryParse<DeuxiemeCerveau.Presentation.VueModeles.ModeCalendrier>(
-                    arguments[iMode + 1], ignoreCase: true, out var mode))
+            if (iMode >= 0 && iMode + 1 < arguments.Length)
             {
+                var demande = arguments[iMode + 1];
+
+                // Les trois noms historiques du calendrier restent acceptés ; sinon on désigne la
+                // sous-vue par son intitulé, ce qui vaut pour toutes les zones sans table à tenir.
+                var titre = demande.ToUpperInvariant() switch
+                {
+                    "SEPTJOURS" => "7 prochains jours",
+                    "GESTION" => "Gérer les calendriers",
+                    "MOIS" => "Grille du mois",
+                    _ => demande,
+                };
+
                 // On passe par la sous-vue, pas par le mode directement : c'est le chemin que
                 // l'utilisateur emprunte, et lui seul met aussi à jour la barre latérale.
-                var titre = mode switch
-                {
-                    DeuxiemeCerveau.Presentation.VueModeles.ModeCalendrier.SeptJours => "7 prochains jours",
-                    DeuxiemeCerveau.Presentation.VueModeles.ModeCalendrier.Gestion => "Gérer les calendriers",
-                    _ => "Grille du mois",
-                };
-                if (principale.Modele.SousVues.FirstOrDefault(s => s.Titre == titre) is { } sousVue)
+                if (principale.Modele.SousVues.FirstOrDefault(
+                        s => Simplifie(s.Titre) == Simplifie(titre)) is { } sousVue)
                     principale.Modele.ChoisirSousVueCommand.Execute(sousVue);
             }
 
@@ -107,6 +130,64 @@ public partial class App : Application
             Journaliser(ex);
             MontrerPanne(ex);
         }
+    }
+
+    /// <summary>
+    /// Réduit un intitulé à ses lettres nues, sans accents ni espaces. Les intitulés de sous-vues
+    /// sont accentués (« Par catégorie », « Gérer les calendriers ») et la page de codes de la
+    /// console les massacre avant même que l'argument n'arrive : comparer tel quel ne trouve rien.
+    /// </summary>
+    private static string Simplifie(string texte) => new(texte
+        .Normalize(System.Text.NormalizationForm.FormD)
+        .Where(c => char.IsLetterOrDigit(c)
+                 && System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c)
+                    != System.Globalization.UnicodeCategory.NonSpacingMark)
+        .Select(char.ToLowerInvariant)
+        .ToArray());
+
+    /// <summary>
+    /// Ramène la fenêtre devant. Une fenêtre réduite doit d'abord être restaurée :
+    /// <c>Activate()</c> seul la laisse dans la barre des tâches, à clignoter.
+    /// </summary>
+    private void AuPremierPlan()
+    {
+        if (_fenetre is not { } fenetre) return;
+
+        // L'activation arrive d'un thread de fond : tout ce qui touche à la fenêtre repasse par le
+        // fil de l'interface, sinon c'est un RPC_E_WRONG_THREAD.
+        fenetre.DispatcherQueue.TryEnqueue(() =>
+        {
+            if (fenetre.AppWindow.Presenter is Microsoft.UI.Windowing.OverlappedPresenter
+                { State: Microsoft.UI.Windowing.OverlappedPresenterState.Minimized } presentateur)
+                presentateur.Restore();
+
+            fenetre.Activate();
+        });
+    }
+
+    /// <summary>
+    /// Passages de notification pendant que l'app tourne (§4) : un au démarrage, puis un par heure.
+    /// <para>
+    /// Sans la minuterie, une app laissée ouverte depuis lundi ne notifierait plus rien de la
+    /// semaine — la tâche planifiée, elle, s'efface tant que ce processus détient la base.
+    /// L'heure est un compromis franc : assez fin pour ne pas rater un passage de minuit, assez
+    /// large pour rester invisible.
+    /// </para>
+    /// </summary>
+    private static void DemarrerPassagesRappels(Composition composition)
+    {
+        // Hors du fil de l'interface : le passage lit la base, et l'interface n'attend jamais.
+        static void Passer(Composition composition) => _ = Task.Run(() =>
+        {
+            try { Outils.ModeRappels.Passer(composition, forcerDigest: false); }
+            catch (Exception ex) { Journaliser(ex); }
+        });
+
+        Passer(composition);
+
+        var minuterie = new DispatcherTimer { Interval = TimeSpan.FromHours(1) };
+        minuterie.Tick += (_, _) => Passer(composition);
+        minuterie.Start();
     }
 
     /// <summary>
@@ -149,7 +230,7 @@ public partial class App : Application
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "DeuxiemeCerveau", "demarrage.log");
 
-    private static void Journaliser(Exception ex)
+    internal static void Journaliser(Exception ex)
     {
         try
         {

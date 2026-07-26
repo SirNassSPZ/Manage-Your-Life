@@ -1,0 +1,218 @@
+<UserControl
+    x:Class="DeuxiemeCerveau.Windows.Vues.VueProjets"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:conv="using:DeuxiemeCerveau.Windows.Convertisseurs"
+    xmlns:vm="using:DeuxiemeCerveau.Presentation.VueModeles">
+
+    <UserControl.Resources>
+        <conv:BoolVersVisibilite x:Key="SiVrai" />
+        <conv:BoolVersVisibiliteInverse x:Key="SiFaux" />
+        <conv:TexteVersVisibilite x:Key="SiTexte" />
+        <conv:HexPinceau x:Key="Hex" />
+        <conv:ObjetVersVisibilite x:Key="SiObjet" />
+        <conv:ObjetAbsentVersVisibilite x:Key="SiPasObjet" />
+    </UserControl.Resources>
+
+    <Grid x:Name="RacineProjets" Background="{StaticResource Surface}" Padding="22,20,22,22"
+          ColumnSpacing="22">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="300" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <!-- ============ Colonne des projets ============ -->
+        <Grid RowSpacing="12">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <TextBlock Text="Projets" Style="{StaticResource TitreVue}" />
+
+            <!-- Création : un champ, une touche Entrée. Un objectif de vie se note quand il
+                 arrive, pas au bout d'un formulaire. -->
+            <Grid Grid.Row="1" ColumnSpacing="8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBox Text="{x:Bind Modele.NouveauNom, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                         PlaceholderText="Commencer le MMA…" FontSize="13.5"
+                         AutomationProperties.Name="Nom du nouveau projet"
+                         KeyDown="SurToucheNouveauProjet" />
+                <Button Grid.Column="1" Style="{StaticResource BoutonPrimaire}" Content="Créer"
+                        Padding="13,8" FontSize="12.5"
+                        Command="{x:Bind Modele.CreerCommand}" />
+            </Grid>
+
+            <ScrollViewer Grid.Row="2">
+                <StackPanel Spacing="6">
+                    <ItemsRepeater ItemsSource="{x:Bind Modele.Projets}">
+                        <ItemsRepeater.ItemTemplate>
+                            <DataTemplate x:DataType="vm:LigneProjet">
+                                <Button Style="{StaticResource BoutonNav}" HorizontalAlignment="Stretch"
+                                        Padding="12,11" Margin="0,0,0,2"
+                                        Command="{Binding DataContext.Modele.OuvrirCommand, ElementName=RacineProjets}"
+                                        CommandParameter="{Binding}"
+                                        AutomationProperties.Name="{Binding Nom}">
+                                    <Grid ColumnSpacing="10">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <Border Width="11" Height="11" CornerRadius="4"
+                                                VerticalAlignment="Top" Margin="0,4,0,0"
+                                                Background="{Binding Couleur, Converter={StaticResource Hex}}" />
+
+                                        <StackPanel Grid.Column="1" Spacing="3">
+                                            <Grid ColumnSpacing="8">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Text="{Binding Nom}" FontSize="14" FontWeight="SemiBold"
+                                                           Foreground="{StaticResource Encre}"
+                                                           TextTrimming="CharacterEllipsis" />
+                                                <!-- Un projet fermé le dit ; un projet actif n'a rien à annoncer. -->
+                                                <Border Grid.Column="1" Background="{StaticResource Surface2}"
+                                                        CornerRadius="5" Padding="6,1" VerticalAlignment="Center"
+                                                        Visibility="{Binding EtiquetteStatut, Converter={StaticResource SiTexte}}">
+                                                    <TextBlock Text="{Binding EtiquetteStatut}" FontSize="10"
+                                                               FontWeight="SemiBold"
+                                                               Foreground="{StaticResource Encre3}" />
+                                                </Border>
+                                            </Grid>
+                                            <TextBlock Text="{Binding Avancement}" FontSize="11.5"
+                                                       Foreground="{StaticResource Encre3}" />
+                                        </StackPanel>
+                                    </Grid>
+                                </Button>
+                            </DataTemplate>
+                        </ItemsRepeater.ItemTemplate>
+                    </ItemsRepeater>
+
+                    <StackPanel Spacing="6" Margin="2,20,0,0"
+                                Visibility="{x:Bind Modele.AucunProjet, Mode=OneWay, Converter={StaticResource SiVrai}}">
+                        <TextBlock Text="Aucun projet." FontSize="14" Foreground="{StaticResource Encre2}" />
+                        <TextBlock Style="{StaticResource TexteCourant}" FontSize="13"
+                                   Text="Un projet est un objectif qu'on poursuit dans le temps. Il porte ses tâches, et son calendrier apparaît automatiquement dans les filtres." />
+                    </StackPanel>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+
+        <!-- ============ Le projet ouvert et ses tâches ============ -->
+        <Border Grid.Column="1" Style="{StaticResource Carte}" Padding="20,18"
+                Visibility="{x:Bind Modele.ProjetOuvert, Mode=OneWay, Converter={StaticResource SiObjet}}">
+            <Grid RowSpacing="14">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <Grid ColumnSpacing="10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Text="{x:Bind Modele.ProjetOuvert.Nom, Mode=OneWay}"
+                               Style="{StaticResource TitreVue}" FontSize="21"
+                               VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+
+                    <!-- Fermer un projet reporte ses tâches à faire (§3.2) : c'est le SERVEUR
+                         qui applique la cascade, l'app ne fait que demander. -->
+                    <Button Grid.Column="1" Style="{StaticResource BoutonDiscret}" Content="Changer l'état"
+                            Padding="12,7" FontSize="12.5" VerticalAlignment="Center"
+                            Command="{x:Bind Modele.ChangerStatutCommand}"
+                            CommandParameter="{x:Bind Modele.ProjetOuvert, Mode=OneWay}" />
+
+                    <Button Grid.Column="2" Style="{StaticResource BoutonDiscret}" Content="Corbeille"
+                            Padding="12,7" FontSize="12.5" VerticalAlignment="Center"
+                            Command="{x:Bind Modele.SupprimerProjetCommand}"
+                            CommandParameter="{x:Bind Modele.ProjetOuvert, Mode=OneWay}" />
+                </Grid>
+
+                <Grid Grid.Row="1" ColumnSpacing="8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBox Text="{x:Bind Modele.NouvelleTache, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                             PlaceholderText="Ajouter une tâche…" FontSize="13.5"
+                             AutomationProperties.Name="Nouvelle tâche"
+                             KeyDown="SurToucheNouvelleTache" />
+                    <Button Grid.Column="1" Style="{StaticResource BoutonDiscret}" Content="Ajouter"
+                            Padding="13,8" FontSize="12.5"
+                            Command="{x:Bind Modele.AjouterTacheCommand}" />
+                </Grid>
+
+                <ScrollViewer Grid.Row="2">
+                    <StackPanel Spacing="2">
+                        <ItemsRepeater ItemsSource="{x:Bind Modele.ProjetOuvert.Taches, Mode=OneWay}">
+                            <ItemsRepeater.ItemTemplate>
+                                <DataTemplate x:DataType="vm:LigneTache">
+                                    <Grid ColumnSpacing="11" Padding="2,7"
+                                          BorderBrush="{StaticResource Trait2}" BorderThickness="0,0,0,1">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <CheckBox IsChecked="{Binding Faite, Mode=OneWay}" MinWidth="0"
+                                                  Padding="0" VerticalAlignment="Center"
+                                                  AutomationProperties.Name="{Binding Titre}"
+                                                  Command="{Binding DataContext.Modele.BasculerTacheCommand, ElementName=RacineProjets}"
+                                                  CommandParameter="{Binding}" />
+
+                                        <TextBlock Grid.Column="1" Text="{Binding Titre}" FontSize="13.5"
+                                                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                                   Foreground="{StaticResource Encre}" />
+
+                                        <Button Grid.Column="2" Style="{StaticResource BoutonNav}"
+                                                Padding="7,3" VerticalAlignment="Center"
+                                                AutomationProperties.Name="Changer la priorité"
+                                                Command="{Binding DataContext.Modele.CyclerPrioriteCommand, ElementName=RacineProjets}"
+                                                CommandParameter="{Binding}">
+                                            <Border Background="{StaticResource Surface2}" CornerRadius="5" Padding="6,1"
+                                                    Visibility="{Binding APriorite, Converter={StaticResource SiVrai}}">
+                                                <TextBlock Text="{Binding EtiquettePriorite}" FontSize="10"
+                                                           FontWeight="SemiBold" Foreground="{StaticResource Encre3}" />
+                                            </Border>
+                                        </Button>
+
+                                        <Button Grid.Column="3" Style="{StaticResource BoutonNav}" Content="×"
+                                                Padding="8,2" FontSize="15" VerticalAlignment="Center"
+                                                Foreground="{StaticResource Encre3}"
+                                                AutomationProperties.Name="Mettre la tâche à la corbeille"
+                                                Command="{Binding DataContext.Modele.SupprimerTacheCommand, ElementName=RacineProjets}"
+                                                CommandParameter="{Binding}" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsRepeater.ItemTemplate>
+                        </ItemsRepeater>
+
+                        <TextBlock Text="{x:Bind Modele.Message, Mode=OneWay}" FontSize="12"
+                                   Foreground="{StaticResource Negatif}" TextWrapping="Wrap" Margin="0,10,0,0"
+                                   Visibility="{x:Bind Modele.Message, Mode=OneWay, Converter={StaticResource SiTexte}}" />
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
+        </Border>
+
+        <!-- Rien d'ouvert : on dit quoi faire, sans laisser une moitié d'écran vide et muette. -->
+        <StackPanel Grid.Column="1" Spacing="6" VerticalAlignment="Center" MaxWidth="380"
+                    Visibility="{x:Bind Modele.ProjetOuvert, Mode=OneWay, Converter={StaticResource SiPasObjet}}">
+            <TextBlock Text="Choisis un projet" FontSize="15" Foreground="{StaticResource Encre2}" />
+            <TextBlock Style="{StaticResource TexteCourant}" FontSize="13"
+                       Text="Ses tâches s'ouvrent ici. Chaque projet a son calendrier, affichable ou masquable depuis l'onglet Calendrier." />
+        </StackPanel>
+    </Grid>
+</UserControl>

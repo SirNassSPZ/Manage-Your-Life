@@ -59,4 +59,36 @@ public sealed class ServiceLecture(DepotLocal depot)
     private IEnumerable<Categorie> ToutesCategories()
         => depot.Enumerer(EntiteSynchro.Categorie)
             .Select(e => SerialisationCanonique.Deserialiser<Categorie>(e.PayloadCanonique));
+
+    /// <summary>
+    /// Projets hors corbeille (§3.2, V1 depuis D-027). Les actifs d'abord : un projet en pause ou
+    /// terminé reste consultable, mais il n'a plus à occuper le haut de la liste.
+    /// </summary>
+    public IReadOnlyList<Projet> Projets()
+        => TousProjets().Where(p => !p.Supprime)
+            .OrderBy(p => p.Statut == StatutProjet.Actif ? 0 : 1)
+            .ThenBy(p => p.Nom, StringComparer.CurrentCulture)
+            .ToList();
+
+    /// <summary>Projets à la corbeille (§5.6) — le filet 2 vaut pour toute entité (D-006).</summary>
+    public IReadOnlyList<Projet> CorbeilleProjets()
+        => TousProjets().Where(p => p.Supprime)
+            .OrderByDescending(p => p.DateSuppression ?? p.DateModification)
+            .ToList();
+
+    /// <summary>
+    /// Les tâches d'un projet (§5.3). Tri : l'ordre manuel d'abord quand il est posé — c'est
+    /// justement ce que l'utilisateur a demandé en le posant — puis la priorité, puis le titre.
+    /// </summary>
+    public IReadOnlyList<Element> TachesDeProjet(Guid projet)
+        => Elements()
+            .Where(e => !e.Supprime && e.Type == TypeElement.Tache && e.ProjetId == projet)
+            .OrderBy(e => e.OrdreManuel ?? int.MaxValue)
+            .ThenByDescending(e => e.Priorite ?? Priorite.Normale)
+            .ThenBy(e => e.Titre, StringComparer.CurrentCulture)
+            .ToList();
+
+    private IEnumerable<Projet> TousProjets()
+        => depot.Enumerer(EntiteSynchro.Projet)
+            .Select(e => SerialisationCanonique.Deserialiser<Projet>(e.PayloadCanonique));
 }

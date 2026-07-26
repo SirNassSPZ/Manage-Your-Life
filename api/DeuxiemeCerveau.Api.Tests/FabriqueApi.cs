@@ -11,6 +11,28 @@ public static class FabriqueApi
     public static readonly Guid AppareilA = new("aaaaaaaa-0000-0000-0000-000000000001");
     public static readonly DateTimeOffset T0 = new(2026, 7, 1, 8, 0, 0, TimeSpan.Zero);
 
+    /// <summary>
+    /// Une envie, avec ou sans prix estimé (§3.1, D-027). Datée comme une facture pour que, si
+    /// elle entrait par erreur dans la projection, le test le voie tout de suite.
+    /// </summary>
+    public static Element Envie(
+        Guid? id = null, string titre = "Casque audio", long? montantCentimes = null)
+        => new()
+        {
+            Id = id ?? Guid.NewGuid(),
+            Type = TypeElement.Envie,
+            Titre = titre,
+            DateDebut = new DateTimeOffset(2026, 8, 10, 7, 0, 0, TimeSpan.Zero),
+            Fuseau = "Europe/Paris",
+            MontantCentimes = montantCentimes,
+            Devise = montantCentimes is null ? null : "EUR",
+            Statut = StatutElement.Idee,
+            DateCreation = T0,
+            DateModification = T0,
+            AppareilSource = AppareilA,
+            Version = 1,
+        };
+
     public static Element Facture(
         Guid? id = null, string titre = "Loyer", long montant = 80000,
         DateTimeOffset? dateDebut = null, StatutElement statut = StatutElement.AVenir,

@@ -29,6 +29,31 @@ public sealed record MoisProjete(
     bool AvantReference);
 
 /// <summary>
+/// Confrontation d'un montant au budget projeté (§5.1bis) : « est-ce que ça rentre en septembre ? »
+/// </summary>
+/// <param name="Base">La projection nominale à confronter — l'envie n'y figure pas.</param>
+/// <param name="MontantCentimes">Prix prêté à l'envie, strictement positif (règle 5).</param>
+/// <param name="MoisCible">Le mois où l'on imagine la dépense. Doit être dans l'horizon.</param>
+public sealed record RequeteConfrontation(
+    RequeteProjection Base,
+    long MontantCentimes,
+    MoisCalendaire MoisCible);
+
+/// <summary>
+/// Réponse d'une confrontation (§5.1bis). Les deux cascades sont rendues pour que l'app montre
+/// l'écart mois par mois ; le verdict seul ne dirait pas <b>de combien</b> ça coince.
+/// </summary>
+/// <param name="Passe">Vrai si aucun mois, de la cible à la fin de l'horizon, ne clôture négatif.</param>
+/// <param name="PremierMoisQuiCasse">Le premier mois qui passe en négatif, ou null si ça passe.</param>
+/// <param name="ManqueCentimes">Ce qui manque au pire moment. Zéro si ça passe.</param>
+public sealed record Confrontation(
+    IReadOnlyList<MoisProjete> Nominale,
+    IReadOnlyList<MoisProjete> Simulee,
+    bool Passe,
+    MoisProjete? PremierMoisQuiCasse,
+    long ManqueCentimes);
+
+/// <summary>
 /// Budget projeté — algorithme officiel (§5.1, NON NÉGOCIABLE). Vit dans l'API et uniquement ici ;
 /// calculé à la lecture, jamais stocké (règle 9). Précisions d'implémentation : D-004.
 /// </summary>
@@ -36,7 +61,17 @@ public static class CalculateurProjection
 {
     public const int NombreMoisMax = 120;
 
-    public static IReadOnlyList<MoisProjete> Calculer(RequeteProjection requete)
+    public static IReadOnlyList<MoisProjete> Calculer(RequeteProjection requete) =>
+        Calculer(requete, sortieSupplementaire: null);
+
+    /// <param name="sortieSupplementaire">
+    /// Sortie hypothétique injectée dans la cascade, pour la confrontation (§5.1bis). Passée ici
+    /// plutôt que sous forme d'Élément de synthèse : fabriquer un faux Élément demanderait de lui
+    /// inventer une date et un fuseau, et le rattachement au mois local pourrait le déplacer d'un
+    /// mois. Un montant posé directement sur le mois cible ne peut pas glisser.
+    /// </param>
+    private static IReadOnlyList<MoisProjete> Calculer(
+        RequeteProjection requete, (MoisCalendaire Mois, long Centimes)? sortieSupplementaire)
     {
         if (requete.NombreMois is < 1 or > NombreMoisMax)
             throw new ArgumentOutOfRangeException(nameof(requete),
@@ -96,6 +131,15 @@ public static class CalculateurProjection
             }
         }
 
+        // La sortie hypothétique de la confrontation (§5.1bis) rejoint le flux comme n'importe
+        // quelle autre sortie du mois cible : la cascade, elle, reste rigoureusement la même.
+        if (sortieSupplementaire is { } extra)
+        {
+            var cible = extra.Mois < moisReference ? moisReference : extra.Mois;
+            var (entrees, sorties) = flux.GetValueOrDefault(cible);
+            flux[cible] = (entrees, sorties + extra.Centimes);
+        }
+
         // Cascade mensuelle (§5.1.4) depuis le mois de la date de référence — le report de déficit
         // est automatique par construction (§5.1.5).
         var resultat = new List<MoisProjete>(requete.NombreMois);
@@ -133,5 +177,48 @@ public static class CalculateurProjection
         }
 
         return resultat;
+    }
+
+    /// <summary>
+    /// Confrontation d'un montant au budget projeté (§5.1bis, NON NÉGOCIABLE).
+    /// <para>
+    /// <b>Lecture pure.</b> Rien n'est écrit, aucun Élément ni occurrence n'est créé : deux appels
+    /// identiques rendent le même résultat et ne laissent rien derrière (règle 9).
+    /// </para>
+    /// <para>
+    /// Rend les <b>deux cascades</b> et non un booléen — l'app doit pouvoir montrer l'écart mois
+    /// par mois, pas seulement un oui/non.
+    /// </para>
+    /// </summary>
+    public static Confrontation Confronter(RequeteConfrontation requete)
+    {
+        if (requete.MontantCentimes <= 0)
+            throw new ArgumentOutOfRangeException(nameof(requete),
+                "Le montant confronté doit être strictement positif (centimes entiers, règle 5).");
+
+        var dernierMois = requete.Base.PremierMois.AjouterMois(requete.Base.NombreMois - 1);
+        if (requete.MoisCible < requete.Base.PremierMois || requete.MoisCible > dernierMois)
+            throw new ArgumentOutOfRangeException(nameof(requete),
+                $"Mois cible « {requete.MoisCible} » hors de l'horizon "
+                + $"({requete.Base.PremierMois} à {dernierMois}).");
+
+        var nominale = Calculer(requete.Base, sortieSupplementaire: null);
+        var simulee = Calculer(requete.Base, (requete.MoisCible, requete.MontantCentimes));
+
+        // Verdict (§5.1bis.4) : on ne regarde QUE de la cible à la fin de l'horizon. Un mois déjà
+        // négatif avant la cible n'est pas causé par cet achat, et le lui imputer ferait répondre
+        // « non » à une dépense qui passe très bien.
+        var casse = simulee.FirstOrDefault(m =>
+            !m.AvantReference
+            && new MoisCalendaire(m.Annee, m.Mois) >= requete.MoisCible
+            && m.ClotureCentimes < 0);
+
+        return new Confrontation(
+            Nominale: nominale,
+            Simulee: simulee,
+            Passe: casse is null,
+            PremierMoisQuiCasse: casse,
+            // De combien ça manque, au pire moment — le chiffre qui dit quoi faire.
+            ManqueCentimes: casse?.ClotureCentimes is { } c ? -c : 0);
     }
 }

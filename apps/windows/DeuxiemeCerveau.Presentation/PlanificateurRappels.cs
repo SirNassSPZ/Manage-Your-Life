@@ -79,6 +79,63 @@ public static class PlanificateurRappels
     public static bool EstJourDuDigest(DateTimeOffset maintenant) =>
         maintenant.LocalDateTime.DayOfWeek == DayOfWeek.Sunday;
 
+    /// <summary>
+    /// Rappel mensuel d'export (§5.7) : l'habitude qui protège du seul cas qu'aucune architecture
+    /// ne couvre — la perte du compte ou l'erreur humaine.
+    /// <para>
+    /// Aucune planification propre : il voyage avec le digest hebdomadaire. La clé porte le mois,
+    /// donc il ne sort qu'<b>une fois par mois</b> — au premier dimanche déclenché — et le
+    /// <see cref="JournalRappels"/> écarte les suivants. Une tâche planifiée de moins, et le rappel
+    /// arrive au moment où l'utilisateur fait déjà le point.
+    /// </para>
+    /// </summary>
+    public static Rappel RappelExport(DateTimeOffset maintenant) => new(
+        Cle: $"export-{DateOnly.FromDateTime(maintenant.LocalDateTime):yyyy-MM}",
+        Titre: "Sauvegarde du mois",
+        Corps: "Exportez votre archive et rangez-la hors de l'application — disque externe, autre cloud.");
+
+    /// <summary>
+    /// Un passage de notification, de bout en bout : décider, écarter ce qui a déjà sonné, remettre,
+    /// noter. C'est <b>tout</b> ce que fait le mode <c>--rappels</c> ; la partie Windows ne fournit
+    /// que <paramref name="remettre"/>, ce qui met cette suite d'enchaînements sous test (D-022).
+    /// <para>
+    /// Une seule tâche planifiée, quotidienne : les échéances de demain chaque jour, et le dimanche
+    /// en plus le point de la semaine et le rappel d'export. <paramref name="forcerDigest"/> est le
+    /// mode <c>--digest</c> — de quoi vérifier le passage hebdomadaire un mardi.
+    /// </para>
+    /// </summary>
+    /// <param name="remettre">
+    /// Remet un rappel ; vrai s'il est bien parti. Un faux ne note rien — le rappel repassera au
+    /// déclenchement suivant plutôt que d'être perdu en silence.
+    /// </param>
+    /// <returns>Le nombre de rappels effectivement remis.</returns>
+    public static int Derouler(
+        Composition composition,
+        JournalRappels journal,
+        DateTimeOffset maintenant,
+        bool forcerDigest,
+        Func<Rappel, bool> remettre)
+    {
+        var prevus = new List<Rappel>(Echeances(composition, maintenant));
+
+        if (forcerDigest || EstJourDuDigest(maintenant))
+        {
+            if (Digest(composition, maintenant) is { } digest) prevus.Add(digest);
+            if (journal.RappelExportActif) prevus.Add(RappelExport(maintenant));
+        }
+
+        var remis = 0;
+        foreach (var rappel in journal.Inedits(prevus))
+        {
+            if (!remettre(rappel)) continue;
+            journal.Noter(rappel, maintenant);
+            remis++;
+        }
+
+        journal.Enregistrer(maintenant);
+        return remis;
+    }
+
     private static string Titre(OccurrenceCalendrier occurrence) => occurrence.Type switch
     {
         TypeElement.Facture or TypeElement.Paiement => "Échéance demain",

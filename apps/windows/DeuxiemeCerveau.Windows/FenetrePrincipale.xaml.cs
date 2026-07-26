@@ -12,7 +12,12 @@ public sealed partial class FenetrePrincipale : Window
     {
         InitializeComponent();
 
-        Modele = new VueModeleCoquille(composition);
+        // Le HWND est résolu à l'appel, pas maintenant : les boîtes de dialogue de fichier en
+        // application non empaquetée en ont besoin, et il n'existe qu'une fois la fenêtre montée.
+        var selecteur = new Services.SelecteurFichierWindows(
+            () => WinRT.Interop.WindowNative.GetWindowHandle(this));
+
+        Modele = new VueModeleCoquille(composition, selecteur);
         Contenu = new Coquille(Modele);
         Hote.Children.Add(Contenu);
 

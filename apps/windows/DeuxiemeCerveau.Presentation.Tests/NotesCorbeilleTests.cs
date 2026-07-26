@@ -190,7 +190,7 @@ public class CorbeilleTests
         var id = f.AjouterCategorie("Sport");
         f.Composition.Saisie.Supprimer(EntiteSynchro.Categorie, id);
 
-        var coquille = new VueModeleCoquille(f.Composition);
+        var coquille = f.Coquille();
         Assert.Empty(coquille.Calendriers);
 
         coquille.Corbeille.RestaurerCommand.Execute(Assert.Single(coquille.Corbeille.Lignes));

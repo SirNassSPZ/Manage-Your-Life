@@ -81,6 +81,19 @@ public sealed record MoisProjeteClient(
 /// <summary>Réponse de <c>GET /projection/budget</c> (§8).</summary>
 public sealed record ReponseProjectionClient(IReadOnlyList<MoisProjeteClient> Mois);
 
+/// <summary>
+/// Réponse de <c>GET /projection/confrontation</c> (§5.1bis, §8) : « est-ce que ça rentre ? ».
+/// Les deux cascades sont rendues pour que l'app montre l'écart, pas seulement un oui/non.
+/// </summary>
+public sealed record ReponseConfrontationClient(
+    bool Passe,
+    [property: JsonPropertyName("montant_centimes")] long MontantCentimes,
+    [property: JsonPropertyName("mois_cible")] string MoisCible,
+    [property: JsonPropertyName("premier_mois_qui_casse")] string? PremierMoisQuiCasse,
+    [property: JsonPropertyName("manque_centimes")] long ManqueCentimes,
+    IReadOnlyList<MoisProjeteClient> Nominale,
+    IReadOnlyList<MoisProjeteClient> Simulee);
+
 /// <summary>Réponse de <c>GET /attachments/upload-url</c> (§7, §8) : où et comment téléverser le binaire.</summary>
 public sealed record ReponseUrlEnvoiClient(
     [property: JsonPropertyName("attachment_id")] Guid AttachmentId,

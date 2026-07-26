@@ -19,6 +19,14 @@ public sealed class AccesDonnees : IDisposable
         finally { _porte.Release(); }
     }
 
+    /// <summary>Lecture qui ne rend rien — un export écrit dans un flux, pas dans la base.</summary>
+    public void Lire(Action operation)
+    {
+        _porte.Wait();
+        try { operation(); }
+        finally { _porte.Release(); }
+    }
+
     public void Ecrire(Action operation)
     {
         _porte.Wait();

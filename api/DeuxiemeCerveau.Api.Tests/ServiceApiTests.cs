@@ -121,6 +121,86 @@ public class ServiceApiTests
         Assert.True(projection.Mois[1].Decouvert);
     }
 
+    // ----- Confrontation d'une envie au budget (§5.1bis, D-027) -----
+
+    /// <summary>Solde de 1 500 € au 1er juillet 2026, sans aucun mouvement : la cascade est plate.</summary>
+    private void PoserSolde(long centimes = 150000) => _service.Recaler(new DemandeRecalageSolde(
+        Guid.NewGuid(), centimes, new DateOnly(2026, 7, 1), FabriqueApi.T0, FabriqueApi.AppareilA));
+
+    [Fact]
+    public void Confrontation_sans_solde_de_reference_refusee()
+        => Assert.Throws<SoldeReferenceAbsent>(() =>
+            _service.Confronter(10000, new MoisCalendaire(2026, 8), 12));
+
+    [Fact]
+    public void Confrontation_qui_passe_rend_les_deux_cascades()
+    {
+        PoserSolde();
+
+        var reponse = _service.Confronter(30000, new MoisCalendaire(2026, 9), 6);
+
+        Assert.True(reponse.Passe);
+        Assert.Null(reponse.PremierMoisQuiCasse);
+        Assert.Equal(0, reponse.ManqueCentimes);
+        Assert.Equal("2026-09", reponse.MoisCible);
+
+        // Les deux cascades sont rendues pour que l'app montre l'écart, pas un simple oui/non.
+        Assert.Equal(150000, reponse.Nominale[2].ClotureCentimes);
+        Assert.Equal(120000, reponse.Simulee[2].ClotureCentimes);
+    }
+
+    [Fact]
+    public void Confrontation_qui_ne_passe_pas_nomme_le_mois_et_le_manque()
+    {
+        PoserSolde();
+
+        var reponse = _service.Confronter(200000, new MoisCalendaire(2026, 8), 6);
+
+        Assert.False(reponse.Passe);
+        Assert.Equal("2026-08", reponse.PremierMoisQuiCasse);
+        Assert.Equal(50000, reponse.ManqueCentimes);   // 1 500 € − 2 000 € = −500 €
+    }
+
+    [Fact]
+    public void Confrontation_hors_horizon_refusee()
+    {
+        PoserSolde();
+
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            _service.Confronter(10000, new MoisCalendaire(2030, 1), 6));
+    }
+
+    [Fact]
+    public void Une_confrontation_n_ecrit_rien()
+    {
+        // Règle 9 : c'est une lecture. Ni Élément, ni occurrence, ni entrée au journal — et la
+        // projection nominale doit être exactement la même avant et après.
+        PoserSolde();
+        var avant = _service.Projeter(6);
+
+        _service.Confronter(200000, new MoisCalendaire(2026, 8), 6);
+        _service.Confronter(999999, new MoisCalendaire(2026, 12), 6);
+
+        var apres = _service.Projeter(6);
+        Assert.Equal(avant.Mois.Select(m => m.ClotureCentimes), apres.Mois.Select(m => m.ClotureCentimes));
+        Assert.All(apres.Mois, m => Assert.Equal(0, m.SortiesCentimes));
+    }
+
+    [Fact]
+    public void Une_envie_avec_un_prix_ne_pese_pas_sur_la_projection()
+    {
+        // LE garde-fou de D-027, vérifié de bout en bout à travers l'API : le prix d'une envie
+        // n'entre jamais dans /projection/budget. Seule la confrontation le fait apparaître.
+        PoserSolde();
+        _service.Pousser(FabriqueApi.Lot(FabriqueApi.Changement(
+            FabriqueApi.Envie(montantCentimes: 18000), EntiteSynchro.Element)));
+
+        var projection = _service.Projeter(6);
+
+        Assert.All(projection.Mois, m => Assert.Equal(0, m.SortiesCentimes));
+        Assert.Equal(150000, projection.Mois[5].ClotureCentimes);
+    }
+
     // ----- Purge (§5.6, D-010) -----
 
     [Fact]

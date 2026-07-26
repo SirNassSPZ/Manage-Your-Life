@@ -12,6 +12,8 @@
         <conv:CouleurMontant x:Key="CouleurMontant" />
         <conv:FondStatut x:Key="FondStatut" />
         <conv:EncreStatut x:Key="EncreStatut" />
+        <conv:BoolVersVisibiliteInverse x:Key="SiFaux" />
+        <conv:HexPinceau x:Key="Hex" />
 
         <!-- Une ligne de mouvement. Le gabarit sert les deux groupes : entrées et sorties ne
              diffèrent que par la couleur du montant, jamais par la structure. -->
@@ -68,7 +70,7 @@
         </DataTemplate>
     </UserControl.Resources>
 
-    <ScrollViewer Background="{StaticResource Surface}" Padding="22,20,22,22">
+    <ScrollViewer x:Name="RacineFinances" Background="{StaticResource Surface}" Padding="22,20,22,22">
         <StackPanel>
 
             <!-- Entête : mois, navigation, gestes du jour -->
@@ -117,8 +119,11 @@
                             Visibility="{x:Bind Modele.HorsMoisCourant, Mode=OneWay, Converter={StaticResource SiVrai}}" />
                 </StackPanel>
 
+                <!-- Ce bouton n'était relié à RIEN : hors onboarding et notes, l'application
+                     n'avait aucun chemin de création. La saisie vit dans la coquille, qui la
+                     porte pour toutes les zones. -->
                 <Button Grid.Column="3" Style="{StaticResource BoutonPrimaire}" Content="Ajouter"
-                        VerticalAlignment="Center" />
+                        VerticalAlignment="Center" Click="SurAjouter" />
             </Grid>
 
             <!-- Hero : UN chiffre, celui du serveur -->
@@ -199,8 +204,82 @@
                                        ItemTemplate="{StaticResource GabaritLigne}" />
                     </StackPanel>
 
+                    <!-- Par catégorie : les mêmes lignes, rangées par calendrier (§3.3), en groupes
+                         pliables. Mise en forme pure — aucun champ, aucune entité de plus. -->
+                    <StackPanel Visibility="{x:Bind Modele.MontrerGroupes, Mode=OneWay, Converter={StaticResource SiVrai}}">
+                        <ItemsRepeater ItemsSource="{x:Bind Modele.Groupes}">
+                            <ItemsRepeater.ItemTemplate>
+                                <DataTemplate x:DataType="vm:GroupeCategorie">
+                                    <StackPanel Margin="0,14,0,0">
+                                        <!-- Un vrai Button : plier un groupe est une action, elle
+                                             doit être atteignable au clavier et annoncée. -->
+                                        <Button Style="{StaticResource BoutonNav}" Padding="4,7"
+                                                HorizontalAlignment="Stretch"
+                                                Command="{x:Bind BasculerCommand}"
+                                                AutomationProperties.Name="{x:Bind Nom}">
+                                            <Grid ColumnSpacing="9">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+
+                                                <!-- Deux tracés plutôt qu'une rotation : en gabarit,
+                                                     une RotateTransform par élément coûte plus cher
+                                                     que la bascule de deux Path déjà rendus. -->
+                                                <Viewbox Width="13" Height="13" VerticalAlignment="Center">
+                                                    <Canvas Width="16" Height="16">
+                                                        <Path Data="M4 6.5l4 4 4-4" Stroke="{StaticResource Encre3}"
+                                                              StrokeThickness="1.7" StrokeLineJoin="Round"
+                                                              Visibility="{x:Bind Deplie, Mode=OneWay, Converter={StaticResource SiVrai}}" />
+                                                        <Path Data="M6.5 4l4 4-4 4" Stroke="{StaticResource Encre3}"
+                                                              StrokeThickness="1.7" StrokeLineJoin="Round"
+                                                              Visibility="{x:Bind Deplie, Mode=OneWay, Converter={StaticResource SiFaux}}" />
+                                                    </Canvas>
+                                                </Viewbox>
+
+                                                <Border Grid.Column="1" Width="11" Height="11" CornerRadius="4"
+                                                        VerticalAlignment="Center"
+                                                        Background="{x:Bind Couleur, Converter={StaticResource Hex}}" />
+
+                                                <TextBlock Grid.Column="2" Text="{x:Bind Nom}" FontSize="13.5"
+                                                           FontWeight="SemiBold" VerticalAlignment="Center"
+                                                           Foreground="{StaticResource Encre}"
+                                                           TextTrimming="CharacterEllipsis" />
+
+                                                <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="12"
+                                                            VerticalAlignment="Center">
+                                                    <TextBlock Text="{x:Bind Decompte}" FontSize="11.5"
+                                                               Foreground="{StaticResource Encre3}"
+                                                               VerticalAlignment="Center" />
+                                                    <TextBlock Text="{x:Bind Total}" FontSize="12.5"
+                                                               FontWeight="SemiBold" VerticalAlignment="Center"
+                                                               Foreground="{StaticResource Encre2}" />
+                                                </StackPanel>
+                                            </Grid>
+                                        </Button>
+
+                                        <ItemsRepeater ItemsSource="{x:Bind Lignes}"
+                                                       ItemTemplate="{StaticResource GabaritLigne}"
+                                                       Visibility="{x:Bind Deplie, Mode=OneWay, Converter={StaticResource SiVrai}}" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsRepeater.ItemTemplate>
+                        </ItemsRepeater>
+
+                        <StackPanel Margin="4,26,0,0" Spacing="6"
+                                    Visibility="{x:Bind Modele.AucunGroupe, Mode=OneWay, Converter={StaticResource SiVrai}}">
+                            <TextBlock Text="Rien à ranger ce mois-ci." FontSize="14"
+                                       Foreground="{StaticResource Encre2}" />
+                            <TextBlock Style="{StaticResource TexteCourant}" FontSize="13" MaxWidth="440"
+                                       HorizontalAlignment="Left"
+                                       Text="Les mouvements se rangent par calendrier. Affecte-leur une catégorie depuis Calendrier → Gérer les calendriers." />
+                        </StackPanel>
+                    </StackPanel>
+
                     <StackPanel Margin="4,26,0,0" Spacing="6"
-                                Visibility="{x:Bind Modele.ListeVide, Mode=OneWay, Converter={StaticResource SiVrai}}">
+                                Visibility="{x:Bind Modele.MontrerVide, Mode=OneWay, Converter={StaticResource SiVrai}}">
                         <TextBlock Text="Aucun mouvement ce mois-ci." FontSize="14"
                                    Foreground="{StaticResource Encre2}" />
                         <TextBlock Style="{StaticResource TexteCourant}" FontSize="13" MaxWidth="440"
@@ -209,7 +288,7 @@
                     </StackPanel>
                 </StackPanel>
 
-                <!-- Envies d'achat : une liste de souhaits en V1. La confronter au budget est V2. -->
+                <!-- Envies d'achat, confrontables au budget projeté depuis D-027 (§5.1bis). -->
                 <Border Grid.Column="1" Background="{StaticResource Surface2}"
                         BorderBrush="{StaticResource Trait}" BorderThickness="1" CornerRadius="12"
                         Padding="15" VerticalAlignment="Top" Margin="0,14,0,0">
@@ -217,7 +296,7 @@
                         <TextBlock Text="Envies d'achat" FontSize="13.5" FontWeight="SemiBold"
                                    CharacterSpacing="-10" Foreground="{StaticResource Encre}" />
                         <TextBlock Style="{StaticResource TexteCourant}" FontSize="11.5" Margin="0,0,0,4"
-                                   Text="Ta liste de souhaits. Chacune reste en suspens tant que tu ne la planifies pas." />
+                                   Text="Ta liste de souhaits. « Ça rentre ? » répond pour le mois affiché." />
 
                         <ItemsRepeater ItemsSource="{x:Bind Modele.Envies}">
                             <ItemsRepeater.ItemTemplate>
@@ -233,17 +312,43 @@
                                                            HorizontalAlignment="Right"
                                                            Foreground="{StaticResource Encre}" />
                                             </Grid>
-                                            <Border Background="{StaticResource Surface2}" BorderBrush="{StaticResource Trait}"
-                                                    BorderThickness="1" CornerRadius="5" Padding="6,1"
-                                                    HorizontalAlignment="Left">
-                                                <TextBlock Text="{x:Bind Statut}" FontSize="10" FontWeight="SemiBold"
-                                                           Foreground="{StaticResource Encre3}" />
-                                            </Border>
+                                            <Grid ColumnSpacing="8">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+
+                                                <Border Background="{StaticResource Surface2}" BorderBrush="{StaticResource Trait}"
+                                                        BorderThickness="1" CornerRadius="5" Padding="6,1"
+                                                        HorizontalAlignment="Left" VerticalAlignment="Center">
+                                                    <TextBlock Text="{x:Bind Statut}" FontSize="10" FontWeight="SemiBold"
+                                                               Foreground="{StaticResource Encre3}" />
+                                                </Border>
+
+                                                <!-- Sans prix, il n'y a rien à confronter : le bouton
+                                                     n'apparaît pas plutôt que d'apparaître inerte. -->
+                                                <Button Grid.Column="1" Style="{StaticResource BoutonDiscret}"
+                                                        Content="Ça rentre ?" Padding="9,4" FontSize="11.5"
+                                                        Visibility="{x:Bind Confrontable, Converter={StaticResource SiVrai}}"
+                                                        Command="{Binding DataContext.Modele.ConfronterCommand, ElementName=RacineFinances}"
+                                                        CommandParameter="{Binding}"
+                                                        AutomationProperties.Name="Confronter cette envie au budget projeté" />
+                                            </Grid>
                                         </StackPanel>
                                     </Border>
                                 </DataTemplate>
                             </ItemsRepeater.ItemTemplate>
                         </ItemsRepeater>
+
+                        <!-- Verdict de la confrontation (§5.1bis). Calculé par le SERVEUR, jamais
+                             stocké : c'est une lecture, elle ne laisse rien derrière. -->
+                        <Border CornerRadius="9" Padding="11,9"
+                                Background="{x:Bind Modele.ConfrontationPasse, Mode=OneWay, Converter={StaticResource FondVerdict}}"
+                                Visibility="{x:Bind Modele.Confrontation, Mode=OneWay, Converter={StaticResource SiTexte}}">
+                            <TextBlock Text="{x:Bind Modele.Confrontation, Mode=OneWay}" FontSize="12"
+                                       TextWrapping="Wrap"
+                                       Foreground="{x:Bind Modele.ConfrontationPasse, Mode=OneWay, Converter={StaticResource EncreVerdict}}" />
+                        </Border>
 
                         <TextBlock Style="{StaticResource TexteCourant}" FontSize="12"
                                    Visibility="{x:Bind Modele.AucuneEnvie, Mode=OneWay, Converter={StaticResource SiVrai}}"

@@ -31,6 +31,12 @@ public sealed class Composition : IDisposable
     public AccesDonnees Acces { get; }
     public IFournisseurJeton Jetons { get; }
 
+    /// <summary>
+    /// Dossier de données de ce poste. Ce qui n'a pas sa place dans la base synchronisée y vit
+    /// aussi — le journal des rappels, par exemple (D-023).
+    /// </summary>
+    public string Dossier { get; }
+
     /// <summary>Exposé pour le seul état de synchro de l'interface (taille de l'outbox, curseur).</summary>
     public DepotLocal Depot { get; }
 
@@ -49,9 +55,10 @@ public sealed class Composition : IDisposable
 
     private Composition(
         OptionsApp options, BaseLocale baseLocale, IFournisseurJeton jetons,
-        HttpClient httpApi, HttpClient httpBlob, string dossierCache)
+        HttpClient httpApi, HttpClient httpBlob, string dossier, string dossierCache)
     {
         Options = options;
+        Dossier = dossier;
         _baseLocale = baseLocale;
         _httpApi = httpApi;
         _httpBlob = httpBlob;
@@ -119,7 +126,7 @@ public sealed class Composition : IDisposable
         var httpBlob = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
 
         return new Composition(
-            options, baseLocale, jetons, httpApi, httpBlob, Path.Combine(dossier, "pieces"));
+            options, baseLocale, jetons, httpApi, httpBlob, dossier, Path.Combine(dossier, "pieces"));
     }
 
     public void Dispose()

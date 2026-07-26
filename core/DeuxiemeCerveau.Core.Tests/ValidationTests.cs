@@ -253,6 +253,88 @@ public class ValidateurElementTests
         AssertValide(tache);
     }
 
+    // ----- Frontière tâche V1 / V2 (D-027, §5.2, §5.3) -----
+
+    [Fact]
+    public void Une_tache_sans_projet_est_refusee_en_V1()
+    {
+        // La frontière entre la tâche de projet (V1) et l'onglet to-do autonome (V2) est posée
+        // pour être vérifiable par une assertion, pas par du jugement. Le jour où I-004 est
+        // décidé, c'est cette seule règle qui saute.
+        var tache = Fabrique.Tache();
+        tache.ProjetId = null;
+
+        AssertErreur(tache, "tache_hors_projet");
+    }
+
+    [Fact]
+    public void Une_tache_rattachee_a_un_projet_passe()
+    {
+        AssertValide(Fabrique.Tache(projetId: Guid.NewGuid()));
+    }
+
+    // ----- Prix estimé d'une envie (D-027, renverse Q-002) -----
+
+    [Fact]
+    public void Une_envie_peut_porter_un_prix_estime()
+    {
+        var envie = Fabrique.Envie();
+        envie.MontantCentimes = 18_000;
+        envie.Devise = "EUR";
+
+        AssertValide(envie);
+    }
+
+    [Fact]
+    public void Une_envie_sans_prix_reste_parfaitement_valide()
+    {
+        // Facultatif veut dire facultatif : on note une envie avant d'en connaître le prix.
+        AssertValide(Fabrique.Envie());
+    }
+
+    [Fact]
+    public void Une_envie_ne_porte_pas_de_sens()
+    {
+        // Une envie n'est pas une sortie, c'est une sortie ÉVENTUELLE (§3.1).
+        var envie = Fabrique.Envie();
+        envie.MontantCentimes = 18_000;
+        envie.Sens = Sens.Sortie;
+
+        AssertErreur(envie, "sens_interdit");
+    }
+
+    [Fact]
+    public void Un_prix_negatif_reste_refuse_sur_une_envie()
+    {
+        var envie = Fabrique.Envie();
+        envie.MontantCentimes = -1;
+
+        AssertErreur(envie, "montant_negatif");
+    }
+
+    [Fact]
+    public void Une_devise_invalide_reste_refusee_sur_une_envie()
+    {
+        var envie = Fabrique.Envie();
+        envie.MontantCentimes = 18_000;
+        envie.Devise = "euros";
+
+        AssertErreur(envie, "devise_invalide");
+    }
+
+    [Fact]
+    public void Le_montant_reste_interdit_sur_les_types_qui_n_en_ont_pas()
+    {
+        // D-027 ouvre l'envie, et RIEN d'autre : note, tâche et rendez-vous restent fermés.
+        var note = Fabrique.Note();
+        note.MontantCentimes = 1_000;
+        AssertErreur(note, "montant_interdit");
+
+        var tache = Fabrique.Tache();
+        tache.MontantCentimes = 1_000;
+        AssertErreur(tache, "montant_interdit");
+    }
+
     // ----- Rappels -----
 
     [Fact]

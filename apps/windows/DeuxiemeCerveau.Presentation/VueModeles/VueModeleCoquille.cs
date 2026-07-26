@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using DeuxiemeCerveau.Core.Modele;
 
 namespace DeuxiemeCerveau.Presentation.VueModeles;
 
@@ -35,7 +36,11 @@ public sealed partial class VueModeleCoquille : ObservableObject
 {
     private readonly Composition _composition;
 
-    public VueModeleCoquille(Composition composition)
+    /// <param name="selecteur">
+    /// Choix des fichiers d'export / import, fourni par l'hôte : la boîte de dialogue exige le HWND
+    /// de la fenêtre en application non empaquetée (D-022).
+    /// </param>
+    public VueModeleCoquille(Composition composition, ISelecteurFichier selecteur)
     {
         _composition = composition;
         Principales = [.. ElementNav.Principales()];
@@ -50,11 +55,25 @@ public sealed partial class VueModeleCoquille : ObservableObject
         Categories = new VueModeleCategories(composition);
         Notes = new VueModeleNotes(composition);
         Corbeille = new VueModeleCorbeille(composition);
+        Sauvegarde = new VueModeleSauvegarde(composition, selecteur);
+        Projets = new VueModeleProjets(composition);
+        Saisie = new VueModeleSaisie(composition);
 
         // Un calendrier créé, renommé ou mis à la corbeille doit se voir immédiatement dans la
         // barre latérale et dans la grille : elles listent les mêmes catégories.
         Categories.ApresChangement = Rafraichir;
         Corbeille.ApresChangement = Rafraichir;
+
+        // Un projet créé, fermé ou supprimé change AUSSI la liste des calendriers : son filtre
+        // naît et s'éteint avec lui (§5.4).
+        Projets.ApresChangement = Rafraichir;
+
+        // Une saisie touche le calendrier, les finances, la projection et l'accueil à la fois :
+        // il n'y a pas de vue à recharger en particulier, c'est tout l'écran.
+        Saisie.ApresEnregistrement = Rafraichir;
+
+        // Un import reconstitue TOUT l'état : aucune vue déjà chargée n'est encore valable.
+        Sauvegarde.ApresImport = Rafraichir;
 
         Aller(Zone.Aujourdhui);
     }
@@ -65,7 +84,25 @@ public sealed partial class VueModeleCoquille : ObservableObject
 
     public ObservableCollection<ElementNav> Principales { get; }
     public ObservableCollection<SousVue> SousVues { get; } = [];
+    /// <summary>Les calendriers créés à la main (§3.3).</summary>
     public ObservableCollection<FiltreCalendrier> Calendriers { get; } = [];
+
+    /// <summary>
+    /// Les calendriers nés d'un projet (§5.4, V1 depuis D-027). Séparés des précédents parce
+    /// qu'ils ne se gèrent pas pareil : on ne les crée ni ne les supprime à la main, ils suivent
+    /// leur projet.
+    /// </summary>
+    public ObservableCollection<FiltreCalendrier> CalendriersProjets { get; } = [];
+
+    /// <summary>Faux tant qu'aucun projet n'existe : l'intitulé ne doit pas rester seul.</summary>
+    public bool AProjetsAuCalendrier => CalendriersProjets.Count > 0;
+
+    /// <summary>
+    /// Les calendriers de projets suivent la MÊME règle que les autres (I-005 point 1) : ils ne
+    /// s'affichent que là où ils filtrent réellement quelque chose. Les montrer partout donnerait
+    /// des cases à cocher sans effet — le défaut qu'on avait justement corrigé.
+    /// </summary>
+    public bool AFiltresProjetsVisibles => AFiltresCalendrier && AProjetsAuCalendrier;
 
     public VueModeleAujourdhui Accueil { get; }
     public VueModeleOnboarding Onboarding { get; }
@@ -75,6 +112,11 @@ public sealed partial class VueModeleCoquille : ObservableObject
     public VueModeleCategories Categories { get; }
     public VueModeleNotes Notes { get; }
     public VueModeleCorbeille Corbeille { get; }
+    public VueModeleSauvegarde Sauvegarde { get; }
+    public VueModeleProjets Projets { get; }
+
+    /// <summary>Saisie typée (§13) — le formulaire est le même partout, la coquille le porte.</summary>
+    public VueModeleSaisie Saisie { get; }
 
     /// <summary>
     /// Choisit une sous-vue de la zone active. Pour Finances, les sous-vues sont des FILTRES sur le
@@ -93,6 +135,7 @@ public sealed partial class VueModeleCoquille : ObservableObject
                 {
                     "Entrées" => FiltreFinances.Entrees,
                     "Sorties" => FiltreFinances.Sorties,
+                    "Par catégorie" => FiltreFinances.ParCategorie,
                     _ => FiltreFinances.Tout,
                 });
                 break;
@@ -113,8 +156,13 @@ public sealed partial class VueModeleCoquille : ObservableObject
     /// Les catégories cochées, ou null si elles le sont toutes — le service traite null comme
     /// « aucun filtre » et évite ainsi de parcourir un ensemble pour rien.
     /// </summary>
-    private IReadOnlySet<Guid>? CategoriesVisibles() =>
-        Calendriers.All(c => c.Visible) ? null : Calendriers.Where(c => c.Visible).Select(c => c.Id).ToHashSet();
+    private IReadOnlySet<Guid>? CategoriesVisibles()
+    {
+        // Les deux listes comptent : un calendrier de projet filtre exactement comme un autre
+        // (§5.4). Les séparer à l'affichage ne doit pas les séparer au filtrage.
+        var tous = Calendriers.Concat(CalendriersProjets).ToList();
+        return tous.All(c => c.Visible) ? null : tous.Where(c => c.Visible).Select(c => c.Id).ToHashSet();
+    }
 
     /// <summary>Affiche ou masque un calendrier (§5.4) et recharge la grille.</summary>
     [RelayCommand]
@@ -137,6 +185,7 @@ public sealed partial class VueModeleCoquille : ObservableObject
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(AFiltresCalendrier))]
+    [NotifyPropertyChangedFor(nameof(AFiltresProjetsVisibles))]
     private Zone _zone = Zone.Aujourdhui;
 
     [ObservableProperty]
@@ -273,6 +322,7 @@ public sealed partial class VueModeleCoquille : ObservableObject
         if (Zone == Zone.Finances) Finances.Charger();
         if (Zone == Zone.Notes) Notes.Charger();
         if (Zone == Zone.Corbeille) Corbeille.Charger();
+        if (Zone == Zone.Projets) Projets.Charger();
 
         var solde = _composition.Acces.Lire(() => _composition.Aujourdhui.SoldeDeReference());
         EntetePossedeSolde = solde is not null;
@@ -296,17 +346,40 @@ public sealed partial class VueModeleCoquille : ObservableObject
         // Ce que l'utilisateur a masqué doit le RESTER. La liste étant reconstruite à chaque
         // rafraîchissement, sans cette mémoire le moindre changement de vue ou de saisie
         // rallumerait en silence les calendriers qu'il venait d'éteindre.
-        var masques = Calendriers.Where(c => !c.Visible).Select(c => c.Id).ToHashSet();
+        var masques = Calendriers.Concat(CalendriersProjets)
+            .Where(c => !c.Visible).Select(c => c.Id).ToHashSet();
 
-        var categories = _composition.Acces.Lire(() => _composition.Lecture.Categories());
+        var (categories, projets) = _composition.Acces.Lire(
+            () => (_composition.Lecture.Categories(), _composition.Lecture.Projets()));
+
+        // Un calendrier de projet naît avec son projet (§5.4) : il porte Origine = Projet, ce qui
+        // le distingue sans tenir deux listes. Fermé, son filtre s'éteint par défaut — mais
+        // seulement s'il n'a pas déjà un état choisi par l'utilisateur.
+        var eteintsParFermeture = projets
+            .Where(p => p.Statut != StatutProjet.Actif && p.CategorieId is not null)
+            .Select(p => p.CategorieId!.Value)
+            .ToHashSet();
+
         Calendriers.Clear();
+        CalendriersProjets.Clear();
+
         foreach (var categorie in categories)
-            Calendriers.Add(new FiltreCalendrier
+        {
+            var filtre = new FiltreCalendrier
             {
                 Id = categorie.Id,
                 Nom = categorie.Nom,
                 Couleur = string.IsNullOrWhiteSpace(categorie.Couleur) ? "#7A6AA6" : categorie.Couleur,
-                Visible = !masques.Contains(categorie.Id),
-            });
+                Visible = !masques.Contains(categorie.Id) && !eteintsParFermeture.Contains(categorie.Id),
+            };
+
+            if (categorie.Origine == OrigineCategorie.Projet)
+                CalendriersProjets.Add(filtre);
+            else
+                Calendriers.Add(filtre);
+        }
+
+        OnPropertyChanged(nameof(AProjetsAuCalendrier));
+        OnPropertyChanged(nameof(AFiltresProjetsVisibles));
     }
 }

@@ -140,10 +140,52 @@ public sealed class ServiceApi(
             elements);
 
         var resultat = CalculateurProjection.Calculer(requete);
-        return new ReponseProjectionDto(resultat.Select(m => new MoisProjeteDto(
-            $"{m.Annee:D4}-{m.Mois:D2}", m.OuvertureCentimes, m.EntreesCentimes, m.SortiesCentimes,
-            m.ClotureCentimes, m.Decouvert, m.AvantReference)).ToList());
+        return new ReponseProjectionDto([.. resultat.Select(Dto)]);
     }
+
+    /// <summary>
+    /// Confrontation d'un montant au budget projeté (§5.1bis) : « est-ce que ça rentre en
+    /// septembre ? ». <b>Lecture pure</b> — rien n'est écrit, aucun Élément n'est créé (règle 9).
+    /// <para>
+    /// Ici comme pour la projection, le calcul vit dans le cœur : cet adaptateur ne fait que lire
+    /// le magasin et traduire en JSON.
+    /// </para>
+    /// </summary>
+    public ReponseConfrontationDto Confronter(long montantCentimes, MoisCalendaire moisCible, int nombreMois)
+    {
+        var reglage = new ProcesseurReglage(magasin, horloge).Lire();
+        if (reglage is null)
+            throw new SoldeReferenceAbsent();
+
+        var elements = magasin.EnumererEtats(EntiteSynchro.Element)
+            .Select(e => SerialisationCanonique.Deserialiser<Element>(e.PayloadCanonique))
+            .ToList();
+
+        var maintenant = ConvertisseurFuseau.VersLocale(horloge.MaintenantUtc, TimeZoneInfo.Utc);
+        var confrontation = CalculateurProjection.Confronter(new RequeteConfrontation(
+            new RequeteProjection(
+                new MoisCalendaire(maintenant.Year, maintenant.Month),
+                nombreMois,
+                new SoldeReference(reglage.SoldeReferenceCentimes, reglage.SoldeReferenceDate),
+                elements),
+            montantCentimes,
+            moisCible));
+
+        return new ReponseConfrontationDto(
+            Passe: confrontation.Passe,
+            MontantCentimes: montantCentimes,
+            MoisCible: moisCible.ToString(),
+            PremierMoisQuiCasse: confrontation.PremierMoisQuiCasse is { } m
+                ? new MoisCalendaire(m.Annee, m.Mois).ToString()
+                : null,
+            ManqueCentimes: confrontation.ManqueCentimes,
+            Nominale: [.. confrontation.Nominale.Select(Dto)],
+            Simulee: [.. confrontation.Simulee.Select(Dto)]);
+    }
+
+    private static MoisProjeteDto Dto(MoisProjete m) => new(
+        $"{m.Annee:D4}-{m.Mois:D2}", m.OuvertureCentimes, m.EntreesCentimes, m.SortiesCentimes,
+        m.ClotureCentimes, m.Decouvert, m.AvantReference);
 }
 
 /// <summary>Levée quand la projection est demandée sans solde de référence (§3.4) — 409 côté HTTP.</summary>

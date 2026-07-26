@@ -61,7 +61,8 @@ public sealed partial class ElementNav : ObservableObject
         },
         new()
         {
-            Titre = "Projets", Zone = Zone.Projets, EstV2 = true,
+            // V1 depuis D-027 : l'étiquette « V2 » et l'inertie tombent en même temps.
+            Titre = "Projets", Zone = Zone.Projets,
             Trace = "M5.5 17V4M5.5 4.5h8l-2 2.6 2 2.6h-8",
         },
         new()

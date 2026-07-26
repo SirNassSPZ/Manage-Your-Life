@@ -61,6 +61,13 @@ public static class Fabrique
         return element;
     }
 
+    /// <summary>
+    /// Projet de rattachement par défaut des tâches. Depuis D-027, une tâche V1 appartient
+    /// toujours à un projet (§5.3) : une fabrique qui en produirait sans projet ne fabriquerait
+    /// que des Éléments invalides.
+    /// </summary>
+    public static readonly Guid ProjetParDefaut = new("6f1d9c3a-0000-4000-8000-00000000d027");
+
     public static Element Tache(
         Guid? id = null,
         string titre = "Réviser",
@@ -77,7 +84,7 @@ public static class Fabrique
             Type = TypeElement.Tache,
             Titre = titre,
             Statut = statut,
-            ProjetId = projetId,
+            ProjetId = projetId ?? ProjetParDefaut,
             DateCreation = quand,
             DateModification = quand,
             AppareilSource = appareil ?? AppareilA,
@@ -92,6 +99,23 @@ public static class Fabrique
             Type = TypeElement.Note,
             Titre = titre,
             Description = "texte libre",
+            Statut = statut,
+            DateCreation = T0,
+            DateModification = T0,
+            AppareilSource = AppareilA,
+            Version = 1,
+        };
+
+    /// <summary>
+    /// Une envie d'achat — sans prix par défaut : depuis D-027 il est <b>facultatif</b>, et une
+    /// envie se note souvent avant qu'on en connaisse le prix.
+    /// </summary>
+    public static Element Envie(string titre = "Casque audio", StatutElement statut = StatutElement.Idee)
+        => new()
+        {
+            Id = Guid.NewGuid(),
+            Type = TypeElement.Envie,
+            Titre = titre,
             Statut = statut,
             DateCreation = T0,
             DateModification = T0,

@@ -17,4 +17,12 @@ public sealed partial class VueFinances : UserControl
     }
 
     public VueModeleFinances Modele { get; }
+
+    /// <summary>
+    /// Ouvre la saisie. Portée par la coquille et non par cette vue : le même formulaire sert
+    /// partout, et il doit se superposer à l'écran entier, pas au seul panneau des finances.
+    /// </summary>
+    public event Action? Ajouter;
+
+    private void SurAjouter(object envoyeur, Microsoft.UI.Xaml.RoutedEventArgs args) => Ajouter?.Invoke();
 }

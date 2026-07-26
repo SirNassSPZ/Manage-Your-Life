@@ -152,7 +152,7 @@ public class CategoriesTests
     {
         // Sans ça, la barre latérale et la grille resteraient sur une liste périmée.
         using var f = new FabriquePresentation();
-        var coquille = new VueModeleCoquille(f.Composition);
+        var coquille = f.Coquille();
         Assert.Empty(coquille.Calendriers);
 
         coquille.Categories.NouveauNom = "Sport";
