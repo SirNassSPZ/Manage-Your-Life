@@ -83,6 +83,12 @@ public sealed partial class LigneProjet : ObservableObject
 /// la catégorie porte <c>Origine = Projet</c>, ce qui la distingue d'une catégorie créée à la main
 /// et permet au calendrier de la présenter à part sans qu'aucune liste ne soit tenue en double.
 /// </para>
+/// <para>
+/// <b>Et ce qui naît ensemble vit ensemble</b> (§5.3, D-030) : renommer ou recolorier le projet
+/// renomme et recolorie son calendrier, le mettre à la corbeille y met aussi son calendrier. Seule
+/// la <b>fermeture</b> fait exception, et c'est voulu — un projet terminé existe toujours, son
+/// calendrier reste, simplement éteint par défaut.
+/// </para>
 /// </summary>
 public sealed partial class VueModeleProjets : ObservableObject
 {
@@ -91,6 +97,7 @@ public sealed partial class VueModeleProjets : ObservableObject
     public VueModeleProjets(Composition composition)
     {
         _composition = composition;
+        RattraperCalendriersOrphelins();
         Charger();
     }
 
@@ -196,6 +203,27 @@ public sealed partial class VueModeleProjets : ObservableObject
     [ObservableProperty]
     private string? _message;
 
+    /// <summary>
+    /// Ce que le rattrapage des calendriers orphelins a rangé au démarrage. Séparé de
+    /// <see cref="Message"/>, qui annonce des refus : ranger n'est pas une erreur, et le dire au
+    /// même endroit — dans le panneau d'un projet, qui est fermé au lancement — ne le dirait à
+    /// personne.
+    /// </summary>
+    [ObservableProperty]
+    private string? _messageRattrapage;
+
+    /// <summary>Nom en cours de saisie quand on renomme le projet ouvert. Valeur de travail : abandonner ne laisse rien.</summary>
+    [ObservableProperty]
+    private string _nomEnCours = "";
+
+    /// <summary>Couleur en cours de choix, même raison.</summary>
+    [ObservableProperty]
+    private string _couleurEnCours = "";
+
+    /// <summary>Vrai quand le formulaire de renommage du projet ouvert est déplié.</summary>
+    [ObservableProperty]
+    private bool _enEdition;
+
     public bool AucunProjet => Projets.Count == 0;
 
     /// <summary>Le projet ouvert, dont on voit et complète les tâches.</summary>
@@ -211,6 +239,9 @@ public sealed partial class VueModeleProjets : ObservableObject
     /// </summary>
     private static readonly string[] Palette =
         ["#4B7F8A", "#4A8C63", "#BB5A44", "#A97E3C", "#7A6AA6"];
+
+    /// <summary>La même palette, atteignable depuis une liaison de vue (x:Bind exige une instance).</summary>
+    public IReadOnlyList<string> Couleurs => Palette;
 
     public void Charger()
     {
@@ -251,6 +282,65 @@ public sealed partial class VueModeleProjets : ObservableObject
         OnPropertyChanged(nameof(AucunProjet));
         OnPropertyChanged(nameof(ProjetOuvert));
         ChargerCalendrier();
+    }
+
+    /// <summary>
+    /// Range à la corbeille les calendriers de projets devenus <b>orphelins</b> : ceux dont le
+    /// projet a été supprimé du temps où <c>SupprimerProjet</c> n'emportait que le projet. Ils
+    /// restaient dans les filtres du calendrier sans rien à filtrer, et l'utilisateur n'avait aucun
+    /// moyen de s'en défaire — un calendrier de projet ne se gère pas à la main (§5.4).
+    /// <para>
+    /// <b>Corriger l'état, pas chaque lecteur.</b> Masquer les orphelins à l'affichage aurait
+    /// semblé plus prudent, mais trois écrans listent les mêmes catégories — la barre latérale, la
+    /// grille du calendrier, la gestion des calendriers — et l'app Apple en listera autant. La
+    /// règle « ne montre pas les orphelins » devrait être réécrite dans chacun ; le premier qui
+    /// l'oublierait ramènerait le défaut. C'est la divergence silencieuse que la spec existe pour
+    /// empêcher. Un seul état, lu partout de la même façon.
+    /// </para>
+    /// <para>
+    /// <b>Rien n'est détruit</b> (filet 2, règle 11) : on passe par <c>Saisie.Supprimer</c>, qui
+    /// <i>marque</i>. Les calendriers rangés sont dans la corbeille, restaurables, charge utile
+    /// intacte — et le rangement se dit, via <see cref="MessageRattrapage"/> : une écriture que
+    /// l'utilisateur n'a pas demandée ne doit pas être muette.
+    /// </para>
+    /// <para>
+    /// <b>Une fois, au montage du module — surtout pas dans <see cref="Charger"/>.</b> Nettoyer au
+    /// fil des lectures est le vrai piège : <c>Charger</c> est rappelé après chaque saisie et à
+    /// chaque passage sur l'onglet, si bien qu'un calendrier restauré depuis la corbeille
+    /// disparaîtrait sous les yeux de l'utilisateur dans la seconde, en boucle. Le rattrapage est
+    /// donc une étape <i>nommée</i> du démarrage, jouée une fois par lancement, et <c>Charger</c>
+    /// reste une lecture pure. Il est de surcroît idempotent : une fois rangé, un orphelin n'est
+    /// plus rendu par <c>Lecture.Categories()</c>, la passe suivante n'écrit rien.
+    /// </para>
+    /// </summary>
+    private void RattraperCalendriersOrphelins()
+    {
+        var ranges = _composition.Acces.Lire(() =>
+        {
+            // Un projet à la corbeille ne compte pas comme vivant : son calendrier doit suivre.
+            // Un projet FERMÉ, si — la fermeture éteint le filtre, elle ne le supprime pas (§5.3).
+            var vivants = _composition.Lecture.Projets()
+                .Where(p => p.CategorieId is not null)
+                .Select(p => p.CategorieId!.Value)
+                .ToHashSet();
+
+            var orphelins = _composition.Lecture.Categories()
+                .Where(c => c.Origine == OrigineCategorie.Projet && !vivants.Contains(c.Id))
+                .ToList();
+
+            foreach (var orphelin in orphelins)
+                _composition.Saisie.Supprimer(EntiteSynchro.Categorie, orphelin.Id);
+
+            return orphelins.Count;
+        });
+
+        MessageRattrapage = ranges switch
+        {
+            0 => null,
+            1 => "Un calendrier de projet supprimé traînait dans les filtres : il est à la corbeille.",
+            _ => $"{ranges} calendriers de projets supprimés traînaient dans les filtres : "
+                 + "ils sont à la corbeille.",
+        };
     }
 
     private static string Avancement(IReadOnlyList<LigneTache> taches)
@@ -312,9 +402,66 @@ public sealed partial class VueModeleProjets : ObservableObject
     private void Ouvrir(LigneProjet projet)
     {
         IdOuvert = IdOuvert == projet.Id ? null : projet.Id;
+        // Changer de projet referme le formulaire : un nom en cours de frappe appartient au projet
+        // sur lequel on l'a tapé, pas au suivant.
+        EnEdition = false;
         foreach (var ligne in Projets) ligne.Selectionne = ligne.Id == IdOuvert;
         OnPropertyChanged(nameof(ProjetOuvert));
         ChargerCalendrier();
+    }
+
+    /// <summary>
+    /// Déplie le formulaire de renommage du projet ouvert. Il n'existait aucun moyen de changer le
+    /// nom ou la couleur d'un projet : la convention d'architecture d'information du §5 veut que
+    /// <b>tout ce qui est affiché se modifie</b>.
+    /// </summary>
+    [RelayCommand]
+    private void Modifier()
+    {
+        if (ProjetOuvert is not { } ouvert) return;
+        NomEnCours = ouvert.Nom;
+        CouleurEnCours = ouvert.Couleur;
+        EnEdition = true;
+        Message = null;
+    }
+
+    /// <summary>Referme sans écrire. Les valeurs de travail sont jetées, l'original n'a pas bougé.</summary>
+    [RelayCommand]
+    private void AnnulerModification() => EnEdition = false;
+
+    [RelayCommand]
+    private void ChoisirCouleur(string couleur) => CouleurEnCours = couleur;
+
+    /// <summary>
+    /// Renomme et recolorie le projet ouvert — <b>et son calendrier</b> (§5.3, D-030). Le nom et la
+    /// couleur d'un projet identifient ses occurrences partout où elles apparaissent : un calendrier
+    /// resté sur l'ancien nom ferait mentir la liste des filtres.
+    /// <para>
+    /// Le formulaire ne se referme qu'en cas de succès : un refus qui effacerait la frappe de
+    /// l'utilisateur serait une deuxième punition pour la même erreur.
+    /// </para>
+    /// </summary>
+    [RelayCommand]
+    private void EnregistrerModification()
+    {
+        if (ProjetOuvert is not { } ouvert) return;
+
+        var nom = NomEnCours.Trim();
+        if (nom.Length == 0)
+        {
+            Message = "Le nom ne peut pas être vide.";
+            return;
+        }
+
+        // Une couleur jamais choisie n'est pas une couleur vide : on garde celle du projet.
+        var couleur = string.IsNullOrWhiteSpace(CouleurEnCours) ? ouvert.Couleur : CouleurEnCours;
+
+        var ecrit = ModifierProjet(
+            ouvert.Id,
+            projet => { projet.Nom = nom; projet.Couleur = couleur; },
+            calendrier => { calendrier.Nom = nom; calendrier.Couleur = couleur; });
+
+        if (ecrit) EnEdition = false;
     }
 
     /// <summary>
@@ -408,6 +555,11 @@ public sealed partial class VueModeleProjets : ObservableObject
     /// (§3.2) — mais <b>c'est le serveur qui le fait</b>, à l'application du push : le rejouer ici
     /// dupliquerait une règle métier dans les deux apps (règle 2). La liste se remettra à jour au
     /// prochain pull.
+    /// <para>
+    /// <b>Le calendrier n'est pas touché, et c'est la règle</b> (§5.3, D-030) : fermer n'est pas
+    /// supprimer. Le projet et son histoire existent toujours, donc son filtre reste — la barre
+    /// latérale l'éteint simplement par défaut tant qu'il n'est plus actif.
+    /// </para>
     /// </summary>
     [RelayCommand]
     private void ChangerStatut(LigneProjet ligne)
@@ -422,11 +574,40 @@ public sealed partial class VueModeleProjets : ObservableObject
         ModifierProjet(ligne.Id, p => p.Statut = suivant);
     }
 
+    /// <summary>
+    /// Met le projet <b>et son calendrier</b> à la corbeille (§5.3, D-030). Symétrie exacte de
+    /// <see cref="Creer"/>, qui crée les deux : ce qui naît ensemble part ensemble. L'asymétrie
+    /// était un vrai défaut signalé à l'usage — le calendrier survivait dans les filtres, sans rien
+    /// à filtrer et sans moyen de s'en défaire.
+    /// <para>
+    /// Filet 2 : les deux sont <b>marqués</b>, jamais détruits, et la corbeille les rend tous deux.
+    /// Le calendrier ne part qu'une fois le projet parti : deux moitiés de suppression vaudraient
+    /// moins que rien du tout.
+    /// </para>
+    /// </summary>
     [RelayCommand]
     private void SupprimerProjet(LigneProjet ligne)
     {
-        _composition.Acces.Lire(() => _composition.Saisie.Supprimer(EntiteSynchro.Projet, ligne.Id));
-        if (IdOuvert == ligne.Id) IdOuvert = null;
+        var resultat = _composition.Acces.Lire(() =>
+        {
+            var calendrier = _composition.Lecture.Projets()
+                .FirstOrDefault(p => p.Id == ligne.Id)?.CategorieId;
+
+            var projetRange = _composition.Saisie.Supprimer(EntiteSynchro.Projet, ligne.Id);
+            if (!projetRange.Reussi || calendrier is not { } id) return projetRange;
+
+            return _composition.Saisie.Supprimer(EntiteSynchro.Categorie, id);
+        });
+
+        // Un refus avalé ici laisserait un bouton qui ne fait rien, sans le dire.
+        Message = resultat.Reussi ? null : string.Join(" / ", resultat.Erreurs.Select(e => e.Message));
+
+        if (IdOuvert == ligne.Id)
+        {
+            IdOuvert = null;
+            EnEdition = false;
+        }
+
         Charger();
         ApresChangement?.Invoke();
     }
@@ -464,7 +645,12 @@ public sealed partial class VueModeleProjets : ObservableObject
         return true;
     }
 
-    private void ModifierProjet(Guid id, Action<Projet> changement)
+    /// <summary>
+    /// Écrit un changement de projet, et — quand <paramref name="surCalendrier"/> est fourni — le
+    /// changement jumeau sur son calendrier, dans la même passe (§5.3, D-030). Rend vrai si tout
+    /// est passé.
+    /// </summary>
+    private bool ModifierProjet(Guid id, Action<Projet> changement, Action<Categorie>? surCalendrier = null)
     {
         // Le résultat est REGARDÉ : un refus avalé ici donnerait un bouton qui ne fait rien, sans
         // le dire — et c'est justement ce genre de silence qui coûte des heures à diagnostiquer.
@@ -473,13 +659,30 @@ public sealed partial class VueModeleProjets : ObservableObject
             var projet = _composition.Lecture.Projets().FirstOrDefault(p => p.Id == id);
             if (projet is null) return null;
             changement(projet);
-            return _composition.Saisie.Enregistrer(projet, EntiteSynchro.Projet);
+
+            var ecrit = _composition.Saisie.Enregistrer(projet, EntiteSynchro.Projet);
+            if (!ecrit.Reussi || surCalendrier is null || projet.CategorieId is not { } idCalendrier)
+                return ecrit;
+
+            // Le calendrier ne suit QUE si le projet est passé : les faire diverger serait pire que
+            // ne rien changer du tout. Un calendrier absent (déjà à la corbeille) n'est pas une
+            // erreur — le projet, lui, a bien été renommé.
+            var calendrier = _composition.Lecture.Categories().FirstOrDefault(c => c.Id == idCalendrier);
+            if (calendrier is null) return ecrit;
+
+            surCalendrier(calendrier);
+            return _composition.Saisie.Enregistrer(calendrier, EntiteSynchro.Categorie);
         });
 
-        if (resultat is { Reussi: false })
-            Message = string.Join(" / ", resultat.Erreurs.Select(e => e.Message));
+        Message = resultat switch
+        {
+            null => "Projet introuvable — il a peut-être été supprimé ailleurs.",
+            { Reussi: false } => string.Join(" / ", resultat.Erreurs.Select(e => e.Message)),
+            _ => null,
+        };
 
         Charger();
         ApresChangement?.Invoke();
+        return resultat is { Reussi: true };
     }
 }

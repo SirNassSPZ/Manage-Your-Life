@@ -34,4 +34,18 @@ public sealed partial class VueProjets : UserControl
         Modele.AjouterTacheCommand.Execute(null);
         args.Handled = true;
     }
+
+    // Renommer se valide de la même façon. Échap referme sans écrire : abandonner doit coûter aussi
+    // peu que confirmer.
+    private void SurToucheRenommer(object envoyeur, KeyRoutedEventArgs args)
+    {
+        if (args.Key == global::Windows.System.VirtualKey.Enter)
+            Modele.EnregistrerModificationCommand.Execute(null);
+        else if (args.Key == global::Windows.System.VirtualKey.Escape)
+            Modele.AnnulerModificationCommand.Execute(null);
+        else
+            return;
+
+        args.Handled = true;
+    }
 }
