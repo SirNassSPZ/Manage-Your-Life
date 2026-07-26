@@ -3,62 +3,116 @@ using DeuxiemeCerveau.Presentation.VueModeles;
 
 namespace DeuxiemeCerveau.Presentation.Tests;
 
-/// <summary>Note libre (§5.5) — « un brouillon ne se perd jamais » est la seule promesse à tenir.</summary>
+/// <summary>
+/// Note libre (§5.5) — <b>boîte de capture</b> : on écrit dans une zone vierge, on enregistre, la
+/// zone se vide. Deux promesses à tenir ensemble, et elles tirent en sens contraire : la zone doit
+/// se vider à l'enregistrement, et <b>un brouillon ne doit jamais se perdre</b>.
+/// </summary>
 public class NotesTests
 {
     [Fact]
-    public void Creer_une_note_l_ouvre_aussitot()
+    public void On_ecrit_sans_avoir_a_creer_une_note_d_abord()
     {
+        // L'ancien écran exigeait de créer la note AVANT de pouvoir taper un mot. Une boîte de
+        // capture est prête tout de suite : la note naît de l'enregistrement.
         using var f = new FabriquePresentation();
         var vue = new VueModeleNotes(f.Composition);
         Assert.True(vue.AucuneNote);
+        Assert.Null(vue.Ouverte);
 
-        vue.NouvelleCommand.Execute(null);
-
-        Assert.Single(vue.Notes);
-        Assert.True(vue.AUneNoteOuverte);
-        Assert.NotNull(vue.Ouverte);
-        Assert.False(vue.AucuneNote);
-    }
-
-    [Fact]
-    public void Le_texte_saisi_survit_a_un_changement_de_note()
-    {
-        // C'est LA promesse du §5.5 : rien ne se perd entre deux gestes.
-        using var f = new FabriquePresentation();
-        var vue = new VueModeleNotes(f.Composition);
-
-        vue.NouvelleCommand.Execute(null);
         vue.Titre = "Courses";
         vue.Texte = "Penser au pain";
-        Assert.True(vue.Modifiee);
+        vue.EnregistrerCommand.Execute(null);
 
-        // Créer une seconde note enregistre la première au passage.
-        vue.NouvelleCommand.Execute(null);
-        vue.Titre = "Autre";
-
-        var courses = vue.Notes.Single(n => n.Titre == "Courses");
-        vue.OuvrirNoteCommand.Execute(courses.Id);
-
-        Assert.Equal("Courses", vue.Titre);
-        Assert.Equal("Penser au pain", vue.Texte);
-        Assert.False(vue.Modifiee);
-        Assert.Equal("Enregistrée", vue.Etat);
+        var note = Assert.Single(vue.Notes);
+        Assert.Equal("Courses", note.Titre);
     }
 
     [Fact]
-    public void L_etat_dit_franchement_si_la_saisie_est_en_securite()
+    public void Enregistrer_vide_la_zone()
+    {
+        // LE point de la demande : « la zone doit se réinitialiser pour pouvoir y mettre d'autres
+        // notes ». Un texte qui reste laisse croire qu'il n'est pas parti.
+        using var f = new FabriquePresentation();
+        var vue = new VueModeleNotes(f.Composition);
+
+        vue.Titre = "Courses";
+        vue.Texte = "Penser au pain";
+        vue.EnregistrerCommand.Execute(null);
+
+        Assert.Equal("", vue.Titre);
+        Assert.Equal("", vue.Texte);
+        Assert.Null(vue.Ouverte);
+        Assert.False(vue.AUneNoteOuverte);
+        Assert.False(vue.Modifiee);
+    }
+
+    [Fact]
+    public void Enregistrer_vide_la_zone_meme_apres_correction_d_une_note_rouverte()
+    {
+        // Aucune exception : rouvrir pour corriger n'ouvre pas un « document » qui resterait à
+        // l'écran. La règle est la même dans les deux sens (§5.5).
+        using var f = new FabriquePresentation();
+        var vue = new VueModeleNotes(f.Composition);
+
+        vue.Titre = "Courses";
+        vue.EnregistrerCommand.Execute(null);
+
+        vue.OuvrirNoteCommand.Execute(Assert.Single(vue.Notes).Id);
+        Assert.Equal("Courses", vue.Titre);   // rouverte pour correction
+        Assert.True(vue.AUneNoteOuverte);
+
+        vue.Texte = "et du lait";
+        vue.EnregistrerCommand.Execute(null);
+
+        Assert.Equal("", vue.Titre);
+        Assert.Equal("", vue.Texte);
+        Assert.Null(vue.Ouverte);
+        Assert.Equal("et du lait", Assert.Single(vue.Notes).Apercu);
+    }
+
+    [Fact]
+    public void Un_texte_en_cours_survit_a_l_ouverture_d_une_autre_note()
+    {
+        // La promesse du §5.5 tient malgré le vidage : passer à autre chose enregistre d'abord.
+        using var f = new FabriquePresentation();
+        var vue = new VueModeleNotes(f.Composition);
+
+        vue.Titre = "Déjà là";
+        vue.EnregistrerCommand.Execute(null);
+
+        vue.Titre = "En cours";
+        vue.Texte = "pas encore enregistré";
+        vue.OuvrirNoteCommand.Execute(vue.Notes.Single(n => n.Titre == "Déjà là").Id);
+
+        Assert.Equal(2, vue.Notes.Count);
+        Assert.Contains(vue.Notes, n => n.Titre == "En cours");
+    }
+
+    [Fact]
+    public void Nouvelle_enregistre_avant_de_liberer_la_zone()
+    {
+        // « Je passe à la suivante » ne veut jamais dire « jette ce que je viens d'écrire ».
+        using var f = new FabriquePresentation();
+        var vue = new VueModeleNotes(f.Composition);
+
+        vue.Texte = "à ne pas perdre";
+        vue.NouvelleCommand.Execute(null);
+
+        Assert.Equal("", vue.Texte);
+        Assert.Equal("à ne pas perdre", Assert.Single(vue.Notes).Apercu);
+    }
+
+    [Fact]
+    public void Une_zone_vide_n_enregistre_rien()
     {
         using var f = new FabriquePresentation();
         var vue = new VueModeleNotes(f.Composition);
-        vue.NouvelleCommand.Execute(null);
-
-        vue.Texte = "quelque chose";
-        Assert.Equal("Modifiée — non enregistrée", vue.Etat);
 
         vue.EnregistrerCommand.Execute(null);
-        Assert.Equal("Enregistrée", vue.Etat);
-        Assert.False(vue.Modifiee);
+        vue.NouvelleCommand.Execute(null);
+
+        Assert.True(vue.AucuneNote);
     }
 
     [Fact]
@@ -66,9 +120,9 @@ public class NotesTests
     {
         using var f = new FabriquePresentation();
         var vue = new VueModeleNotes(f.Composition);
-        vue.NouvelleCommand.Execute(null);
 
         vue.Titre = "   ";
+        vue.Texte = "du contenu";
         vue.EnregistrerCommand.Execute(null);
 
         Assert.Equal("(sans titre)", Assert.Single(vue.Notes).Titre);
@@ -79,7 +133,7 @@ public class NotesTests
     {
         using var f = new FabriquePresentation();
         var vue = new VueModeleNotes(f.Composition);
-        vue.NouvelleCommand.Execute(null);
+
         vue.Texte = new string('a', 200);
         vue.EnregistrerCommand.Execute(null);
 
@@ -89,24 +143,26 @@ public class NotesTests
     }
 
     [Fact]
-    public void Une_note_vide_le_dit_plutot_que_de_montrer_du_blanc()
+    public void Une_note_sans_texte_le_dit_plutot_que_de_montrer_du_blanc()
     {
         using var f = new FabriquePresentation();
         var vue = new VueModeleNotes(f.Composition);
-        vue.NouvelleCommand.Execute(null);
+
+        vue.Titre = "Titre seul";
         vue.EnregistrerCommand.Execute(null);
 
         Assert.Equal("Vide", Assert.Single(vue.Notes).Apercu);
     }
 
     [Fact]
-    public void Supprimer_une_note_la_met_a_la_corbeille_et_ferme_l_editeur()
+    public void Supprimer_une_note_rouverte_la_met_a_la_corbeille_et_vide_la_zone()
     {
         using var f = new FabriquePresentation();
         var vue = new VueModeleNotes(f.Composition);
-        vue.NouvelleCommand.Execute(null);
+
         vue.Titre = "À jeter";
         vue.EnregistrerCommand.Execute(null);
+        vue.OuvrirNoteCommand.Execute(Assert.Single(vue.Notes).Id);
 
         vue.SupprimerCommand.Execute(null);
 

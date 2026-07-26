@@ -67,9 +67,10 @@
             </ScrollViewer>
         </Grid>
 
-        <!-- Éditeur -->
-        <Grid Grid.Column="1" RowSpacing="12"
-              Visibility="{x:Bind Modele.AUneNoteOuverte, Mode=OneWay, Converter={StaticResource SiVrai}}">
+        <!-- Boîte de capture (§5.5). TOUJOURS visible : la zone est un bloc-notes prêt à recevoir,
+             pas un document qu'il faudrait d'abord ouvrir. C'est l'inverse de l'ancien écran, qui
+             exigeait de créer une note avant de pouvoir écrire un mot. -->
+        <Grid Grid.Column="1" RowSpacing="12">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
@@ -87,8 +88,11 @@
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
                     <Button Style="{StaticResource BoutonDiscret}" Content="Enregistrer" Padding="12,7" FontSize="12.5"
                             Command="{x:Bind Modele.EnregistrerCommand}" />
+                    <!-- Seulement sur une note rouverte : il n'y a rien à mettre à la corbeille
+                         tant que la note n'existe pas. -->
                     <Button Style="{StaticResource BoutonDiscret}" Content="Corbeille" Padding="12,7" FontSize="12.5"
-                            Command="{x:Bind Modele.SupprimerCommand}" />
+                            Command="{x:Bind Modele.SupprimerCommand}"
+                            Visibility="{x:Bind Modele.AUneNoteOuverte, Mode=OneWay, Converter={StaticResource SiVrai}}" />
                 </StackPanel>
             </Grid>
 
@@ -104,12 +108,5 @@
                      AutomationProperties.Name="Texte de la note" />
         </Grid>
 
-        <StackPanel Grid.Column="1" Spacing="6" VerticalAlignment="Center" MaxWidth="420"
-                    Visibility="{x:Bind Modele.AUneNoteOuverte, Mode=OneWay, Converter={StaticResource SiFaux}}">
-            <TextBlock Text="Choisis une note, ou crées-en une." FontSize="15"
-                       Foreground="{StaticResource Encre2}" />
-            <TextBlock Style="{StaticResource TexteCourant}" FontSize="13"
-                       Text="Une note est un Élément comme un autre : même synchronisation, même corbeille." />
-        </StackPanel>
     </Grid>
 </UserControl>
