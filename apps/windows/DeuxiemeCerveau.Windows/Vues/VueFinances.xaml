@@ -14,6 +14,8 @@
         <conv:EncreStatut x:Key="EncreStatut" />
         <conv:BoolVersVisibiliteInverse x:Key="SiFaux" />
         <conv:HexPinceau x:Key="Hex" />
+        <conv:FondVerdict x:Key="FondVerdict" />
+        <conv:EncreVerdict x:Key="EncreVerdict" />
 
         <!-- Une ligne de mouvement. Le gabarit sert les deux groupes : entrées et sorties ne
              diffèrent que par la couleur du montant, jamais par la structure. -->
@@ -178,7 +180,9 @@
             <Grid ColumnSpacing="22">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="270" />
+                    <!-- Auto et non 270 : sans les envies, la colonne disparaît au lieu de laisser
+                         une bande vide à droite des listes. -->
+                    <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
 
                 <StackPanel>
@@ -288,10 +292,14 @@
                     </StackPanel>
                 </StackPanel>
 
-                <!-- Envies d'achat, confrontables au budget projeté depuis D-027 (§5.1bis). -->
+                <!-- Envies d'achat, confrontables au budget projeté depuis D-027 (§5.1bis).
+                     Visible seulement en vue d'ensemble et dans sa propre sous-vue : dans
+                     « Entrées » ou « Sorties » ce panneau mangeait 270 px sans rapport avec ce
+                     qu'on regarde (D-028). -->
                 <Border Grid.Column="1" Background="{StaticResource Surface2}"
                         BorderBrush="{StaticResource Trait}" BorderThickness="1" CornerRadius="12"
-                        Padding="15" VerticalAlignment="Top" Margin="0,14,0,0">
+                        Padding="15" VerticalAlignment="Top" Margin="0,14,0,0" Width="270"
+                        Visibility="{x:Bind Modele.MontrerEnvies, Mode=OneWay, Converter={StaticResource SiVrai}}">
                     <StackPanel Spacing="8">
                         <TextBlock Text="Envies d'achat" FontSize="13.5" FontWeight="SemiBold"
                                    CharacterSpacing="-10" Foreground="{StaticResource Encre}" />

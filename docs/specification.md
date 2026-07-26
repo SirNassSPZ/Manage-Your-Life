@@ -235,6 +235,7 @@ Un objectif de vie qu'on poursuit dans le temps (*commencer le MMA*, *arrêter d
 - **Tâches propres.** Une tâche appartient à un projet (`projet_id`, obligatoire en V1) et porte `priorite` et `ordre_manuel` (§3.1). Statuts : `a_faire`, `fait`, `reporte`, `annule`.
 - **Label.** Le projet a un nom et une couleur, qui identifient ses tâches et ses occurrences partout où elles apparaissent.
 - **Calendrier dédié devenant filtre automatique** du calendrier principal (§5.4) — sans que l'utilisateur ait à créer quoi que ce soit.
+- **Vue calendrier du projet, depuis l'onglet Projets.** Le filtre du calendrier principal répond à « qu'est-ce qui arrive cette semaine, tous sujets confondus ». Il ne répond pas à « où en est ce projet dans le temps », qui demande de ne voir *que* lui. Les deux lectures portent sur les mêmes occurrences ; aucune donnée de plus.
 - **Fermeture** (§3.2, déjà implémentée dans le cœur) : quand un projet passe `termine` ou `en_pause`, ses tâches `a_faire` passent en `reporte`. Rien n'est perdu, rien ne pollue les vues actives. Son calendrier-filtre reste disponible, désactivé par défaut.
 
 **Ce qui reste V2 :** le score, les templates de planning, et les listes de tâches **hors projet** (§5.2).
@@ -242,6 +243,7 @@ Un objectif de vie qu'on poursuit dans le temps (*commencer le MMA*, *arrêter d
 ### 5.4 Calendrier principal unifié (V1)
 
 Onglet à part entière, inspiré d'Apple Calendar.
+- **Deux lectures, toutes deux en grille** : le mois, et la semaine à venir. Une liste de jours n'est pas un calendrier — on ne lit pas une semaine en la faisant défiler, on la voit d'un coup.
 - Superposition de calendriers ; chaque catégorie est un filtre affichable/masquable.
 - **Affiche dès la V1 :** les rendez-vous **et les échéances financières** (factures, paiements, revenus datés) — le calendrier montre la vie ET l'argent.
 - **Les calendriers de projets s'y ajoutent automatiquement (V1, §5.3).** Ils se distinguent des catégories : une catégorie se crée à la main, un calendrier de projet **naît avec le projet** et disparaît de la liste active à sa fermeture (désactivé par défaut, jamais supprimé).

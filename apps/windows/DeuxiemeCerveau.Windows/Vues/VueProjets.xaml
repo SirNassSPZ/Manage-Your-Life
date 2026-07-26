@@ -12,6 +12,9 @@
         <conv:HexPinceau x:Key="Hex" />
         <conv:ObjetVersVisibilite x:Key="SiObjet" />
         <conv:ObjetAbsentVersVisibilite x:Key="SiPasObjet" />
+        <conv:CouleurType x:Key="CouleurType" />
+        <conv:FondType x:Key="FondType" />
+        <conv:EncreJour x:Key="EncreJour" />
     </UserControl.Resources>
 
     <Grid x:Name="RacineProjets" Background="{StaticResource Surface}" Padding="22,20,22,22"
@@ -202,6 +205,120 @@
                         <TextBlock Text="{x:Bind Modele.Message, Mode=OneWay}" FontSize="12"
                                    Foreground="{StaticResource Negatif}" TextWrapping="Wrap" Margin="0,10,0,0"
                                    Visibility="{x:Bind Modele.Message, Mode=OneWay, Converter={StaticResource SiTexte}}" />
+
+                        <!-- ============ CALENDRIER DU PROJET (§5.3, D-028) ============
+                             Les mêmes occurrences que le calendrier principal, filtrées sur le seul
+                             calendrier de ce projet : « où en est ce projet dans le temps ». -->
+                        <Grid Margin="0,22,0,8" ColumnSpacing="10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="{x:Bind Modele.MoisCalendrier, Mode=OneWay}" FontSize="15"
+                                       FontWeight="SemiBold" CharacterSpacing="-15" VerticalAlignment="Center"
+                                       Foreground="{StaticResource Encre}" />
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4"
+                                        HorizontalAlignment="Right">
+                                <Button Width="28" Height="28" Padding="0" CornerRadius="8"
+                                        Background="{StaticResource Surface}" BorderBrush="{StaticResource Trait}"
+                                        BorderThickness="1" Command="{x:Bind Modele.MoisPrecedentCommand}"
+                                        AutomationProperties.Name="Mois précédent">
+                                    <Viewbox Width="13" Height="13">
+                                        <Canvas Width="14" Height="14">
+                                            <Path Data="M8.5 3L4.5 7l4 4" Stroke="{StaticResource Encre2}"
+                                                  StrokeThickness="1.6" StrokeLineJoin="Round" />
+                                        </Canvas>
+                                    </Viewbox>
+                                </Button>
+                                <Button Width="28" Height="28" Padding="0" CornerRadius="8"
+                                        Background="{StaticResource Surface}" BorderBrush="{StaticResource Trait}"
+                                        BorderThickness="1" Command="{x:Bind Modele.MoisSuivantCommand}"
+                                        AutomationProperties.Name="Mois suivant">
+                                    <Viewbox Width="13" Height="13">
+                                        <Canvas Width="14" Height="14">
+                                            <Path Data="M5.5 3l4 4-4 4" Stroke="{StaticResource Encre2}"
+                                                  StrokeThickness="1.6" StrokeLineJoin="Round" />
+                                        </Canvas>
+                                    </Viewbox>
+                                </Button>
+                            </StackPanel>
+                        </Grid>
+
+                        <Border BorderBrush="{StaticResource Trait}" BorderThickness="1" CornerRadius="11">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+
+                                <Border Background="{StaticResource Surface2}" BorderBrush="{StaticResource Trait}"
+                                        BorderThickness="0,0,0,1" CornerRadius="10,10,0,0">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" /><ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="*" /><ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="*" /><ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="LUN" Style="{StaticResource EtiquetteMajuscule}" Padding="8,7" />
+                                        <TextBlock Grid.Column="1" Text="MAR" Style="{StaticResource EtiquetteMajuscule}" Padding="8,7" />
+                                        <TextBlock Grid.Column="2" Text="MER" Style="{StaticResource EtiquetteMajuscule}" Padding="8,7" />
+                                        <TextBlock Grid.Column="3" Text="JEU" Style="{StaticResource EtiquetteMajuscule}" Padding="8,7" />
+                                        <TextBlock Grid.Column="4" Text="VEN" Style="{StaticResource EtiquetteMajuscule}" Padding="8,7" />
+                                        <TextBlock Grid.Column="5" Text="SAM" Style="{StaticResource EtiquetteMajuscule}" Padding="8,7" />
+                                        <TextBlock Grid.Column="6" Text="DIM" Style="{StaticResource EtiquetteMajuscule}" Padding="8,7" />
+                                    </Grid>
+                                </Border>
+
+                                <ItemsRepeater Grid.Row="1" ItemsSource="{x:Bind Modele.Cases}">
+                                    <ItemsRepeater.Layout>
+                                        <UniformGridLayout MaximumRowsOrColumns="7" ItemsStretch="Fill"
+                                                           MinItemHeight="64" Orientation="Horizontal" />
+                                    </ItemsRepeater.Layout>
+                                    <ItemsRepeater.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:CaseJour">
+                                            <Border BorderBrush="{StaticResource Trait2}" BorderThickness="0,0,1,1"
+                                                    Padding="5,5,5,6">
+                                                <StackPanel Spacing="3">
+                                                    <Grid HorizontalAlignment="Left">
+                                                        <Border Width="20" Height="20" CornerRadius="10"
+                                                                Background="{StaticResource Marque}"
+                                                                Visibility="{x:Bind EstAujourdhui, Converter={StaticResource SiVrai}}" />
+                                                        <TextBlock Text="{x:Bind Numero}" FontSize="11.5" FontWeight="SemiBold"
+                                                                   Width="20" Height="20" Padding="0,2,0,0"
+                                                                   HorizontalTextAlignment="Center"
+                                                                   Foreground="{x:Bind HorsMois, Converter={StaticResource EncreJour}}" />
+                                                        <TextBlock Text="{x:Bind Numero}" FontSize="11.5" FontWeight="SemiBold"
+                                                                   Width="20" Height="20" Padding="0,2,0,0"
+                                                                   HorizontalTextAlignment="Center" Foreground="White"
+                                                                   Visibility="{x:Bind EstAujourdhui, Converter={StaticResource SiVrai}}" />
+                                                    </Grid>
+                                                    <ItemsRepeater ItemsSource="{x:Bind Pastilles}">
+                                                        <ItemsRepeater.ItemTemplate>
+                                                            <DataTemplate x:DataType="vm:PastilleAgenda">
+                                                                <Border CornerRadius="6" Padding="4,2" Margin="0,0,0,2"
+                                                                        Background="{x:Bind Type, Converter={StaticResource FondType}}">
+                                                                    <TextBlock Text="{x:Bind Titre}" FontSize="10.5"
+                                                                               Foreground="{StaticResource Encre}"
+                                                                               TextTrimming="CharacterEllipsis" />
+                                                                </Border>
+                                                            </DataTemplate>
+                                                        </ItemsRepeater.ItemTemplate>
+                                                    </ItemsRepeater>
+                                                    <TextBlock Text="{x:Bind Debordement}" FontSize="10" Padding="4,0"
+                                                               Foreground="{StaticResource Encre3}"
+                                                               Visibility="{x:Bind Debordement, Converter={StaticResource SiTexte}}" />
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsRepeater.ItemTemplate>
+                                </ItemsRepeater>
+                            </Grid>
+                        </Border>
+
+                        <TextBlock Style="{StaticResource TexteCourant}" FontSize="12.5" Margin="2,10,0,0"
+                                   Visibility="{x:Bind Modele.CalendrierGarni, Mode=OneWay, Converter={StaticResource SiFaux}}"
+                                   Text="Rien de daté sur ce projet pour l&#x27;instant. Un rendez-vous créé depuis le Calendrier et rangé dans ce calendrier de projet apparaîtra ici." />
                     </StackPanel>
                 </ScrollViewer>
             </Grid>

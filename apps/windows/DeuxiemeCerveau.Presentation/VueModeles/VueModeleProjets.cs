@@ -105,6 +105,88 @@ public sealed partial class VueModeleProjets : ObservableObject
 
     public ObservableCollection<LigneProjet> Projets { get; } = [];
 
+    /// <summary>
+    /// Le calendrier du projet ouvert (§5.3, D-028) : les mêmes occurrences que le calendrier
+    /// principal, mais filtrées sur le seul calendrier de ce projet.
+    /// <para>
+    /// Le filtre du calendrier principal répond à « qu'est-ce qui arrive cette semaine, tous sujets
+    /// confondus ». Il ne répond pas à « où en est ce projet dans le temps », qui demande de ne voir
+    /// que lui.
+    /// </para>
+    /// </summary>
+    public ObservableCollection<CaseJour> Cases { get; } = [];
+
+    [ObservableProperty]
+    private string _moisCalendrier = "";
+
+    /// <summary>Faux quand le projet n'a aucune occurrence datée : la grille resterait vide.</summary>
+    [ObservableProperty]
+    private bool _calendrierGarni;
+
+    private DateOnly _moisAffiche = new(DateTime.Now.Year, DateTime.Now.Month, 1);
+
+    [RelayCommand]
+    private void MoisPrecedent() { _moisAffiche = _moisAffiche.AddMonths(-1); ChargerCalendrier(); }
+
+    [RelayCommand]
+    private void MoisSuivant() { _moisAffiche = _moisAffiche.AddMonths(1); ChargerCalendrier(); }
+
+    /// <summary>
+    /// Construit la grille du mois pour le projet ouvert. Six semaines pleines, comme la grille
+    /// principale : une hauteur qui saute d'un mois à l'autre donne une impression de bougé.
+    /// </summary>
+    private void ChargerCalendrier()
+    {
+        Cases.Clear();
+        var fr = System.Globalization.CultureInfo.GetCultureInfo("fr-FR");
+        MoisCalendrier = fr.TextInfo.ToTitleCase(_moisAffiche.ToString("MMMM yyyy", fr));
+
+        if (ProjetOuvert is not { } ouvert)
+        {
+            CalendrierGarni = false;
+            return;
+        }
+
+        var categorie = _composition.Acces.Lire(
+            () => _composition.Lecture.Projets().FirstOrDefault(p => p.Id == ouvert.Id)?.CategorieId);
+
+        // Le lundi qui précède le 1er, puis 42 cases : même construction que §5.4.
+        var premier = _moisAffiche;
+        var decalage = ((int)premier.DayOfWeek + 6) % 7;
+        var depart = premier.AddDays(-decalage);
+        var debut = new DateTimeOffset(depart.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero);
+        var fin = new DateTimeOffset(depart.AddDays(41).ToDateTime(TimeOnly.MaxValue), TimeSpan.Zero);
+
+        var filtre = categorie is { } id ? new HashSet<Guid> { id } : null;
+        var parJour = _composition.Acces
+            .Lire(() => _composition.Calendrier.Occurrences(debut, fin, filtre))
+            .GroupBy(o => DateOnly.FromDateTime(o.InstantUtc.ToLocalTime().DateTime))
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        var aujourdhui = DateOnly.FromDateTime(DateTime.Now);
+        for (var i = 0; i < 42; i++)
+        {
+            var jour = depart.AddDays(i);
+            parJour.TryGetValue(jour, out var duJour);
+            var pastilles = (duJour ?? [])
+                .Take(3)
+                .Select(o => new PastilleAgenda(
+                    o.Titre,
+                    o.MontantCentimes is { } c && o.Sens is { } sens ? Format.EurosSigne(c, sens) : null,
+                    o.Type))
+                .ToList();
+
+            Cases.Add(new CaseJour(
+                Numero: jour.Day.ToString(),
+                HorsMois: jour.Month != premier.Month,
+                EstAujourdhui: jour == aujourdhui,
+                Pastilles: pastilles,
+                Debordement: duJour is { Count: > 3 } ? $"+{duJour.Count - 3}" : null));
+        }
+
+        CalendrierGarni = parJour.Count > 0;
+    }
+
     [ObservableProperty]
     private string _nouveauNom = "";
 
@@ -168,6 +250,7 @@ public sealed partial class VueModeleProjets : ObservableObject
 
         OnPropertyChanged(nameof(AucunProjet));
         OnPropertyChanged(nameof(ProjetOuvert));
+        ChargerCalendrier();
     }
 
     private static string Avancement(IReadOnlyList<LigneTache> taches)
@@ -231,6 +314,7 @@ public sealed partial class VueModeleProjets : ObservableObject
         IdOuvert = IdOuvert == projet.Id ? null : projet.Id;
         foreach (var ligne in Projets) ligne.Selectionne = ligne.Id == IdOuvert;
         OnPropertyChanged(nameof(ProjetOuvert));
+        ChargerCalendrier();
     }
 
     /// <summary>

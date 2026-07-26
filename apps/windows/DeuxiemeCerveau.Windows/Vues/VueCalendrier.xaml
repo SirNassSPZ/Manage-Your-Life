@@ -183,48 +183,76 @@
         </Border>
 
         <!-- ============ 7 PROCHAINS JOURS — la même matière, lue autrement ============ -->
-        <ScrollViewer Grid.Row="1"
-                      Visibility="{x:Bind Modele.EstSeptJours, Mode=OneWay, Converter={StaticResource SiVrai}}">
+        <!-- Sept colonnes, même grammaire que la grille du mois (D-028). Une liste de jours
+             empilés n'est pas un calendrier : on ne lit pas une semaine en la faisant défiler. -->
+        <Border Grid.Row="1" Style="{StaticResource Carte}" Padding="0" VerticalAlignment="Top"
+                Visibility="{x:Bind Modele.EstSeptJours, Mode=OneWay, Converter={StaticResource SiVrai}}">
             <ItemsRepeater ItemsSource="{x:Bind Modele.Semaine}">
+                <ItemsRepeater.Layout>
+                    <UniformGridLayout MaximumRowsOrColumns="7" ItemsStretch="Fill"
+                                       MinItemHeight="300" Orientation="Horizontal" />
+                </ItemsRepeater.Layout>
                 <ItemsRepeater.ItemTemplate>
                     <DataTemplate x:DataType="vm:JourSemaine">
-                        <StackPanel Margin="0,0,0,4">
-                            <Grid Padding="4,14,4,6">
-                                <TextBlock Text="{x:Bind Intitule}" Style="{StaticResource EtiquetteMajuscule}"
-                                           Foreground="{x:Bind EstAujourdhui, Converter={StaticResource EncreJourCourant}}" />
-                                <TextBlock Text="{x:Bind Resume}" FontSize="11" HorizontalAlignment="Right"
-                                           Foreground="{StaticResource Encre3}" />
-                            </Grid>
-                            <ItemsRepeater ItemsSource="{x:Bind Pastilles}">
-                                <ItemsRepeater.ItemTemplate>
-                                    <DataTemplate x:DataType="vm:PastilleAgenda">
-                                        <Border BorderBrush="{StaticResource Trait2}" BorderThickness="0,0,0,1"
-                                                Padding="8,10">
-                                            <Grid ColumnSpacing="9">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="Auto" />
-                                                    <ColumnDefinition Width="*" />
-                                                    <ColumnDefinition Width="Auto" />
-                                                </Grid.ColumnDefinitions>
-                                                <Border Width="9" Height="9" CornerRadius="3" VerticalAlignment="Center"
-                                                        Background="{x:Bind Type, Converter={StaticResource CouleurType}}" />
-                                                <TextBlock Grid.Column="1" Text="{x:Bind Titre}" FontSize="14"
-                                                           Foreground="{StaticResource Encre}"
-                                                           TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
-                                                <TextBlock Grid.Column="2" Text="{x:Bind Montant}" FontSize="14"
-                                                           FontWeight="SemiBold" CharacterSpacing="-10"
-                                                           Foreground="{StaticResource Encre}" VerticalAlignment="Center"
-                                                           Visibility="{x:Bind Montant, Converter={StaticResource SiTexte}}" />
-                                            </Grid>
-                                        </Border>
-                                    </DataTemplate>
-                                </ItemsRepeater.ItemTemplate>
-                            </ItemsRepeater>
-                        </StackPanel>
+                        <Border BorderBrush="{StaticResource Trait2}" BorderThickness="0,0,1,0">
+                            <StackPanel>
+
+                                <!-- En-tête de colonne : le jour se nomme lui-même, puisqu'une
+                                     semaine glissante ne commence pas forcément un lundi. -->
+                                <Border Background="{StaticResource Surface2}"
+                                        BorderBrush="{StaticResource Trait}" BorderThickness="0,0,0,1"
+                                        Padding="8,8,8,9">
+                                    <StackPanel Spacing="3">
+                                        <TextBlock Text="{x:Bind Abrege}" Style="{StaticResource EtiquetteMajuscule}"
+                                                   Foreground="{x:Bind EstAujourdhui, Converter={StaticResource EncreJourCourant}}" />
+                                        <Grid HorizontalAlignment="Left">
+                                            <Border Width="23" Height="23" CornerRadius="12"
+                                                    Background="{StaticResource Marque}"
+                                                    Visibility="{x:Bind EstAujourdhui, Converter={StaticResource SiVrai}}" />
+                                            <TextBlock Text="{x:Bind Numero}" FontSize="12.5" FontWeight="SemiBold"
+                                                       Width="23" Height="23" Padding="0,3,0,0"
+                                                       HorizontalTextAlignment="Center"
+                                                       Foreground="{StaticResource Encre}" />
+                                            <TextBlock Text="{x:Bind Numero}" FontSize="12.5" FontWeight="SemiBold"
+                                                       Width="23" Height="23" Padding="0,3,0,0"
+                                                       HorizontalTextAlignment="Center" Foreground="White"
+                                                       Visibility="{x:Bind EstAujourdhui, Converter={StaticResource SiVrai}}" />
+                                        </Grid>
+                                    </StackPanel>
+                                </Border>
+
+                                <ItemsRepeater ItemsSource="{x:Bind Pastilles}" Margin="7,7,7,0">
+                                    <ItemsRepeater.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:PastilleAgenda">
+                                            <Border CornerRadius="7" Padding="6,4" Margin="0,0,0,4"
+                                                    Background="{x:Bind Type, Converter={StaticResource FondType}}">
+                                                <StackPanel Spacing="2">
+                                                    <StackPanel Orientation="Horizontal" Spacing="5">
+                                                        <Border Width="6" Height="6" CornerRadius="3" VerticalAlignment="Center"
+                                                                Background="{x:Bind Type, Converter={StaticResource CouleurType}}" />
+                                                        <TextBlock Text="{x:Bind Titre}" FontSize="11.5"
+                                                                   Foreground="{StaticResource Encre}"
+                                                                   TextWrapping="Wrap" MaxLines="2" />
+                                                    </StackPanel>
+                                                    <TextBlock Text="{x:Bind Montant}" FontSize="11.5"
+                                                               FontWeight="SemiBold" CharacterSpacing="-10"
+                                                               Foreground="{StaticResource Encre2}"
+                                                               Visibility="{x:Bind Montant, Converter={StaticResource SiTexte}}" />
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsRepeater.ItemTemplate>
+                                </ItemsRepeater>
+
+                                <!-- Un jour vide le dit : l'absence de mouvement est une information. -->
+                                <TextBlock Text="{x:Bind Resume}" FontSize="10.5" Padding="8,2,8,8"
+                                           Foreground="{StaticResource Encre3}" TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Border>
                     </DataTemplate>
                 </ItemsRepeater.ItemTemplate>
             </ItemsRepeater>
-        </ScrollViewer>
+        </Border>
 
         <!-- ============ GÉRER LES CALENDRIERS (§3.3) ============ -->
         <ScrollViewer Grid.Row="1"

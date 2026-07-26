@@ -238,7 +238,9 @@
                                          IsEnabled="{x:Bind Modele.Sauvegarde.Occupe, Mode=OneWay, Converter={StaticResource SiFaux}}" />
 
                         <!-- §5.7 : le rappel mensuel doit être désactivable. -->
-                        <CheckBox IsChecked="{x:Bind Modele.Sauvegarde.RappelMensuel, Mode=TwoWay, Converter={StaticResource Coche}}"
+                        <!-- {Binding} et non x:Bind : sur ce chemin imbriqué, la liaison compilée rendait null,
+                             et IsChecked (bool?) affichait alors la case en INDÉTERMINÉ. -->
+                        <CheckBox IsChecked="{Binding Sauvegarde.RappelMensuel, Mode=TwoWay}"
                                   MinWidth="0" Margin="0,2,0,0" Padding="8,0,0,0"
                                   AutomationProperties.Name="Rappel mensuel d'export">
                             <TextBlock Text="Me le rappeler chaque mois" FontSize="11.5"

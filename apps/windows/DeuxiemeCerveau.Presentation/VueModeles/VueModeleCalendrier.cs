@@ -14,9 +14,17 @@ public sealed record PastilleAgenda(string Titre, string? Montant, TypeElement T
 /// </summary>
 public enum ModeCalendrier { Mois, SeptJours, Gestion }
 
-/// <summary>Un jour de la vue « 7 prochains jours », avec ses mouvements en clair.</summary>
+/// <summary>
+/// Un jour de la vue « 7 prochains jours ». Depuis D-028 cette vue est une <b>grille</b> de sept
+/// colonnes, pas une liste : on ne lit pas une semaine en la faisant défiler.
+/// </summary>
+/// <param name="Intitule">Libellé long — sert l'accessibilité, pas l'affichage serré de la colonne.</param>
+/// <param name="Abrege">« LUN », en-tête de colonne.</param>
+/// <param name="Numero">Le numéro du jour, comme dans la grille du mois.</param>
 public sealed record JourSemaine(
     string Intitule,
+    string Abrege,
+    string Numero,
     string Resume,
     bool EstAujourdhui,
     IReadOnlyList<PastilleAgenda> Pastilles);
@@ -192,6 +200,10 @@ public sealed partial class VueModeleCalendrier : ObservableObject
                     1 => "Demain · " + Format.JourCourt(jour),
                     _ => Format.JourLong(jour),
                 }),
+                // Trois lettres, comme les en-têtes de la grille du mois : les deux lectures
+                // partagent la même grammaire visuelle.
+                Abrege: Format.Capitales(jour.ToString("ddd", fr)).TrimEnd('.'),
+                Numero: jour.Day.ToString(),
                 Resume: n switch { 0 => "Rien de prévu", 1 => "1 mouvement", _ => $"{n} mouvements" },
                 EstAujourdhui: i == 0,
                 Pastilles: (duJour ?? [])

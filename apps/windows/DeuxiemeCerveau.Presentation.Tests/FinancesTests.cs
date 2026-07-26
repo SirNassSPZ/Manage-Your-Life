@@ -146,13 +146,38 @@ public class FinancesTests
         Assert.False(vue.ClotureConnue);
     }
 
-    [Theory]
-    [InlineData(FiltreFinances.Tout, true, true)]
-    [InlineData(FiltreFinances.Entrees, true, false)]
-    [InlineData(FiltreFinances.Sorties, false, true)]
-    public void Les_sous_vues_sont_des_filtres_sur_le_meme_mois(
-        FiltreFinances filtre, bool entrees, bool sorties)
+    [Fact]
+    public void Les_deux_listes_plates_ne_s_affichent_qu_en_vue_d_ensemble()
     {
+        // Depuis D-028, « Entrées » et « Sorties » sont des vues GROUPÉES par catégorie de leur
+        // seul sens : les listes plates restent la lecture de la vue d'ensemble.
+        using var f = new FabriquePresentation();
+        f.AjouterEntree("Salaire", LeJour(1));
+        f.AjouterSortie("Loyer", LeJour(5));
+
+        var vue = new VueModeleFinances(f.Composition);
+
+        vue.FiltrerCommand.Execute(FiltreFinances.Tout);
+        Assert.True(vue.MontrerEntrees);
+        Assert.True(vue.MontrerSorties);
+        Assert.False(vue.MontrerGroupes);
+
+        vue.FiltrerCommand.Execute(FiltreFinances.Entrees);
+        Assert.False(vue.MontrerEntrees);
+        Assert.True(vue.MontrerGroupes);
+
+        // Le filtre masque, il ne détruit pas : les deux listes restent peuplées.
+        Assert.Single(vue.Entrees);
+        Assert.Single(vue.Sorties);
+    }
+
+    [Theory]
+    [InlineData(FiltreFinances.Entrees, "Salaire")]
+    [InlineData(FiltreFinances.Sorties, "Loyer")]
+    public void Entrees_et_Sorties_ne_groupent_que_leur_propre_sens(
+        FiltreFinances filtre, string attendu)
+    {
+        // Grouper tout le mois sous un intitulé « Entrées » serait un mensonge.
         using var f = new FabriquePresentation();
         f.AjouterEntree("Salaire", LeJour(1));
         f.AjouterSortie("Loyer", LeJour(5));
@@ -160,12 +185,43 @@ public class FinancesTests
         var vue = new VueModeleFinances(f.Composition);
         vue.FiltrerCommand.Execute(filtre);
 
-        Assert.Equal(entrees, vue.MontrerEntrees);
-        Assert.Equal(sorties, vue.MontrerSorties);
+        var lignes = vue.Groupes.SelectMany(g => g.Lignes).Select(l => l.Titre).ToList();
 
-        // Le filtre masque, il ne recharge pas : les deux listes restent peuplées.
-        Assert.Single(vue.Entrees);
-        Assert.Single(vue.Sorties);
+        Assert.Equal([attendu], lignes);
+    }
+
+    [Theory]
+    [InlineData(FiltreFinances.Tout, true)]
+    [InlineData(FiltreFinances.Envies, true)]
+    [InlineData(FiltreFinances.Entrees, false)]
+    [InlineData(FiltreFinances.Sorties, false)]
+    [InlineData(FiltreFinances.ParCategorie, false)]
+    public void Les_envies_ne_s_affichent_plus_partout(FiltreFinances filtre, bool attendu)
+    {
+        // Dans « Entrées » ou « Sorties », le panneau des envies mangeait 270 px sans rapport
+        // avec ce qu'on regarde (D-028).
+        using var f = new FabriquePresentation();
+        var vue = new VueModeleFinances(f.Composition);
+
+        vue.FiltrerCommand.Execute(filtre);
+
+        Assert.Equal(attendu, vue.MontrerEnvies);
+    }
+
+    [Fact]
+    public void Le_budget_projete_est_une_sous_vue_de_Finances_et_non_un_onglet()
+    {
+        // D-028 : la spec n'en a jamais fait un onglet — c'était la maquette.
+        Assert.DoesNotContain(ElementNav.Principales(), n => n.Zone == Zone.BudgetProjete);
+
+        using var f = new FabriquePresentation();
+        var coquille = f.Coquille();
+        coquille.Aller(Zone.Finances);
+
+        var sousVue = Assert.Single(coquille.SousVues, s => s.Titre == "Budget projeté");
+        coquille.ChoisirSousVueCommand.Execute(sousVue);
+
+        Assert.True(coquille.Finances.MontrerProjection);
     }
 
     [Fact]

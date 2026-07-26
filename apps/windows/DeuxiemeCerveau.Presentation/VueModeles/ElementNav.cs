@@ -8,6 +8,12 @@ public enum Zone
     Aujourdhui,
     Calendrier,
     Finances,
+
+    /// <summary>
+    /// Conservée pour ne pas casser les liens existants (mode outil <c>--vue</c>, tests), mais ce
+    /// n'est plus une entrée de la barre du haut : le budget projeté est une sous-vue de Finances
+    /// depuis D-028. La spec n'en a jamais fait un onglet — c'était la maquette.
+    /// </summary>
     BudgetProjete,
     Projets,
     Notes,
@@ -53,11 +59,6 @@ public sealed partial class ElementNav : ObservableObject
             Titre = "Finances", Zone = Zone.Finances,
             Trace = "M2.5 10a7.5 7.5 0 1 0 15 0a7.5 7.5 0 1 0-15 0",
             Trace2 = "M3 10h14M10 3v14",
-        },
-        new()
-        {
-            Titre = "Budget projeté", Zone = Zone.BudgetProjete,
-            Trace = "M3 16V9M8 16V5M13 16v-4M18 16H2",
         },
         new()
         {

@@ -239,3 +239,38 @@ suite maintenant.** Pour l'Étape 5, poser les deux questions séparément sur c
   invisible, sans erreur — d'où `ObjetVersVisibilite` / `ObjetAbsentVersVisibilite`.
 - **Un modèle de vue qui avale le `ResultatSaisie` d'un rejet** donne un bouton qui ne fait rien
   sans le dire. Toujours regarder le résultat et le porter à l'écran.
+
+## 10. Quatre corrections d'architecture d'information (D-028)
+
+Demandées par l'utilisateur après usage réel. Aucune n'ajoute de donnée.
+
+1. **« Budget projeté » n'est plus un onglet** — c'est une sous-vue de Finances. La spec n'en a
+   jamais fait un onglet : c'était la maquette. Écart assumé, comme D-021. **L'app Apple doit
+   reprendre la même structure.**
+2. **Les envies ne s'affichent plus partout** — seulement en vue d'ensemble et dans leur propre
+   sous-vue. En regard, « Entrées » et « Sorties » groupent par catégorie de leur seul sens.
+3. **Les sept prochains jours sont une grille** de sept colonnes, plus une liste. §5.4 précisé.
+4. **Un projet a sa vue calendrier** dans l'onglet Projets. §5.3 précisé.
+
+### Le piège le plus coûteux de la session
+
+Un convertisseur utilisé dans une vue **sans être déclaré dans ses ressources** lève
+« Cannot find a resource with the given key » **à l'exécution**, ce qui interrompt
+`Bindings.Initialize()` et laisse **TOUTE la vue non liée**. La vue Finances a tourné ainsi
+plusieurs heures : le mois n'apparaissait plus dans l'entête, et rien ne le signalait à l'écran.
+
+Le fichier `Coquille.xaml` documentait déjà exactement ce piège, en tête. Il a quand même été
+repayé — parce que **le contrôle des erreurs cherchait au mauvais endroit** : le motif de date
+utilisé pour lire `demarrage.log` (`T0[4-9]`) ne couvrait pas les heures de l'après-midi, et
+rendait « 0 erreur » sur un journal qui en contenait trente.
+
+**Deux réflexes à garder :**
+- Après toute édition de XAML, vérifier que chaque `{StaticResource}` est déclaré. Un balayage
+  suffit et prend une seconde :
+
+```bash
+python3 -c "import re,glob,io,os; j=set(re.findall(r'x:Key=\"([^\"]+)\"', io.open('apps/windows/DeuxiemeCerveau.Windows/Ressources/Jetons.xaml',encoding='utf-8').read())); [print(os.path.basename(f), sorted({m for m in re.findall(r'\{StaticResource (\w+)\}', io.open(f,encoding='utf-8').read())} - set(re.findall(r'x:Key=\"([^\"]+)\"', io.open(f,encoding='utf-8').read())) - j)) for f in glob.glob('apps/windows/DeuxiemeCerveau.Windows/Vues/*.xaml')]"
+```
+
+- Lire `demarrage.log` en comparant le **nombre de lignes avant / après** le lancement, jamais en
+  filtrant sur une heure écrite à la main.

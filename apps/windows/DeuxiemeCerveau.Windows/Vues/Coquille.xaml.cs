@@ -20,6 +20,15 @@ public sealed partial class Coquille : UserControl
             if (args.PropertyName == nameof(VueModeleCoquille.Zone)) Basculer();
         };
 
+        // Le budget projeté est une sous-vue de Finances (D-028) : changer de sous-vue change donc
+        // la vue hébergée, sans changer de zone.
+        modele.Finances.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName == nameof(VueModeleFinances.MontrerProjection)
+                && Modele.Zone == Zone.Finances)
+                Basculer();
+        };
+
         modele.Onboarding.Termine += () =>
         {
             _onboarding = null;
@@ -49,10 +58,15 @@ public sealed partial class Coquille : UserControl
             return;
         }
 
-        if (!_vues.TryGetValue(Modele.Zone, out var vue))
+        // Finances porte deux vues : ses listes, et le budget projeté (D-028).
+        var cle = Modele.Zone == Zone.Finances && Modele.Finances.MontrerProjection
+            ? Zone.BudgetProjete
+            : Modele.Zone;
+
+        if (!_vues.TryGetValue(cle, out var vue))
         {
-            vue = Fabriquer(Modele.Zone);
-            _vues[Modele.Zone] = vue;
+            vue = Fabriquer(cle);
+            _vues[cle] = vue;
         }
 
         Hote.Content = vue;

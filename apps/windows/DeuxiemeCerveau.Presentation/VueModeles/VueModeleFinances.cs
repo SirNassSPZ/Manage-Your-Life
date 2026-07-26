@@ -6,7 +6,20 @@ using DeuxiemeCerveau.Core.Modele;
 namespace DeuxiemeCerveau.Presentation.VueModeles;
 
 /// <summary>Sous-vue active de la zone Finances — un filtre sur la même liste, pas un autre écran.</summary>
-public enum FiltreFinances { Tout, Entrees, Sorties, ParCategorie }
+public enum FiltreFinances
+{
+    /// <summary>Vue d'ensemble : les deux listes, plus les envies.</summary>
+    Tout,
+    Entrees,
+    Sorties,
+    ParCategorie,
+
+    /// <summary>La liste de souhaits seule. La sous-vue existait, mais retombait sur « Tout ».</summary>
+    Envies,
+
+    /// <summary>Budget projeté — sous-vue de Finances depuis D-028, plus un onglet à part.</summary>
+    Projection,
+}
 
 /// <summary>
 /// Un groupe pliable de la vue « Par catégorie ». C'est de la <b>mise en forme sur des données déjà
@@ -192,6 +205,7 @@ public sealed partial class VueModeleFinances : ObservableObject
     private void Filtrer(FiltreFinances filtre)
     {
         Filtre = filtre;
+        // Recharger : les groupes dépendent du filtre, et le mois affiché n'a pas changé.
         Charger();
     }
 
@@ -290,7 +304,8 @@ public sealed partial class VueModeleFinances : ObservableObject
             else if (confirmable) aValider++;
         }
 
-        ConstruireGroupes(categories);
+        _categoriesConnues = categories;
+        ConstruireGroupes();
         AppliquerFiltre();
 
         TotalEntrees = Format.EurosSigne(sommeEntrees, Sens.Entree);
@@ -353,11 +368,21 @@ public sealed partial class VueModeleFinances : ObservableObject
     /// étiquettes de liste, pas des projections (règle 9).
     /// </para>
     /// </summary>
-    private void ConstruireGroupes(IReadOnlyList<Categorie> categories)
+    private IReadOnlyList<Categorie> _categoriesConnues = [];
+
+    private void ConstruireGroupes()
     {
         Groupes.Clear();
+        var categories = _categoriesConnues;
 
-        var lignes = Toutes().ToList();
+        // Le groupement porte sur ce que la sous-vue montre : « Entrées » ne range que des
+        // entrées. Grouper tout le mois sous un intitulé « Entrées » serait un mensonge.
+        var lignes = (Filtre switch
+        {
+            FiltreFinances.Entrees => Entrees.AsEnumerable(),
+            FiltreFinances.Sorties => Sorties,
+            _ => Toutes(),
+        }).ToList();
         var connues = categories.ToDictionary(c => c.Id);
 
         // Les catégories d'abord, dans leur ordre de lecture ; « Sans catégorie » fermant la marche.
@@ -498,11 +523,33 @@ public sealed partial class VueModeleFinances : ObservableObject
         OnPropertyChanged(nameof(MontrerGroupes));
         OnPropertyChanged(nameof(AucunGroupe));
         OnPropertyChanged(nameof(MontrerVide));
+        OnPropertyChanged(nameof(MontrerEnvies));
+        OnPropertyChanged(nameof(MontrerProjection));
+        OnPropertyChanged(nameof(MontrerListes));
     }
 
-    public bool MontrerEntrees => Filtre is FiltreFinances.Tout or FiltreFinances.Entrees;
-    public bool MontrerSorties => Filtre is FiltreFinances.Tout or FiltreFinances.Sorties;
-    public bool MontrerGroupes => Filtre is FiltreFinances.ParCategorie;
+    /// <summary>Les deux listes plates : seulement en vue d'ensemble.</summary>
+    public bool MontrerEntrees => Filtre is FiltreFinances.Tout;
+    public bool MontrerSorties => Filtre is FiltreFinances.Tout;
+
+    /// <summary>Vrai quand une des deux listes plates s'affiche.</summary>
+    public bool MontrerListes => MontrerEntrees || MontrerSorties;
+
+    /// <summary>
+    /// « Entrées » et « Sorties » sont désormais des vues GROUPÉES par catégorie de leur seul sens
+    /// (D-028) : la place libérée par le panneau des envies sert enfin à quelque chose.
+    /// </summary>
+    public bool MontrerGroupes =>
+        Filtre is FiltreFinances.ParCategorie or FiltreFinances.Entrees or FiltreFinances.Sorties;
+
+    /// <summary>
+    /// Les envies ne s'affichent plus partout (D-028) : elles n'ont rien à voir avec ce qu'on
+    /// regarde dans « Entrées » ou « Sorties », où elles mangeaient 270 px pour rien.
+    /// </summary>
+    public bool MontrerEnvies => Filtre is FiltreFinances.Tout or FiltreFinances.Envies;
+
+    /// <summary>Le budget projeté est une sous-vue de Finances depuis D-028.</summary>
+    public bool MontrerProjection => Filtre is FiltreFinances.Projection;
     public bool AucunGroupe => Groupes.Count == 0;
 
     /// <summary>

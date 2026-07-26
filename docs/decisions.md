@@ -411,3 +411,32 @@ Elle rend **les deux cascades**, pas un booléen : l'app doit pouvoir montrer l'
 Un projet sans ses tâches n'est qu'une étiquette : la tâche entre donc en V1. Mais l'onglet to-do autonome (I-004) reste V2, et l'utilisateur ne l'a pas demandé ici.
 
 La frontière est posée pour être **contrôlable par une assertion**, pas par du jugement : **en V1, une `tache` porte toujours un `projet_id`.** Une tâche sans projet est refusée par le cœur. Le jour où I-004 est décidé, la règle saute — et c'est un seul endroit.
+
+## D-028 — Quatre corrections d'architecture d'information
+**Statut : à valider** · Étape 4k · demandées par l'utilisateur après usage réel · spec §5.1, §5.3, §5.4
+
+Quatre demandes qui portent sur **où les choses vivent**, pas sur ce qu'elles calculent. Aucune n'ajoute de donnée : ce sont les mêmes occurrences, lues autrement.
+
+### 1. « Budget projeté » cesse d'être un onglet — écart avec la MAQUETTE, pas avec la spec
+
+**La spec ne fait nulle part du budget projeté un onglet.** Le §5.1 le traite comme une lecture des **finances** ; c'est `docs/maquette.html` qui lui a donné une entrée dans la barre du haut, et le code a suivi. Or la projection répond à la même question que le reste de Finances — « où va mon argent » — et un onglet séparé oblige à faire l'aller-retour entre deux écrans pour comparer un mois et sa projection.
+
+Il devient donc une **sous-vue de Finances**, aux côtés de « Vue d'ensemble », « Entrées », « Sorties » et « Par catégorie ». La barre du haut perd une entrée et gagne en lisibilité.
+
+**C'est un écart assumé avec la maquette, comme D-021** : la maquette reste la référence de ton et de palette, pas un plan d'architecture d'information figé. **L'app Apple doit reprendre la même structure** — une divergence d'IA entre les deux apps serait le risque n° 1 sous une autre forme.
+
+### 2. Les envies ne s'affichent plus partout
+
+Le panneau « Envies d'achat » se montrait dans **toutes** les sous-vues de Finances, y compris « Entrées » et « Sorties » où il n'a rien à voir avec ce qu'on regarde. Il occupait 270 px de la largeur pour rien.
+
+Il ne s'affiche plus que dans « Vue d'ensemble » et dans sa propre sous-vue « Envies d'achat » — laquelle était **déclarée dans la barre latérale mais retombait sur « Tout » ** (le même défaut que « Par catégorie » avant D-025). En regard, « Entrées » et « Sorties » gagnent le **groupement par catégorie de leur seul sens**, ce que la place libérée permet enfin.
+
+### 3. Les sept prochains jours passent en grille
+
+Le §5.4 dit « inspiré d'Apple Calendar » et la maquette montre un segment « Mois · Semaine · Jour ». La vue livrée était une **liste de jours empilés** : on ne lit pas une semaine en la faisant défiler. Elle devient une grille de sept colonnes, même grammaire visuelle que la grille du mois. Le §5.4 a été précisé en conséquence.
+
+### 4. Un projet a sa vue calendrier
+
+Le filtre du calendrier principal (§5.4) répond à « qu'est-ce qui arrive cette semaine, tous sujets confondus ». Il ne répond pas à « où en est ce projet dans le temps », qui demande de ne voir **que** lui. Le §5.3 a été précisé : la vue calendrier du projet est une lecture de plus sur les mêmes occurrences, filtrée sur le calendrier du projet.
+
+**Aucune entité, aucun champ, aucune migration** pour les quatre.

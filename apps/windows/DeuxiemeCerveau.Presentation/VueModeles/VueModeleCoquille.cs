@@ -140,6 +140,8 @@ public sealed partial class VueModeleCoquille : ObservableObject
                     "Entrées" => FiltreFinances.Entrees,
                     "Sorties" => FiltreFinances.Sorties,
                     "Par catégorie" => FiltreFinances.ParCategorie,
+                    "Envies d'achat" => FiltreFinances.Envies,
+                    "Budget projeté" => FiltreFinances.Projection,
                     _ => FiltreFinances.Tout,
                 });
                 break;
@@ -309,6 +311,9 @@ public sealed partial class VueModeleCoquille : ObservableObject
             new() { Titre = "Sorties", Trace = "M10 13V4M6 8l4-4 4 4M4 16h12" },
             new() { Titre = "Par catégorie", Trace = "M3 10a7 7 0 1 0 14 0a7 7 0 1 0-14 0", Trace2 = "M10 10V3M10 10l6 3.5" },
             new() { Titre = "Envies d'achat", Trace = "M10 16S3.5 12 3.5 7.5A3.3 3.3 0 0 1 10 5a3.3 3.3 0 0 1 6.5 2.5C16.5 12 10 16 10 16z" },
+            // Le budget projeté n'est plus un onglet (D-028) : il répond à la même question que
+            // le reste de Finances, et l'aller-retour entre deux écrans empêchait de comparer.
+            new() { Titre = "Budget projeté", Trace = "M3 16V9M8 16V5M13 16v-4M18 16H2" },
             new() { Titre = "Enveloppes", EstV2 = true, Trace = "M5 5h10a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z", Trace2 = "M3.5 6l6.5 5 6.5-5" },
         ],
         _ => [],
