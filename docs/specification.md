@@ -1,4 +1,4 @@
-# Deuxième Cerveau — Spécification technique v3.2
+# Deuxième Cerveau — Spécification technique v3.3
 
 *Document de référence — cahier des charges pour la génération du code.*
 
@@ -129,8 +129,15 @@ Un objectif de vie (*commencer le MMA*, *arrêter de fumer*, *étudier pour les 
 
 **NON NÉGOCIABLE : catégorie = label = calendrier.** Une seule notion, un seul système.
 - `id`, `nom`, `couleur`, `origine` : `transversale` | `projet`.
+- `ordre` : entier **facultatif** — rang d'affichage choisi par l'utilisateur. Absent, le classement se fait par nom.
+- `icone` : texte court **facultatif** — un pictogramme qui rend la liste lisible d'un coup d'œil.
 - Chaque catégorie est un filtre affichable/masquable du calendrier principal.
 - Catégories de départ livrées : école, santé, psychologie, sport, productivité, justice.
+
+> `ordre` et `icone` sont des **ajouts additifs** (migration 004, règle 18) : ils ne changent ni la
+> sémantique de la catégorie ni son rôle de calendrier. Le **repli** d'un groupe dans une liste
+> n'est **pas** un champ : c'est une préférence d'affichage locale à chaque appareil, hors du
+> schéma synchronisé — comme la mémoire des filtres masqués.
 
 ### 3.4 Réglage : le solde de référence
 
@@ -139,6 +146,10 @@ Un objectif de vie (*commencer le MMA*, *arrêter de fumer*, *étudier pour les 
 - `solde_reference_date` : date (UTC).
 
 L'utilisateur le saisit une fois (« aujourd'hui, j'ai X € ») et peut le **recaler** à tout moment — le recalage est l'unique geste de correction si la réalité et la projection s'écartent. Ce réglage est synchronisé comme le reste (dernier recalage gagne, historique conservé au journal).
+
+**Ce que le solde de référence n'est pas — et ce que les apps doivent montrer.** C'est un **point de départ daté**, pas le solde courant : il ne bouge **jamais** quand on saisit une facture ou un revenu, seulement au recalage. C'est correct, et c'est aussi trompeur si on l'affiche en gros comme s'il représentait l'argent d'aujourd'hui — l'utilisateur voit alors un chiffre immobile dont il ne comprend pas ce qu'il mesure.
+
+**Les deux apps affichent donc le solde courant** (§5.1), qui découle des Éléments saisis, et reléguent le solde de référence au rang de mention secondaire, **accompagné de sa date** (« point de départ, posé le 12 juillet »). Un poste sans aucun Élément et dont la référence vaut 0 affiche donc **0**, pas un nombre venu d'ailleurs.
 
 ### 3.5 Règles de temps — NON NÉGOCIABLES
 
@@ -183,6 +194,13 @@ Cette répartition est le principal garde-fou contre la divergence des deux apps
 
 ## 5. Modules fonctionnels
 
+**Conventions d'architecture d'information — à l'identique dans les deux apps.** Elles ne décrivent pas un dessin, mais *où l'utilisateur trouve les choses*. Une divergence sur ce point est le risque n° 1 sous une autre forme.
+
+- **Ce qui liste et ce qui navigue va dans la colonne latérale** ; la zone principale est réservée à ce qu'on lit ou saisit. La liste des notes, la liste des projets, les filtres de calendrier y vivent donc, et non au milieu de l'écran.
+- **On ajoute depuis l'endroit où la chose vit.** Chaque section porte son propre geste d'ajout — un « + » à côté de son intitulé — plutôt qu'un unique bouton global qui obligerait ensuite à choisir de quoi il s'agit. La section sait déjà ce qu'on veut y créer.
+- **Ce qui est affiché se modifie.** Tout Élément visible s'ouvre d'un clic pour être corrigé ou supprimé (corbeille, §5.6). Une donnée qu'on peut créer sans pouvoir la reprendre est un piège : l'utilisateur n'a plus que la suppression pour corriger une faute de frappe.
+- **Réglages et compte se rangent en bas de la colonne latérale**, à l'écart de ce qu'on manipule tous les jours.
+
 ### 5.1 Finances (V1)
 
 **Sources de revenu** — entrée unique ou récurrente (RRULE). **Sorties** — paiements ponctuels, factures, paiements récurrents. **Liste d'achats souhaités** — envies d'achat par catégories, **confrontables au budget projeté (V1, §5.1bis)**.
@@ -199,6 +217,18 @@ Cette répartition est le principal garde-fou contre la divergence des deux apps
 6. **Jamais stocké** : la projection est calculée à la lecture. **NON NÉGOCIABLE.**
 
 *Résultat pour l'utilisateur : « à la fin de tel mois, il me restera tant », mois par mois, avec les mois rouges visibles d'un coup d'œil.*
+
+**Le solde courant — le chiffre que l'utilisateur lit en premier.**
+
+La cascade ci-dessus rend des **clôtures de mois**. Il manquait le chiffre le plus simple et le plus demandé : *combien j'ai, maintenant.*
+
+- **Définition** : le solde de référence (§3.4), plus toutes les occurrences financières dont l'instant tombe **entre la date de référence et l'instant demandé**. C'est le point de la cascade §5.1 à cet instant précis — **la même arithmétique, arrêtée plus tôt**, et surtout pas un second algorithme.
+- **Mêmes exclusions que la projection**, sans exception : Éléments `annule`, Éléments en corbeille, financiers sans date ou sans montant — et **les envies, toujours** (§5.1bis).
+- **Vit dans l'API**, à côté de la projection et pour la même raison (§4) : une arithmétique de cascade écrite deux fois divergerait d'un centime. Rendu par `GET /projection/budget` (§8).
+- **Jamais stocké. NON NÉGOCIABLE** — même règle que la projection (règle 9).
+- **Sans point de départ, pas de solde courant** : tant que le solde de référence n'est pas posé, l'app dit qu'elle ne sait pas, elle n'affiche pas zéro. Un zéro affirmé serait un mensonge ; « je ne sais pas encore » est une information juste.
+
+*Résultat pour l'utilisateur : le grand chiffre de l'accueil bouge à chaque saisie, et ce qu'il mesure se comprend sans explication.*
 
 ### 5.1bis Confrontation d'une envie au budget projeté (V1)
 
@@ -237,6 +267,8 @@ Un objectif de vie qu'on poursuit dans le temps (*commencer le MMA*, *arrêter d
 - **Calendrier dédié devenant filtre automatique** du calendrier principal (§5.4) — sans que l'utilisateur ait à créer quoi que ce soit.
 - **Vue calendrier du projet, depuis l'onglet Projets.** Le filtre du calendrier principal répond à « qu'est-ce qui arrive cette semaine, tous sujets confondus ». Il ne répond pas à « où en est ce projet dans le temps », qui demande de ne voir *que* lui. Les deux lectures portent sur les mêmes occurrences ; aucune donnée de plus.
 - **Fermeture** (§3.2, déjà implémentée dans le cœur) : quand un projet passe `termine` ou `en_pause`, ses tâches `a_faire` passent en `reporte`. Rien n'est perdu, rien ne pollue les vues actives. Son calendrier-filtre reste disponible, désactivé par défaut.
+- **Suppression — le calendrier suit le projet.** Créer un projet crée **aussi** son calendrier ; le mettre à la corbeille doit donc **y mettre aussi son calendrier**, et le renommer doit le renommer. Sans cette symétrie, le calendrier d'un projet supprimé survit dans la liste des filtres, sans rien à filtrer et sans moyen de s'en débarrasser — puisqu'un calendrier de projet ne se gère pas à la main (§5.4).
+- **Fermer n'est pas supprimer**, et la différence est volontaire : à la fermeture le calendrier **reste** (désactivé par défaut) parce que le projet et son histoire existent toujours ; à la suppression il **part**, parce que le projet part.
 
 **Ce qui reste V2 :** le score, les templates de planning, et les listes de tâches **hors projet** (§5.2).
 
@@ -253,6 +285,9 @@ Onglet à part entière, inspiré d'Apple Calendar.
 Onglet brouillon : espace de texte libre, sans structure imposée.
 - Une note = Élément `type = note` (texte dans `description`, ni date ni montant requis).
 - Mêmes garanties de synchro que tout Élément : un brouillon ne se perd jamais.
+- **La zone de texte est une boîte de capture, pas un document ouvert.** Enregistrer **vide toujours** la zone : la note rejoint la liste, et la zone revient vierge pour la suivante. Cela vaut aussi quand on a rouvert une note existante pour la corriger. Un texte qui reste après enregistrement laisse croire qu'il n'est pas parti — et pousse à le retaper.
+- **Le vidage suit l'écriture, il ne la précède jamais** : si l'enregistrement est refusé, le texte reste. Vider avant d'avoir écrit perdrait la note.
+- Les notes déjà prises se consultent dans une **liste**, d'où on peut en rouvrir une.
 - **V3 :** conversion d'une note en Élément typé (« payer loyer 800€ le 5 » → facture pré-remplie). En V1 : simple espace texte, aucune intelligence.
 
 ### 5.6 Corbeille (V1)
@@ -340,7 +375,7 @@ Hébergement : **Azure Functions** (plan Consommation) — chaque route ci-desso
 | `POST /sync/push` | Reçoit un lot d'outbox ; idempotent ; atomique ; renvoie les `change_id` confirmés + conflits archivés |
 | `GET /sync/pull?since={seq}` | Renvoie les Éléments/catégories/projets modifiés depuis le curseur, **les purges (§5.6)**, + nouveau curseur |
 | `POST /purge` | Purge définitive depuis la corbeille (§5.6) ; idempotente ; atomique ; refusée si l'entité a été restaurée ou est inconnue |
-| `GET /projection/budget?mois=12` | Renvoie la projection mensuelle (§5.1) : ouverture, entrées, sorties, clôture par mois |
+| `GET /projection/budget?mois=12` | Renvoie la projection mensuelle (§5.1) : ouverture, entrées, sorties, clôture par mois — **et le `solde_courant_centimes`** à l'instant de l'appel (§5.1), `null` tant que le solde de référence n'est pas posé |
 | `GET /projection/confrontation?montant_centimes={n}&mois_cible={AAAA-MM}&mois={12}` | Confronte un montant au budget projeté (§5.1bis) : les deux cascades, le verdict, et le premier mois qui casse. **Lecture pure — n'écrit rien.** |
 | `PUT /settings/solde-reference` | Recale le solde de référence (§3.4) |
 | `GET /attachments/upload-url` | URL SAS d'envoi |
@@ -392,6 +427,8 @@ CREATE TABLE categories (
   nom NVARCHAR(100) NOT NULL,
   couleur CHAR(7) NOT NULL,
   origine NVARCHAR(15) NOT NULL,                 -- transversale | projet
+  ordre INT NULL,                                -- rang d'affichage choisi (§3.3, migration 004)
+  icone NVARCHAR(16) NULL,                       -- pictogramme (§3.3, migration 004)
   -- + mêmes champs d'audit/synchro que elements
 );
 
@@ -583,5 +620,7 @@ Agencement automatique des tâches (optimisation sous contraintes — en dernier
 
 ## Historique des révisions
 
+- **v3.3 (2026-07-26)** — Issue de l'usage réel de l'app Windows (12 demandes de l'utilisateur, décision D-030). **Solde courant** (§5.1, §8) : le chiffre que l'utilisateur lit en premier découle désormais des Éléments saisis, et le solde de référence est explicitement remis à sa place de point de départ (§3.4) — c'est lui qu'on lisait comme « son argent », immobile et incompréhensible. **Catégories** : `ordre` et `icone`, facultatifs (§3.3, §9, migration 004 additive). **Note libre** : boîte de capture, la zone se vide à l'enregistrement (§5.5). **Projets** : supprimer un projet emporte son calendrier, le renommer le renomme (§5.3). **Conventions d'architecture d'information** communes aux deux apps (§5).
+  *Note : les élargissements V1 de D-027 (projets, confrontation) et les corrections d'IA de D-028 avaient été intégrés au texte sans bump de version — ils font partie de cette v3.3.*
 - **v3.2 (2026-07-23)** — La purge manuelle est arbitrée par le serveur et propagée : route `POST /purge` (§8), pierre tombale `purges` et caviardage du journal (§5.6, §9), refus `refuse_purge` des changements retardataires (§6.2). Comble l'absence de propagation de la purge dans le contrat v3.1 (question Q-001, décision D-010 de `docs/decisions.md`).
 - **v3.1** — Version de référence initiale du dépôt.

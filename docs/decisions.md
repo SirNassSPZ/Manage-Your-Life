@@ -520,6 +520,66 @@ Le filtre du calendrier principal (§5.4) répond à « qu'est-ce qui arrive cet
 
 **Aucune entité, aucun champ, aucune migration** pour les quatre.
 
+## D-030 — Le solde courant, et cinq précisions issues de l'usage réel
+**Statut : décidée par l'utilisateur** (2026-07-26) · **modifie la spec** §3.3, §3.4, §5, §5.1, §5.3, §5.5, §8, §9 → **v3.3** · première application de D-029
+
+Douze demandes consignées après usage réel de l'app Windows. Cinq relèvent de la mise en œuvre pure ;
+celles qui touchent au **comportement** sont ici, et la spec a été modifiée **avant** tout code.
+
+### Le solde courant — pourquoi le point 8 n'était pas un problème d'arithmétique
+
+L'utilisateur signalait « 700 € bloqué, je ne sais pas ce que ça représente ». **Aucun montant
+n'était codé en dur.** Deux causes se superposaient :
+
+1. **Le grand chiffre de l'accueil était le solde de référence.** Il est immobile *par conception*
+   (§3.4) : un point d'ancrage daté qui ne bouge qu'au recalage. L'afficher en grand le faisait
+   passer pour « mon argent », et le voir figé après dix saisies était incompréhensible — à raison.
+2. **Rien ne parvenait à celui qui calcule.** La projection vit dans l'API (règle 9), et
+   l'application **ne synchronisait jamais** (voir le commit du moteur de synchro). Les saisies
+   restaient sur le poste ; le serveur projetait sur une base vide.
+
+**Retenu : le grand chiffre devient le solde courant** — référence + occurrences de la date de
+référence à maintenant. Le solde de référence passe en mention secondaire **avec sa date**.
+
+**Ce que ce n'est pas : un second algorithme.** C'est la cascade du §5.1 **arrêtée plus tôt**.
+Deux arithmétiques de cascade écrites séparément divergeraient d'un centime, et il faudrait alors
+décider laquelle a raison. D'où le calcul **dans l'API**, rendu par la route de projection
+existante plutôt que par une nouvelle.
+
+**Le garde-fou des envies vaut pour lui aussi.** Une envie n'entre jamais dans la projection
+nominale (D-027) — donc jamais dans le solde courant. C'est ce que demandait « ne rien inventer sur
+les envies d'achat ». Le garde-fou étant une *exclusion de calcul* et non une interdiction de champ,
+il est fragile : il se défend par des tests explicites, pas par relecture.
+
+**Sans référence, on dit qu'on ne sait pas.** Afficher 0 tant que le solde de référence n'est pas
+posé serait une affirmation fausse. « Je ne sais pas encore » est une information juste.
+
+### Les quatre autres précisions
+
+- **§3.3 — `ordre` et `icone` sur la catégorie**, facultatifs, **migration 004 additive** (règle 18).
+  Le **repli** d'un groupe n'est délibérément **pas** un champ : c'est une préférence locale
+  d'affichage, comme la mémoire des filtres masqués. Y mettre une colonne synchronisée ferait
+  voyager entre appareils un état qui ne regarde que l'écran devant soi.
+- **§5.5 — la note est une boîte de capture.** Enregistrer vide **toujours** la zone, correction
+  d'une note rouverte comprise. Le vidage suit l'écriture confirmée et ne la précède jamais : vider
+  avant d'avoir écrit perdrait la note si l'enregistrement était refusé.
+- **§5.3 — supprimer un projet emporte son calendrier.** L'asymétrie était un vrai défaut : `Creer`
+  créait les deux, `SupprimerProjet` n'en supprimait qu'un, et le calendrier orphelin restait dans
+  les filtres — sans rien à filtrer et sans moyen de s'en défaire, puisqu'un calendrier de projet
+  ne se gère pas à la main. **Fermer** reste distinct de **supprimer** : à la fermeture le
+  calendrier reste, désactivé.
+- **§5 — quatre conventions d'architecture d'information** communes aux deux apps : les listes vont
+  en colonne latérale, on ajoute depuis la section concernée, **tout ce qui est affiché se
+  modifie**, réglages et compte en bas. D-028 ayant retiré à la maquette son rôle de plan d'IA,
+  ce sont des précisions ordinaires — mais elles **lient l'app iOS à l'identique**.
+
+### Ce que cette décision doit à D-029
+
+C'est la première application du plan « Windows fini et amélioré, puis iOS ». Le danger propre à ce
+plan est la **dérive documentaire** : entre les deux apps, la spec est le seul pont. Ces six
+modifications ont donc été écrites **avant** la moindre ligne de code, et c'est cette discipline —
+non le code livré — qui rendra l'app iOS réalisable.
+
 ## Q-003 — Question ouverte : les catégories doivent-elles compter, et pas seulement classer ?
 **Statut : ouverte** (2026-07-26) · soulevée par l'utilisateur en validant D-025 · spec §3.3, §3.6, §5.1, §13
 
