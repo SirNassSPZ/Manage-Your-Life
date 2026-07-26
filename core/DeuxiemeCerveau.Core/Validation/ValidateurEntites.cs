@@ -11,6 +11,14 @@ public static partial class ValidateurEntites
     public const int NomBudgetLongueurMax = 100;
     public const int NomFichierLongueurMax = 255;
 
+    /// <summary>
+    /// Largeur de la colonne <c>icone NVARCHAR(16)</c> (§9, migration 004). Comptée en unités
+    /// UTF-16 des deux côtés — <c>string.Length</c> et <c>NVARCHAR</c> comptent la même chose —,
+    /// donc un pictogramme hors du plan de base (une émoji, 2 unités) est mesuré ici exactement
+    /// comme la base le mesurera : refus explicite plutôt que troncature silencieuse à l'INSERT.
+    /// </summary>
+    public const int IconeLongueurMax = 16;
+
     [GeneratedRegex("^#[0-9A-Fa-f]{6}$")]
     private static partial Regex FormatCouleur();
 
@@ -21,6 +29,12 @@ public static partial class ValidateurEntites
             erreurs.Add(new("id", "id_manquant", "Identifiant obligatoire."));
         ValiderNom(erreurs, c.Nom, NomCategorieLongueurMax);
         ValiderCouleur(erreurs, c.Couleur);
+        // « ordre » et « icone » sont facultatifs (§3.3) : leur absence n'est jamais une erreur.
+        // Aucune contrainte de signe ni d'unicité sur « ordre » — la spec n'en pose pas, et un
+        // rang dupliqué se départage par le nom, comme une catégorie sans rang.
+        if (c.Icone is { Length: > IconeLongueurMax })
+            erreurs.Add(new("icone", "icone_trop_longue",
+                $"Pictogramme limité à {IconeLongueurMax} caractères (§9)."));
         erreurs.AddRange(ValidateurAudit.Valider(c));
         return erreurs;
     }

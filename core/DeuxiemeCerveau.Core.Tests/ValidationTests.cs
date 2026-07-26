@@ -414,6 +414,43 @@ public class ValidateurEntitesTests
     [Fact]
     public void Categorie_valide() => Assert.Empty(ValidateurEntites.Valider(Fabrique.Categorie()));
 
+    /// <summary>
+    /// « ordre » et « icone » sont facultatifs (§3.3, v3.3) : absents comme présents, une
+    /// catégorie reste valide. Un rang négatif ou dupliqué n'est pas une erreur — la spec ne pose
+    /// aucune contrainte de signe, et le classement retombe sur le nom.
+    /// </summary>
+    [Theory]
+    [InlineData(null, null)]
+    [InlineData(0, null)]
+    [InlineData(-1, "🏅")]
+    [InlineData(42, "école")]
+    public void Ordre_et_icone_facultatifs(int? ordre, string? icone)
+        => Assert.Empty(ValidateurEntites.Valider(Fabrique.Categorie(ordre: ordre, icone: icone)));
+
+    [Fact]
+    public void Icone_trop_longue_rejetee()
+    {
+        // La colonne est NVARCHAR(16) (§9) : 16 unités UTF-16 passent, 17 non — refus explicite
+        // plutôt que troncature silencieuse à l'écriture.
+        Assert.Empty(ValidateurEntites.Valider(
+            Fabrique.Categorie(icone: new string('x', ValidateurEntites.IconeLongueurMax))));
+        Assert.Contains(
+            ValidateurEntites.Valider(
+                Fabrique.Categorie(icone: new string('x', ValidateurEntites.IconeLongueurMax + 1))),
+            e => e.Code == "icone_trop_longue");
+    }
+
+    [Fact]
+    public void Icone_comptee_comme_la_base_compte_les_emojis()
+    {
+        // Une émoji hors du plan de base pèse 2 unités UTF-16, en C# comme en NVARCHAR : 8 passent,
+        // 9 non. C'est la même mesure des deux côtés, donc aucune surprise à l'INSERT.
+        Assert.Empty(ValidateurEntites.Valider(Fabrique.Categorie(icone: string.Concat(Enumerable.Repeat("🏅", 8)))));
+        Assert.Contains(
+            ValidateurEntites.Valider(Fabrique.Categorie(icone: string.Concat(Enumerable.Repeat("🏅", 9)))),
+            e => e.Code == "icone_trop_longue");
+    }
+
     [Theory]
     [InlineData("3366FF")]
     [InlineData("#36F")]

@@ -404,6 +404,30 @@ public class ProcesseurPullTests
         Assert.Equal(page.Curseur, vide.Curseur); // le curseur EST le point de reprise (§6.2)
     }
 
+    /// <summary>
+    /// « ordre » et « icone » (§3.3, v3.3) traversent le tour complet push → journal → pull sans
+    /// être perdus en route : l'aiguillage les porte par le payload canonique, aucun code de
+    /// synchro n'a eu à connaître ces deux champs.
+    /// </summary>
+    [Fact]
+    public void Ordre_et_icone_d_une_categorie_survivent_au_tour_de_synchro()
+    {
+        var avec = Fabrique.Categorie(nom: "sport", ordre: 1, icone: "🏅");
+        var sans = Fabrique.Categorie(nom: "justice");
+        _push.Traiter(Fabrique.Lot(Fabrique.AppareilA,
+            Fabrique.Changement(avec, EntiteSynchro.Categorie),
+            Fabrique.Changement(sans, EntiteSynchro.Categorie)));
+
+        var recues = _pull.Traiter(0).Entites
+            .Select(e => (Categorie)AiguilleurEntites.Deserialiser(e.Entite, e.PayloadCanonique))
+            .ToDictionary(c => c.Nom);
+
+        Assert.Equal(1, recues["sport"].Ordre);
+        Assert.Equal("🏅", recues["sport"].Icone);
+        Assert.Null(recues["justice"].Ordre);
+        Assert.Null(recues["justice"].Icone);
+    }
+
     [Fact]
     public void Pull_pagine_avec_reprise_par_curseur()
     {
