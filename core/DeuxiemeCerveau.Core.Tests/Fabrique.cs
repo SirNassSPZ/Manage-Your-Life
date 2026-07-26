@@ -145,13 +145,19 @@ public static class Fabrique
         };
     }
 
-    public static Categorie Categorie(string nom = "santé")
+    /// <summary>
+    /// Une catégorie valide. <c>ordre</c> et <c>icone</c> sont facultatifs (§3.3, v3.3) : par
+    /// défaut absents, ce qui est le cas de toutes les catégories d'avant la migration 004.
+    /// </summary>
+    public static Categorie Categorie(string nom = "santé", int? ordre = null, string? icone = null)
         => new()
         {
             Id = Guid.NewGuid(),
             Nom = nom,
             Couleur = "#00AA55",
             Origine = OrigineCategorie.Transversale,
+            Ordre = ordre,
+            Icone = icone,
             DateCreation = T0,
             DateModification = T0,
             AppareilSource = AppareilA,

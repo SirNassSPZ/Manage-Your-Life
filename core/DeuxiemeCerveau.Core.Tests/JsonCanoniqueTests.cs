@@ -57,6 +57,85 @@ public class JsonCanoniqueTests
         Assert.Equal(JsonValueKind.Array, racine.GetProperty("rappels").ValueKind);
     }
 
+    // ----- Catégorie (§3.3, v3.3 — « ordre » et « icone » facultatifs) -----
+
+    [Fact]
+    public void Noms_des_champs_de_la_categorie_exactement_conformes_au_3_3()
+    {
+        var categorie = Fabrique.Categorie(ordre: 3, icone: "🩺");
+        categorie.ServerSeq = 12;
+
+        var document = JsonDocument.Parse(SerialisationCanonique.Serialiser(categorie));
+        var noms = document.RootElement.EnumerateObject().Select(p => p.Name).ToHashSet();
+
+        HashSet<string> attendus =
+        [
+            "id", "nom", "couleur", "origine", "ordre", "icone",
+            "date_creation", "date_modification", "appareil_source", "version", "server_seq", "supprime",
+        ];
+        Assert.Equal(attendus.Order(), noms.Order());
+    }
+
+    [Fact]
+    public void Categorie_sans_ordre_ni_icone_les_omet()
+    {
+        var json = SerialisationCanonique.Serialiser(Fabrique.Categorie());
+        var racine = JsonDocument.Parse(json).RootElement;
+
+        // Facultatifs et absents → omis, jamais écrits à null (D-007).
+        Assert.False(racine.TryGetProperty("ordre", out _));
+        Assert.False(racine.TryGetProperty("icone", out _));
+
+        var relue = SerialisationCanonique.Deserialiser<Categorie>(json);
+        Assert.Null(relue.Ordre);
+        Assert.Null(relue.Icone);
+        Assert.Equal(json, SerialisationCanonique.Serialiser(relue));
+    }
+
+    [Fact]
+    public void Aller_retour_d_une_categorie_avec_ordre_et_icone()
+    {
+        var categorie = Fabrique.Categorie(nom: "sport", ordre: 0, icone: "🏅");
+        var json1 = SerialisationCanonique.Serialiser(categorie);
+        var relue = SerialisationCanonique.Deserialiser<Categorie>(json1);
+
+        Assert.Equal(0, relue.Ordre); // rang 0 : une valeur, pas une absence
+        Assert.Equal("🏅", relue.Icone);
+        Assert.Equal(json1, SerialisationCanonique.Serialiser(relue));
+    }
+
+    /// <summary>
+    /// Un appareil encore en schéma 003 écrit des catégories sans ces deux champs : leur absence
+    /// est licite (D-007 ne rejette que les champs <b>inconnus</b>, pas les facultatifs manquants).
+    /// </summary>
+    [Fact]
+    public void Payload_de_categorie_anterieur_a_la_migration_004_reste_lisible()
+    {
+        var categorie = SerialisationCanonique.Deserialiser<Categorie>(CategorieEn003);
+
+        Assert.Equal("santé", categorie.Nom);
+        Assert.Equal(OrigineCategorie.Transversale, categorie.Origine);
+        Assert.Null(categorie.Ordre);
+        Assert.Null(categorie.Icone);
+    }
+
+    /// <summary>
+    /// Le repli d'un groupe n'est pas un champ de la catégorie mais une préférence d'affichage
+    /// locale (§3.3) : s'il arrivait dans un payload, le lot doit échouer bruyamment (D-007).
+    /// </summary>
+    [Fact]
+    public void Champ_inconnu_sur_une_categorie_rejete()
+        => Assert.Throws<JsonException>(() => SerialisationCanonique.Deserialiser<Categorie>(
+            CategorieEn003.Replace("\"version\":1", "\"repli\":true,\"version\":1")));
+
+    private const string CategorieEn003 =
+        """
+        {"id":"11111111-0000-4000-8000-000000000001","nom":"santé","couleur":"#00AA55",
+         "origine":"transversale","date_creation":"2026-07-01T08:00:00Z",
+         "date_modification":"2026-07-01T08:00:00Z",
+         "appareil_source":"aaaaaaaa-0000-0000-0000-000000000001","version":1,"supprime":false}
+        """;
+
     [Theory]
     [InlineData(TypeElement.Facture, "facture")]
     [InlineData(TypeElement.Rendezvous, "rendezvous")]

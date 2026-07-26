@@ -69,6 +69,14 @@ public sealed class CibleSqlite : ICibleMigration, IDisposable
         return colonnes;
     }
 
+    /// <summary>Valeur d'une seule cellule — <see cref="DBNull.Value"/> quand la colonne est NULL.</summary>
+    public object? Scalaire(string sql)
+    {
+        using var commande = Connexion.CreateCommand();
+        commande.CommandText = sql;
+        return commande.ExecuteScalar();
+    }
+
     public void Dispose() => Connexion.Dispose();
 }
 
@@ -126,6 +134,74 @@ public class MigrationsTests
     }
 
     [Fact]
+    public void Colonnes_des_categories_conformes_au_9()
+    {
+        using var cible = new CibleSqlite();
+        ExecuteurMigrations.Appliquer(cible, DialecteSql.Sqlite);
+
+        List<string> attendues =
+        [
+            "id", "nom", "couleur", "origine", "date_creation", "date_modification",
+            "appareil_source", "version", "server_seq", "supprime", "date_suppression",
+            "payload",       // migration 003 (D-012)
+            "ordre", "icone", // migration 004 (§3.3 et §9, v3.3)
+        ];
+        Assert.Equal(attendues, cible.Colonnes("categories"));
+    }
+
+    /// <summary>
+    /// Le cas réel de l'utilisateur : sa base tourne déjà en 003 <b>avec des données</b>. La 004
+    /// doit s'y poser sans reprise et sans rien perdre — c'est tout l'intérêt d'une migration
+    /// additive à colonnes NULL (règle 18).
+    /// </summary>
+    [Fact]
+    public void Base_deja_en_003_avec_des_donnees_recoit_la_004_sans_rien_perdre()
+    {
+        using var cible = new CibleSqlite();
+        ExecuteurMigrations.Appliquer(cible, DialecteSql.Sqlite, [.. ListeMigrations.Toutes.Take(3)]);
+        Assert.Equal(3, cible.VersionCourante());
+        cible.Executer("""
+            INSERT INTO categories (id, nom, couleur, origine, date_creation, date_modification,
+                                    appareil_source, version, server_seq)
+            VALUES ('c1', 'santé', '#00AA55', 'transversale', '2026-07-01T08:00:00Z',
+                    '2026-07-01T08:00:00Z', 'a1', 1, 7);
+            """);
+
+        var appliquees = ExecuteurMigrations.Appliquer(cible, DialecteSql.Sqlite);
+
+        Assert.Equal([4], appliquees.Select(m => m.Numero));
+        Assert.Equal("santé", cible.Scalaire("SELECT nom FROM categories WHERE id = 'c1';"));
+        Assert.Equal(7L, cible.Scalaire("SELECT server_seq FROM categories WHERE id = 'c1';"));
+        // Les catégories déjà là n'ont ni rang ni pictogramme : facultatifs, donc NULL (§3.3).
+        Assert.Equal(DBNull.Value, cible.Scalaire("SELECT ordre FROM categories WHERE id = 'c1';"));
+        Assert.Equal(DBNull.Value, cible.Scalaire("SELECT icone FROM categories WHERE id = 'c1';"));
+    }
+
+    [Fact]
+    public void Base_neuve_accepte_une_categorie_avec_ou_sans_ordre_ni_icone()
+    {
+        using var cible = new CibleSqlite();
+        ExecuteurMigrations.Appliquer(cible, DialecteSql.Sqlite);
+        cible.Executer("""
+            INSERT INTO categories (id, nom, couleur, origine, ordre, icone, date_creation,
+                                    date_modification, appareil_source, version, server_seq)
+            VALUES ('c1', 'sport', '#00AA55', 'transversale', 2, '🏅', '2026-07-01T08:00:00Z',
+                    '2026-07-01T08:00:00Z', 'a1', 1, 0);
+            INSERT INTO categories (id, nom, couleur, origine, date_creation, date_modification,
+                                    appareil_source, version, server_seq)
+            VALUES ('c2', 'justice', '#00AA55', 'transversale', '2026-07-01T08:00:00Z',
+                    '2026-07-01T08:00:00Z', 'a1', 1, 0);
+            """);
+
+        Assert.Equal(2L, cible.Scalaire("SELECT ordre FROM categories WHERE id = 'c1';"));
+        Assert.Equal("🏅", cible.Scalaire("SELECT icone FROM categories WHERE id = 'c1';"));
+        Assert.Equal(DBNull.Value, cible.Scalaire("SELECT ordre FROM categories WHERE id = 'c2';"));
+        // Classement par nom quand le rang est absent (§3.3) — SQL trie les NULL en premier, donc
+        // c'est bien au lecteur d'ordonner « ordre absent → par nom », pas à la base.
+        Assert.Equal("justice", cible.Scalaire("SELECT nom FROM categories ORDER BY nom LIMIT 1;"));
+    }
+
+    [Fact]
     public void Reappliquer_est_sans_effet()
     {
         using var cible = new CibleSqlite();
@@ -177,6 +253,8 @@ public class MigrationsTests
 /// <summary>
 /// Parité structurelle entre les deux dialectes (D-008) : mêmes tables, mêmes colonnes, aux types
 /// près — deux schémas divergents sont une cause directe de perte de données (règle 18).
+/// Les créations de tables <b>et</b> les ajouts de colonnes sont comparés : une migration additive
+/// (003, 004) ne passe pas par CREATE TABLE, et n'aurait donc rien fait vérifier.
 /// </summary>
 public class PariteDialectesTests
 {
@@ -200,7 +278,31 @@ public class PariteDialectesTests
             }
             resultat[table.Groups[1].Value] = colonnes;
         }
+        // Les migrations additives ajoutent des colonnes à des tables déjà là : « ADD col »
+        // (T-SQL) et « ADD COLUMN col » (SQLite) désignent la même colonne.
+        foreach (Match ajout in Regex.Matches(sansCommentaires,
+            @"ALTER TABLE (\w+)\s+ADD\s+(?:COLUMN\s+)?(\w+)"))
+        {
+            if (!resultat.TryGetValue(ajout.Groups[1].Value, out var colonnes))
+                resultat[ajout.Groups[1].Value] = colonnes = [];
+            colonnes.Add(ajout.Groups[2].Value);
+        }
         return resultat;
+    }
+
+    /// <summary>
+    /// Le lecteur de scripts voit réellement les deux formes d'ajout de colonne — sinon la parité
+    /// des migrations additives serait « verte » en ne comparant rien du tout.
+    /// </summary>
+    [Fact]
+    public void Le_lecteur_de_scripts_voit_les_colonnes_ajoutees()
+    {
+        Assert.Equal(["ordre", "icone"],
+            TablesEtColonnes(Migration004CategorieOrdreIcone.Definition.SqlAzure)["categories"]);
+        Assert.Equal(["ordre", "icone"],
+            TablesEtColonnes(Migration004CategorieOrdreIcone.Definition.SqlLocal)["categories"]);
+        Assert.Equal(["payload"],
+            TablesEtColonnes(Migration003Payload.Definition.SqlAzure)["elements"]);
     }
 
     [Fact]
